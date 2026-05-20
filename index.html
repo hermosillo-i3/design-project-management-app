@@ -252,6 +252,7 @@ body.qas-env{padding-top:32px}
     <button class="btn" onclick="openCatalogo()">Equipo &amp; catálogo</button>
     <button class="btn btn-primary" onclick="openProyecto(null,false)">+ Proyecto</button>
     <button class="btn btn-purple" onclick="openProyecto(null,true)">+ Interno</button>
+    <button class="btn" onclick="ghSignOut()" title="Cerrar sesión" style="font-size:10px;border-color:#bfd1e5;color:#fff;background:rgba(255,255,255,.15)">Salir</button>
   </div>
 </div>
 
@@ -530,6 +531,27 @@ const stateRef = doc(db, 'state', 'main');
 window.IS_QAS = IS_QAS;
 window.__ghCache = {};
 
+const AUTH_MARKER_KEY = 'gh_auth_session';
+
+function setAuthMarker(uid) {
+  try { localStorage.setItem(AUTH_MARKER_KEY, uid); } catch {}
+}
+
+function clearAuthMarker() {
+  try { localStorage.removeItem(AUTH_MARKER_KEY); } catch {}
+}
+
+function hasAuthMarker() {
+  try { return !!localStorage.getItem(AUTH_MARKER_KEY); } catch { return false; }
+}
+
+async function forceSignOut() {
+  clearAuthMarker();
+  window.__ghCache = {};
+  try { await signOut(auth); } catch {}
+  showAuth('');
+}
+
 function isAllowedEmail(email) {
   if (!email) return false;
   if (!ALLOWED_EMAILS.length) return false;
@@ -604,24 +626,49 @@ function showApp() {
 window.ghSignIn = async function ghSignIn() {
   const err = document.getElementById('auth-error');
   if (err) err.textContent = '';
+  window.__ghSigningIn = true;
   try {
     await signInWithPopup(auth, new GoogleAuthProvider());
   } catch (e) {
     if (err) err.textContent = e.message || 'No se pudo iniciar sesión.';
+  } finally {
+    window.__ghSigningIn = false;
   }
 };
 
+window.ghSignOut = () => forceSignOut();
+
+function checkAuthMarkerOrSignOut() {
+  if (auth.currentUser && !hasAuthMarker() && !window.__ghSigningIn) {
+    forceSignOut();
+  }
+}
+
+window.addEventListener('focus', checkAuthMarkerOrSignOut);
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) checkAuthMarkerOrSignOut();
+});
+setInterval(checkAuthMarkerOrSignOut, 2000);
+
 onAuthStateChanged(auth, async user => {
   if (!user) {
+    clearAuthMarker();
     showAuth('');
     return;
   }
   if (!isAllowedEmail(user.email)) {
+    clearAuthMarker();
+    window.__ghCache = {};
     await signOut(auth);
     showAuth('No tienes acceso con ' + (user.email || 'esta cuenta') + '. Contacta al administrador.');
     return;
   }
+  if (!hasAuthMarker() && !window.__ghSigningIn) {
+    await forceSignOut();
+    return;
+  }
   try {
+    setAuthMarker(user.uid);
     const hasData = await loadFromFirestore();
     if (!hasData) {
       migrateFromLocalStorage();
