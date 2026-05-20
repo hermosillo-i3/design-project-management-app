@@ -1,0 +1,7 @@
+{
+  "name": "gestion-proyecto-test",
+  "private": true,
+  "scripts": {
+    "build:firebase": "node scripts/generate-firebase-config.mjs"
+  }
+}
