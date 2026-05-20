@@ -1,0 +1,6 @@
+# Credenciales locales
+.env
+.env.local
+
+# Plantilla sí va al repo
+!.env.sample
