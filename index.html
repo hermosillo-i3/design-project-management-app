@@ -508,30 +508,30 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.13.0/fireba
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js';
 import { getFirestore, doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js';
 
-/* ENV_FIREBASE_START — valores desde .env / GitHub Secrets (npm run build:firebase) */
+/* ENV_FIREBASE_START */
 const FIREBASE_PROD = {
-  apiKey: '', // PROD_API_KEY
-  authDomain: '', // PROD_AUTH_DOMAIN
-  projectId: '', // PROD_PROJECT_ID
-  storageBucket: '', // PROD_STORAGE_BUCKET
-  messagingSenderId: '', // PROD_MESSAGING_SENDER_ID
-  appId: '' // PROD_APP_ID
+  apiKey: '',
+  authDomain: '',
+  projectId: '',
+  storageBucket: '',
+  messagingSenderId: '',
+  appId: ''
 };
 const FIREBASE_QAS = {
-  apiKey: '', // QAS_API_KEY
-  authDomain: '', // QAS_AUTH_DOMAIN
-  projectId: '', // QAS_PROJECT_ID
-  storageBucket: '', // QAS_STORAGE_BUCKET
-  messagingSenderId: '', // QAS_MESSAGING_SENDER_ID
-  appId: '' // QAS_APP_ID
+  apiKey: '',
+  authDomain: '',
+  projectId: '',
+  storageBucket: '',
+  messagingSenderId: '',
+  appId: ''
 };
 /* ENV_FIREBASE_END */
+
 const firebaseConfig = IS_QAS ? FIREBASE_QAS : FIREBASE_PROD;
 
-// Correos Google autorizados (mismo listado en prod y qas)
 const ALLOWED_EMAILS = [
-  'andreax.lopez.1e@gmail.com',
-  'andrea.lopez@hermosillo.com'
+  'diana.gasca@hermosillo.com',
+  'fivebim@hermosillo.com'
 ];
 
 const app = initializeApp(firebaseConfig);
@@ -649,11 +649,11 @@ window.ghSignIn = async function ghSignIn() {
   const err = document.getElementById('auth-error');
   if (err) err.textContent = '';
   window.__ghSigningIn = true;
-  showLoader();
   try {
     await signInWithPopup(auth, new GoogleAuthProvider());
   } catch (e) {
-    showAuth(e.message || 'No se pudo iniciar sesión.');
+    const msg = e?.code === 'auth/popup-closed-by-user' ? '' : (e.message || 'No se pudo iniciar sesión.');
+    showAuth(msg);
   } finally {
     window.__ghSigningIn = false;
   }
@@ -690,6 +690,7 @@ onAuthStateChanged(auth, async user => {
     await forceSignOut();
     return;
   }
+  showLoader();
   try {
     setAuthMarker(user.uid);
     const hasData = await loadFromFirestore();
