@@ -210,7 +210,12 @@ tr:hover td{background:#f8fafc}
 }
 
 /* AUTH + QAS */
-#auth-screen{position:fixed;inset:0;z-index:500;background:#eef2f6;display:flex;align-items:center;justify-content:center;padding:1rem}
+#auth-loader{position:fixed;inset:0;z-index:501;background:#eef2f6;display:flex;align-items:center;justify-content:center;padding:1rem}
+.auth-loader-card{text-align:center;color:#254467}
+.auth-loader-card p{font-size:13px;font-weight:700;margin-top:1rem;color:#67727a}
+.auth-spinner{width:36px;height:36px;border:3px solid #bfd1e5;border-top-color:#254467;border-radius:50%;animation:auth-spin .7s linear infinite;margin:0 auto}
+@keyframes auth-spin{to{transform:rotate(360deg)}}
+#auth-screen{position:fixed;inset:0;z-index:500;background:#eef2f6;display:none;align-items:center;justify-content:center;padding:1rem}
 .auth-card{background:#fff;border-radius:12px;border:.5px solid #bfd1e5;padding:2rem;max-width:380px;width:100%;text-align:center;box-shadow:0 8px 32px rgba(37,68,103,.12)}
 .auth-card h2{font-size:16px;color:#254467;margin-bottom:.5rem}
 .auth-card p{font-size:11px;color:#67727a;margin-bottom:1.25rem;line-height:1.5}
@@ -226,6 +231,12 @@ body.qas-env{padding-top:32px}
 </head>
 <body>
 <div id="qas-banner">QAS</div>
+<div id="auth-loader" aria-live="polite" aria-busy="true">
+  <div class="auth-loader-card">
+    <div class="auth-spinner" aria-hidden="true"></div>
+    <p>Cargando...</p>
+  </div>
+</div>
 <div id="auth-screen">
   <div class="auth-card">
     <h2>Gerencia de Diseño CDMX</h2>
@@ -607,7 +618,16 @@ async function loadFromFirestore() {
   return true;
 }
 
+function showLoader() {
+  const loader = document.getElementById('auth-loader');
+  if (loader) loader.style.display = 'flex';
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('app-main').style.display = 'none';
+}
+
 function showAuth(msg) {
+  const loader = document.getElementById('auth-loader');
+  if (loader) loader.style.display = 'none';
   document.getElementById('auth-screen').style.display = 'flex';
   document.getElementById('app-main').style.display = 'none';
   const err = document.getElementById('auth-error');
@@ -615,6 +635,8 @@ function showAuth(msg) {
 }
 
 function showApp() {
+  const loader = document.getElementById('auth-loader');
+  if (loader) loader.style.display = 'none';
   document.getElementById('auth-screen').style.display = 'none';
   document.getElementById('app-main').style.display = 'block';
   if (IS_QAS) {
@@ -627,10 +649,11 @@ window.ghSignIn = async function ghSignIn() {
   const err = document.getElementById('auth-error');
   if (err) err.textContent = '';
   window.__ghSigningIn = true;
+  showLoader();
   try {
     await signInWithPopup(auth, new GoogleAuthProvider());
   } catch (e) {
-    if (err) err.textContent = e.message || 'No se pudo iniciar sesión.';
+    showAuth(e.message || 'No se pudo iniciar sesión.');
   } finally {
     window.__ghSigningIn = false;
   }
