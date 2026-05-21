@@ -1,5 +1,5 @@
 {
-  "name": "gestion-proyecto-test",
+  "name": "design-project-management-app",
   "private": true,
   "scripts": {
     "build:firebase": "node scripts/generate-firebase-config.mjs"
