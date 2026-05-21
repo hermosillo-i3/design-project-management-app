@@ -508,6 +508,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.13.0/fireba
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js';
 import { getFirestore, doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js';
 
+/* ENV_FIREBASE_START */
 const FIREBASE_PROD = {
   apiKey: '',
   authDomain: '',
@@ -524,6 +525,7 @@ const FIREBASE_QAS = {
   messagingSenderId: '',
   appId: ''
 };
+/* ENV_FIREBASE_END */
 
 const firebaseConfig = IS_QAS ? FIREBASE_QAS : FIREBASE_PROD;
 
