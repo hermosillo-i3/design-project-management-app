@@ -57,6 +57,8 @@ Puedes probarlo aquí:
 
 https://hermosillo-i3.github.io/design-project-management-app/qas/
 
+Nota: Puede tardar unos segundos en que se vea reflejado los cambios ya que se están subiendo
+
 Si deseas publicar estos cambios a producción escribe exactamente:
 
 Sube estos cambios"
@@ -105,7 +107,9 @@ Ejemplo:
 
 Puedes verlo aquí:
 
-https://hermosillo-i3.github.io/design-project-management-app/qas/ "
+https://hermosillo-i3.github.io/design-project-management-app/ "
+
+Nota: Puede tardar unos segundos en que se vea reflejado los cambios ya que se están subiendo
 
 ---
 
