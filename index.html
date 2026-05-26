@@ -336,6 +336,7 @@ body.qas-env{padding-top:32px}
         <option value="sem">Por semáforo</option>
         <option value="avz">Por avance</option>
         <option value="prio">Por prioridad</option>
+        <option value="cliente">Por cliente</option>
       </select>
       <span id="filtro-lbl" style="font-size:10px;color:#254467;font-weight:700"></span>
       <button class="btn btn-sm" id="btn-cf" style="display:none" onclick="clearFilter()">✕ Quitar filtro</button>
@@ -1296,7 +1297,7 @@ function renderProyectos(){
   else if(projSort==='sem'){const o={crit:0,risk:1,none:2,ok:3};ps=[...ps].sort((a,b)=>(o[sem(a).cls]||3)-(o[sem(b).cls]||3));}
   else if(projSort==='avz') ps=[...ps].sort((a,b)=>a.avance-b.avance);
   else if(projSort==='prio'){const po={'Alta':0,'Media':1,'Baja':2};ps=[...ps].sort((a,b)=>(po[a.prioridad]||1)-(po[b.prioridad]||1));}
-  else if(projSort==='prio'){const o={'Alta':0,'Media':1,'Baja':2};ps=[...ps].sort((a,b)=>(o[a.prioridad]||1)-(o[b.prioridad]||1));}
+  else if(projSort==='cliente') ps=[...ps].sort((a,b)=>(a.cliente||'').localeCompare(b.cliente||''));
   else ps=[...ps].sort((a,b)=>a.num-b.num);
   document.getElementById('tbody-proj').innerHTML=ps.map(p=>{
     const s=sem(p);const m=momentum(p);
