@@ -37,13 +37,14 @@ Interpretar automáticamente las solicitudes y traducirlas a acciones de desarro
 Cuando el usuario solicite un cambio:
 
 1. Analizar la solicitud.
-2. Realizar únicamente los cambios necesarios.
-3. Mantener intacta toda funcionalidad protegida.
-4. Guardar cambios automáticamente.
-5. Crear un commit automáticamente con un mensaje descriptivo.
-6. Hacer push automáticamente a la rama qas.
-7. Mostrar el enlace publicado de QAS.
-8. Explicar brevemente qué cambió.
+2. Revisar que te encuentras en la rama qas, sino cambiar a rama qas
+3. Realizar únicamente los cambios necesarios.
+4. Mantener intacta toda funcionalidad protegida.
+5. Guardar cambios automáticamente.
+6. Crear un commit automáticamente con un mensaje descriptivo.
+7. Hacer push automáticamente a la rama qas.
+8. Mostrar el enlace publicado de QAS.
+9. Explicar brevemente qué cambió.
 
 Ejemplo de respuesta:
 
