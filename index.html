@@ -345,7 +345,7 @@ body.qas-env{padding-top:32px}
       <table>
         <thead><tr>
    <thead><tr>
-          <th>#</th><th>Proyecto</th><th>Etapa</th><th>Tipo</th><th>Cliente</th><th>Jefe</th><th>Coord.</th>
+          <th>#</th><th>Hist.#</th><th>Proyecto</th><th>Etapa</th><th>Tipo</th><th>Cliente</th><th>Jefe</th><th>Coord.</th>
           <th>Equipo</th><th>Consultor</th><th>Entrega V1</th><th>V2</th><th>V3</th>
           <th>Prioridad</th><th>Semáforo</th><th>% Avz</th><th>Estatus</th><th>Estatus Proy.</th><th>Últ. act.</th><th class="no-print"></th>
         </tr></thead>
@@ -1304,6 +1304,7 @@ function renderProyectos(){
     const epCls={Ongoing:'b-ok',StandBy:'b-risk',Perdido:'b-crit',Ganado:'b-purple',Cancelado:'b-pause'};
     return`<tr>
       <td style="color:#a8a8a8">${idx+1}</td>
+      <td style="color:#bfd1e5;font-size:10px">${p.num}</td>
       <td style="font-weight:700;max-width:150px">${p.nombre}</td>
       <td>${etapaBadge(p.etapa,p.interno)}</td>
       <td style="font-size:9px;max-width:110px;color:#475569">${p.tipo||'—'}</td>
