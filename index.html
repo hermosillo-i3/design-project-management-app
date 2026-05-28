@@ -3531,7 +3531,7 @@ function calcCotMetrics(cot){
     indBySec[sec]={total:t,rows:rows};
   });
   var grandTotal=grandWithInd+indFinal;
-  return{m2:m2,tc:tc,grandTotal:grandTotal,grandDirect:grandDirect,grandWithInd:grandWithInd,bySection:bySection,indTotal:indFinal,indBySec:indBySec,mxnM2:m2?grandTotal/m2:0,usdM2:m2&&tc?grandTotal/m2/tc:0,indPctTotal:grandTotal?(indFinal/grandTotal*100):0};
+  return{m2:m2,tc:tc,grandTotal:grandTotal,grandDirect:grandDirect,grandWithInd:grandWithInd,bySection:bySection,indTotal:indFinal,indBySec:indBySec,mxnM2:m2?grandTotal/m2:0,usdM2:m2&&tc?grandTotal/m2/tc:0,indPctTotal:grandTotal?(indFinal/grandTotal*100):0,cotIndPct:indPct,cotIndAplicar:indAplicar};
 }
 
 function toggleCompGrp(grpId){
@@ -3689,7 +3689,16 @@ function renderComparativaTable(cotId){
   // ── POR SECCIÓN — SUELDOS (desde indirectos) ───────────────
   var grpSueldos='indsec0';
   html+=subsecHeader('Sueldos (Indirectos)',grpSueldos);
-  html+=row('Total sueldos',cols.map(function(col,i){var s=metrics[i].indBySec['Sueldos'];return s?fmt(s.total)+(i>0?delta(baseM.indBySec['Sueldos']?baseM.indBySec['Sueldos'].total:0,s.total):''):'—';}),';background:#fffef8',1);
+  html+=row('Costo sueldos',cols.map(function(col,i){var s=metrics[i].indBySec['Sueldos'];return s?fmt(s.total)+(i>0?delta(baseM.indBySec['Sueldos']?baseM.indBySec['Sueldos'].total:0,s.total):''):'—';}),';background:#fffef8',1);
+  html+=row('% Indirecto aplicado',cols.map(function(col,i){var m=metrics[i];return m.cotIndAplicar&&m.cotIndPct?fmtPct(m.cotIndPct):'—';}),';background:#fffef8',1);
+  html+=row('$ Con indirecto',cols.map(function(col,i){
+    var m=metrics[i];var s=m.indBySec['Sueldos'];
+    if(!s) return '—';
+    var extra=m.cotIndAplicar&&m.cotIndPct?Math.round(s.total*(m.cotIndPct/100)):0;
+    var total=s.total+extra;
+    var base=baseM.indBySec['Sueldos'];var baseExtra=baseM.cotIndAplicar&&baseM.cotIndPct?Math.round((base?base.total:0)*(baseM.cotIndPct/100)):0;
+    return fmt(total)+(i>0?delta((base?base.total:0)+baseExtra,total):'');
+  }),';background:#fffef8;font-weight:600',1);
   var allSueldoRows=[...new Set(metrics.flatMap(function(m){return (m.indBySec['Sueldos']?m.indBySec['Sueldos'].rows:[]).map(function(r){return r.desc;});}))];
   allSueldoRows.forEach(function(desc){
     html+=detailRow(desc,cols.map(function(col,i){
@@ -3704,22 +3713,6 @@ function renderComparativaTable(cotId){
   html+=secHeader('Indirectos totales');
   html+=row('Total indirectos $',cols.map(function(col,i){var m=metrics[i];return fmt(m.indTotal)+(i>0?delta(baseM.indTotal,m.indTotal):'');}));
   html+=row('% indirectos / total general',cols.map(function(col,i){var m=metrics[i];return fmtPct(m.indPctTotal)+(i>0&&baseM.indPctTotal?delta(baseM.indPctTotal,m.indPctTotal):'');}));
-  IND_SECCIONS.forEach(function(sec,si){
-    var grpId='indsec'+(si+1);
-    var hasSome=metrics.some(function(m){return m.indBySec[sec]&&m.indBySec[sec].total>0;});
-    if(!hasSome) return;
-    html+=subsecHeader(sec,grpId);
-    html+=row('Total '+sec.split(' ')[0],cols.map(function(col,i){var s=metrics[i].indBySec[sec];return s?fmt(s.total)+(i>0?delta(baseM.indBySec[sec]?baseM.indBySec[sec].total:0,s.total):''):'—';}),';background:#fffef8',1);
-    var allRows=[...new Set(metrics.flatMap(function(m){return (m.indBySec[sec]?m.indBySec[sec].rows:[]).map(function(r){return r.desc;});}))];
-    allRows.forEach(function(desc){
-      html+=detailRow(desc,cols.map(function(col,i){
-        var s=metrics[i].indBySec[sec];
-        var r=s?(s.rows||[]).find(function(x){return x.desc===desc;}):null;
-        var imp=r?(parseFloat(r.qty)||0)*(parseFloat(r.precio)||0):0;
-        return imp?fmt(imp):'—';
-      }),grpId);
-    });
-  });
 
   html+='</tbody></table></div>';
   document.getElementById('comp-result').innerHTML=html;
