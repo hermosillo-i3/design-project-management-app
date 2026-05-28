@@ -2643,6 +2643,7 @@ function renderCotTabla(el,cots,allProjs,filterProj,catCot){
         +(cot.indDis?'<span style="font-size:10px;background:#eef3f7;color:#5B21B6;border-radius:4px;padding:1px 6px">Dis: '+cot.indDis+'%</span>':'')
         +'<button onclick="openEditCotizacion(\''+cot.id+'\')" style="font-size:10px;padding:2px 8px;border:.5px solid #bfd1e5;border-radius:5px;background:#fff;cursor:pointer;font-family:Arial">Editar</button>'
         +'<button data-cotid="'+cot.id+'" onclick="imprimirCotizacion(this.dataset.cotid)" style="font-size:10px;padding:2px 8px;border:.5px solid #6990ab;border-radius:5px;background:#fff;color:#6990ab;cursor:pointer;font-family:Arial">🖨 Imprimir</button>'
+        +'<button data-cotid="'+cot.id+'" onclick="openComparativaModal(this.dataset.cotid)" style="font-size:10px;padding:2px 8px;border:.5px solid #7C3AED;border-radius:5px;background:#fff;color:#7C3AED;cursor:pointer;font-family:Arial">⚖ Comparar</button>'
         +'<button onclick="deleteCotizacion(\''+cot.id+'\')" style="font-size:10px;padding:2px 8px;border:.5px solid #FECACA;border-radius:5px;background:#fff;color:#e65a27;cursor:pointer;font-family:Arial">✕</button>'
         +'</div>'
         +'<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;padding:6px 0">'
@@ -3488,6 +3489,173 @@ function saveCotFlagDate(el){
 function openGestionIndBase(){
   var rows = getIndBase();
   buildIndModal(rows, 'Plantilla base de Indirectos', null);
+}
+
+// ── COMPARATIVA DE COTIZACIONES ─────────────────────────────
+function calcCotMetrics(cot){
+  var tc=parseFloat(cot.tipoCambio)||18;
+  var m2=parseFloat(cot.areaM2)||0;
+  var catCot=migrateCotCat(getCotCat());
+  var bySection={};var grandDirect=0;
+  Object.keys(catCot).forEach(function(cat){
+    var esps=(cot.especialidades||[]).filter(function(e){return e.categoria===cat;});
+    var catTot=0;
+    esps.forEach(function(esp){
+      var elegido=(esp.asesores||[]).find(function(a){return a.elegido;});
+      var histAvg=getHistAvgM2(esp.nombre,cot.id);
+      var isParam=!!(esp.parametrico)&&!((esp.asesores||[]).find(function(a){return a.costoMXN;}));
+      var mxn=isParam&&m2&&histAvg?Math.round(histAvg*m2):(parseFloat(elegido&&elegido.costoMXN)||0);
+      catTot+=mxn;
+    });
+    if(catTot){bySection[cat]=catTot;grandDirect+=catTot;}
+  });
+  var indRows=cot.indirectos||[];
+  if(typeof indRows==='string'){try{indRows=JSON.parse(indRows);}catch(e){indRows=[];}}
+  var indTotal=indRows.reduce(function(s,r){return s+(parseFloat(r.qty)||0)*(parseFloat(r.precio)||0);},0);
+  var indPct=parseFloat(cot.indIndirecto)||0;
+  var indAplicar=!!(cot.indAplicar);
+  var indExtra=indAplicar?Math.round(indTotal*(indPct/100)):0;
+  var indFinal=indTotal+indExtra;
+  var indBySec={};
+  IND_SECCIONS.forEach(function(sec){
+    var t=indRows.filter(function(r){return r.seccion===sec;}).reduce(function(s,r){return s+(parseFloat(r.qty)||0)*(parseFloat(r.precio)||0);},0);
+    indBySec[sec]=t;
+  });
+  var grandTotal=grandDirect+indFinal;
+  return{m2:m2,tc:tc,grandTotal:grandTotal,grandDirect:grandDirect,bySection:bySection,indTotal:indFinal,indBySec:indBySec,mxnM2:m2?grandTotal/m2:0,usdM2:m2&&tc?grandTotal/m2/tc:0,indPctTotal:grandTotal?(indFinal/grandTotal*100):0};
+}
+
+function openComparativaModal(cotId){
+  var allCots=getCots();
+  var allProjs=[...ld(K.proj,[])];
+  var cot=allCots.find(function(c){return String(c.id)===String(cotId);});
+  if(!cot) return;
+  var proj=allProjs.find(function(p){return String(p.id)===String(cot.projId);});
+
+  // Build selector list — all other cots
+  var otherCots=allCots.filter(function(c){return String(c.id)!==String(cotId);});
+  var listHtml=otherCots.map(function(c){
+    var p=allProjs.find(function(p){return String(p.id)===String(c.projId);});
+    var pName=p?p.nombre:'Proyecto';
+    var cliente=p?(' — <span style="color:#6990ab">'+p.cliente+'</span>'):'';
+    var m2=c.areaM2?(' · '+Number(c.areaM2).toLocaleString()+' m²'):'';
+    return '<label style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:7px;border:.5px solid #bfd1e5;cursor:pointer;font-size:11px;background:#fff;transition:background .15s" onmouseover="this.style.background=\'#f0f5fa\'" onmouseout="this.style.background=\'#fff\'">'
+      +'<input type="checkbox" value="'+c.id+'" style="cursor:pointer;accent-color:#7C3AED">'
+      +'<span><strong>'+pName+'</strong>'+cliente+' / '+c.nombre+'<span style="color:#a8a8a8">'+m2+'</span></span>'
+      +'</label>';
+  }).join('');
+
+  var pName=proj?proj.nombre:'Proyecto';
+  var m2Actual=cot.areaM2?Number(cot.areaM2).toLocaleString()+' m²':'sin m²';
+
+  document.getElementById('modal-body').innerHTML=
+    '<h3 style="margin-bottom:4px">⚖ Comparativa de cotizaciones</h3>'
+    +'<div style="font-size:11px;color:#67727a;margin-bottom:14px">Cotización actual: <strong>'+pName+' / '+cot.nombre+'</strong> · '+m2Actual+'</div>'
+    +'<div style="font-size:11px;font-weight:700;color:#254467;margin-bottom:8px">Selecciona los proyectos a comparar:</div>'
+    +'<div style="max-height:280px;overflow-y:auto;display:flex;flex-direction:column;gap:5px;margin-bottom:14px" id="comp-list">'
+    +(listHtml||'<div style="color:#a8a8a8;font-size:11px;padding:1rem">No hay otras cotizaciones registradas.</div>')
+    +'</div>'
+    +'<div id="comp-result"></div>'
+    +'<div class="btn-row" style="position:sticky;bottom:0;background:#fff;padding-top:10px;border-top:1px solid #eef2f6">'
+    +'<button type="button" class="btn" onclick="closeModal()">Cerrar</button>'
+    +'<button type="button" class="btn btn-primary" style="background:#7C3AED;border-color:#7C3AED" onclick="renderComparativaTable(\''+cotId+'\')">Ver comparativa →</button>'
+    +'</div>';
+
+  document.querySelector('.modal').classList.add('wide');
+  openModal();
+}
+
+function renderComparativaTable(cotId){
+  var allCots=getCots();
+  var allProjs=[...ld(K.proj,[])];
+  var baseCot=allCots.find(function(c){return String(c.id)===String(cotId);});
+  if(!baseCot) return;
+  var baseProj=allProjs.find(function(p){return String(p.id)===String(baseCot.projId);});
+
+  var checked=[...document.querySelectorAll('#comp-list input[type=checkbox]:checked')].map(function(i){return i.value;});
+  if(!checked.length){document.getElementById('comp-result').innerHTML='<div style="color:#e65a27;font-size:11px;padding:8px 0">Selecciona al menos un proyecto para comparar.</div>';return;}
+
+  var cols=[{cot:baseCot,proj:baseProj,isBase:true}];
+  checked.forEach(function(cid){
+    var c=allCots.find(function(x){return String(x.id)===String(cid);});
+    if(c){var p=allProjs.find(function(x){return String(x.id)===String(c.projId);});cols.push({cot:c,proj:p,isBase:false});}
+  });
+
+  var metrics=cols.map(function(col){return calcCotMetrics(col.cot);});
+  var baseM=metrics[0];
+  var allSections=[...new Set(metrics.flatMap(function(m){return Object.keys(m.bySection);}))];
+  var allIndSecs=[...new Set(metrics.flatMap(function(m){return Object.keys(m.indBySec).filter(function(k){return m.indBySec[k]>0;});}))];
+
+  function fmt(n){return n?'$'+Math.round(n).toLocaleString('es-MX'):'—';}
+  function fmtM2(n){return n?'$'+n.toFixed(2):'—';}
+  function fmtPct(n){return n?n.toFixed(1)+'%':'—';}
+  function delta(base,val){
+    if(!base||!val) return '';
+    var d=(val-base)/base*100;
+    var color=d>0?'#e65a27':'#639922';
+    return ' <span style="font-size:9px;font-weight:700;color:'+color+'">'+(d>0?'▲+':'▼')+d.toFixed(1)+'%</span>';
+  }
+
+  var thBase='background:#254467;color:#fff;';
+  var thOther='background:#f0f5fa;color:#254467;';
+  var tdBase='background:#f8fbff;font-weight:700;';
+  var tdOther='background:#fff;';
+
+  var html='<div style="overflow-x:auto;margin-top:10px"><table style="width:100%;border-collapse:collapse;font-size:11px;min-width:560px">'
+    +'<thead><tr>'
+    +'<th style="padding:8px 10px;text-align:left;font-size:9px;font-weight:700;color:#67727a;border-bottom:.5px solid #bfd1e5;min-width:160px">Métrica</th>'
+    +cols.map(function(col,i){
+      var pN=col.proj?col.proj.nombre:'Proyecto';
+      var cN=col.cot.nombre;
+      var style=i===0?thBase:thOther;
+      return '<th style="padding:8px 10px;text-align:right;border-bottom:.5px solid #bfd1e5;min-width:130px;'+style+'">'
+        +'<div style="font-size:10px;font-weight:700">'+pN+'</div>'
+        +'<div style="font-size:9px;opacity:.8">'+cN+(i===0?' ★':'')+'</div>'
+        +'</th>';
+    }).join('')
+    +'</tr></thead><tbody>';
+
+  function row(label,vals,style,isDelta){
+    var s=style||'';
+    return '<tr style="border-bottom:.5px solid #eef2f6'+s+'">'
+      +'<td style="padding:6px 10px;color:#475569;font-size:10px">'+label+'</td>'
+      +vals.map(function(v,i){
+        var bg=i===0?tdBase:tdOther;
+        return '<td style="padding:6px 10px;text-align:right;'+bg+'">'+v+'</td>';
+      }).join('')
+      +'</tr>';
+  }
+  function secRow(label){
+    return '<tr style="background:#f0f5fa"><td colspan="'+(cols.length+1)+'" style="padding:5px 10px;font-size:9px;font-weight:700;color:#254467;text-transform:uppercase;letter-spacing:.06em">'+label+'</td></tr>';
+  }
+
+  // Fecha de entrega
+  html+=secRow('General');
+  html+=row('Fecha de entrega',cols.map(function(col){return col.proj&&col.proj.entrega?fmtD(col.proj.entrega):'—';}));
+  html+=row('Área m²',cols.map(function(col,i){var m=metrics[i];return m.m2?Number(m.m2).toLocaleString()+' m²':'—';}));
+
+  // Totales
+  html+=secRow('Totales');
+  html+=row('Total general MXN',cols.map(function(col,i){var m=metrics[i];return fmt(m.grandTotal)+(i>0?delta(baseM.grandTotal,m.grandTotal):'');}));
+  html+=row('MXN / m²',cols.map(function(col,i){var m=metrics[i];return fmtM2(m.mxnM2)+(i>0&&baseM.mxnM2?delta(baseM.mxnM2,m.mxnM2):'');}));
+  html+=row('USD / m²',cols.map(function(col,i){var m=metrics[i];return fmtM2(m.usdM2)+(i>0&&baseM.usdM2?delta(baseM.usdM2,m.usdM2):'');}));
+
+  // Por sección
+  html+=secRow('Por sección');
+  allSections.forEach(function(sec){
+    html+=row(sec,cols.map(function(col,i){var m=metrics[i];return fmt(m.bySection[sec]||0)+(i>0?delta(baseM.bySection[sec]||0,m.bySection[sec]||0):'');}));
+  });
+
+  // Indirectos
+  html+=secRow('Indirectos');
+  html+=row('Total indirectos',cols.map(function(col,i){var m=metrics[i];return fmt(m.indTotal)+(i>0?delta(baseM.indTotal,m.indTotal):'');}));
+  html+=row('% indirectos / total',cols.map(function(col,i){var m=metrics[i];return fmtPct(m.indPctTotal)+(i>0&&baseM.indPctTotal?delta(baseM.indPctTotal,m.indPctTotal):'');}));
+  allIndSecs.forEach(function(sec){
+    html+=row('↳ '+sec,cols.map(function(col,i){var m=metrics[i];return fmt(m.indBySec[sec]||0);}),';color:#67727a');
+  });
+
+  html+='</tbody></table></div>';
+  document.getElementById('comp-result').innerHTML=html;
 }
 
 function openEditIndirectos(cotId){
