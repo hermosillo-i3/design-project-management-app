@@ -1304,7 +1304,7 @@ function renderProyectos(){
     const epCls={Ongoing:'b-ok',StandBy:'b-risk',Perdido:'b-crit',Ganado:'b-purple',Cancelado:'b-pause'};
     return`<tr>
       <td style="color:#a8a8a8">${idx+1}</td>
-      <td style="color:#bfd1e5;font-size:10px">${p.num}</td>
+      <td style="color:#bfd1e5;font-size:10px">${(new Date(p.id).getFullYear()+'').slice(-2)}-${p.num}</td>
       <td style="font-weight:700;max-width:150px">${p.nombre}</td>
       <td>${etapaBadge(p.etapa,p.interno)}</td>
       <td style="font-size:9px;max-width:110px;color:#475569">${p.tipo||'—'}</td>
@@ -1335,7 +1335,8 @@ function renderProyectos(){
 
 // ── PROYECTO MODAL ───────────────────────────────────────────
 function openProyecto(id,isInterno){
-  const blank={id:Date.now(),num:isInterno?internos().length+1:activeProjs().length+1,interno:isInterno,etapa:isInterno?'INTERNO':'PRECON',nombre:'',cliente:'',tipo:'',coord:'',equipo:[],consultores:[],arranque:'',entrega:'',presentacion:'',estatus:'En tiempo',avance:0,prioridad:'Media',causa:'',sinCliente:0,docs:{ckRev:'❌',ckEnt:'❌',lista:'❌',prog:'❌'},bloqueadoPor:'',archivado:false,archivedAt:'',ultimaActualizacion:todayStr,proximoAvance:''};
+  const _newId=Date.now();const _yr=new Date(_newId).getFullYear();const _yrProjs=ld(K.proj,[]).filter(function(p){return new Date(p.id).getFullYear()===_yr&&!p.interno;});
+  const blank={id:_newId,num:isInterno?internos().length+1:_yrProjs.length+1,interno:isInterno,etapa:isInterno?'INTERNO':'PRECON',nombre:'',cliente:'',tipo:'',coord:'',equipo:[],consultores:[],arranque:'',entrega:'',presentacion:'',estatus:'En tiempo',avance:0,prioridad:'Media',causa:'',sinCliente:0,docs:{ckRev:'❌',ckEnt:'❌',lista:'❌',prog:'❌'},bloqueadoPor:'',archivado:false,archivedAt:'',ultimaActualizacion:todayStr,proximoAvance:''};
   const p=id?projects.find(x=>x.id===id):blank;
   const isInt=p.interno;
   const coordOpts=cat.coordinadores.map(c=>`<option ${p.coord===c?'selected':''}>${c}</option>`).join('');
@@ -8215,7 +8216,73 @@ function renderEstadisticas(){
         </div>
       </div>
 
-    </div>`;
+    </div>
+
+    <!-- Listado histórico por año -->
+    <div style="margin-top:1.5rem">
+      <div style="font-size:11px;font-weight:700;color:#254467;text-transform:uppercase;letter-spacing:.06em;margin-bottom:1rem;display:flex;align-items:center;gap:8px">
+        <span>Listado de proyectos por año</span>
+        <div style="flex:1;height:.5px;background:#bfd1e5"></div>
+      </div>
+      ${(function(){
+        const estatusColors={Ganado:{bg:'#eaf3de',color:'#3B6D11',border:'#6EE7B7'},Perdido:{bg:'#FFF5F5',color:'#991B1B',border:'#f5b89b'},Cancelado:{bg:'#f8fafc',color:'#475569',border:'#bfd1e5'},StandBy:{bg:'#fff8f6',color:'#92400E',border:'#FDE68A'},Ongoing:{bg:'#EEF2FF',color:'#3730A3',border:'#C7D2FE'}};
+        const byYear={};
+        allP.forEach(function(p){
+          const yr=new Date(p.id).getFullYear();
+          if(!byYear[yr]) byYear[yr]=[];
+          byYear[yr].push(p);
+        });
+        return Object.keys(byYear).sort(function(a,b){return b-a;}).map(function(yr){
+          const projs=byYear[yr].sort(function(a,b){return a.num-b.num;});
+          const counts={Ganado:0,Perdido:0,Cancelado:0,StandBy:0,Ongoing:0};
+          projs.forEach(function(p){
+            const s=p.estatusProy||'Ongoing';
+            if(counts[s]!==undefined) counts[s]++; else counts.Ongoing++;
+          });
+          const shortYr=(yr+'').slice(-2);
+          return `<div style="background:#fff;border-radius:12px;border:.5px solid #bfd1e5;padding:16px 18px;margin-bottom:1rem">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+              <div style="font-size:14px;font-weight:700;color:#254467">${yr} <span style="font-size:11px;color:#67727a;font-weight:400">${projs.length} proyecto${projs.length!==1?'s':''}</span></div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap">
+                ${Object.entries(counts).filter(function(e){return e[1]>0;}).map(function(e){
+                  const c=estatusColors[e[0]]||{bg:'#f8fafc',color:'#475569',border:'#bfd1e5'};
+                  return `<span style="font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;background:${c.bg};color:${c.color};border:.5px solid ${c.border}">${e[0]}: ${e[1]}</span>`;
+                }).join('')}
+              </div>
+            </div>
+            <div style="overflow-x:auto">
+              <table style="width:100%;border-collapse:collapse;font-size:10px">
+                <thead>
+                  <tr style="background:#f8fafc">
+                    <th style="padding:6px 10px;text-align:left;color:#67727a;font-weight:700;border-bottom:.5px solid #bfd1e5;white-space:nowrap">Hist.#</th>
+                    <th style="padding:6px 10px;text-align:left;color:#67727a;font-weight:700;border-bottom:.5px solid #bfd1e5">Proyecto</th>
+                    <th style="padding:6px 10px;text-align:left;color:#67727a;font-weight:700;border-bottom:.5px solid #bfd1e5">Cliente</th>
+                    <th style="padding:6px 10px;text-align:left;color:#67727a;font-weight:700;border-bottom:.5px solid #bfd1e5">Tipo</th>
+                    <th style="padding:6px 10px;text-align:left;color:#67727a;font-weight:700;border-bottom:.5px solid #bfd1e5">Etapa</th>
+                    <th style="padding:6px 10px;text-align:left;color:#67727a;font-weight:700;border-bottom:.5px solid #bfd1e5">Estatus Proy.</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${projs.map(function(p,i){
+                    const s=p.estatusProy||'Ongoing';
+                    const c=estatusColors[s]||{bg:'#f8fafc',color:'#475569',border:'#bfd1e5'};
+                    return `<tr style="border-bottom:.5px solid #eef2f6;${p.archivado?'opacity:.6':''}">
+                      <td style="padding:6px 10px;color:#bfd1e5;font-weight:700;white-space:nowrap">${shortYr}-${p.num}</td>
+                      <td style="padding:6px 10px;font-weight:700;color:#254467;max-width:180px">${p.nombre||'—'}${p.archivado?'<span style="font-size:9px;color:#a8a8a8;margin-left:4px">(arch.)</span>':''}</td>
+                      <td style="padding:6px 10px;color:#475569">${p.cliente||'—'}</td>
+                      <td style="padding:6px 10px;color:#475569;max-width:130px">${p.tipo||'—'}</td>
+                      <td style="padding:6px 10px"><span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:4px;background:#EEF2FF;color:#254467">${p.etapa||'—'}</span></td>
+                      <td style="padding:6px 10px"><span style="font-size:9px;font-weight:700;padding:2px 8px;border-radius:20px;background:${c.bg};color:${c.color};border:.5px solid ${c.border}">${s}</span></td>
+                    </tr>`;
+                  }).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>`;
+        }).join('')||'<div style="font-size:11px;color:#a8a8a8">Sin proyectos registrados.</div>';
+      })()}
+    </div>
+  `;
 }
 
 
