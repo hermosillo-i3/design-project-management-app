@@ -3531,7 +3531,9 @@ function calcCotMetrics(cot){
     indBySec[sec]={total:t,rows:rows};
   });
   var grandTotal=grandWithInd+indFinal;
-  return{m2:m2,tc:tc,grandTotal:grandTotal,grandDirect:grandDirect,grandWithInd:grandWithInd,bySection:bySection,indTotal:indFinal,indBySec:indBySec,mxnM2:m2?grandTotal/m2:0,usdM2:m2&&tc?grandTotal/m2/tc:0,indPctTotal:grandTotal?(indFinal/grandTotal*100):0,cotIndPct:indPct,cotIndAplicar:indAplicar};
+  // Suma todos los indirectos reales: markup de cada sección directa + bloque de indirectos
+  var grandIndir=Object.values(bySection).reduce(function(s,sec){return s+sec.indir;},0)+indFinal;
+  return{m2:m2,tc:tc,grandTotal:grandTotal,grandDirect:grandDirect,grandWithInd:grandWithInd,bySection:bySection,indTotal:indFinal,grandIndir:grandIndir,indBySec:indBySec,mxnM2:m2?grandTotal/m2:0,usdM2:m2&&tc?grandTotal/m2/tc:0,indPctTotal:grandTotal?(grandIndir/grandTotal*100):0,cotIndPct:indPct,cotIndAplicar:indAplicar};
 }
 
 function toggleCompGrp(grpId){
@@ -3711,7 +3713,7 @@ function renderComparativaTable(cotId){
 
   // ── INDIRECTOS TOTALES ─────────────────────────────────────
   html+=secHeader('Indirectos totales');
-  html+=row('Total indirectos $',cols.map(function(col,i){var m=metrics[i];return fmt(m.indTotal)+(i>0?delta(baseM.indTotal,m.indTotal):'');}));
+  html+=row('Total indirectos $ (todas las secciones)',cols.map(function(col,i){var m=metrics[i];return fmt(m.grandIndir)+(i>0?delta(baseM.grandIndir,m.grandIndir):'');}));
   html+=row('% indirectos / total general',cols.map(function(col,i){var m=metrics[i];return fmtPct(m.indPctTotal)+(i>0&&baseM.indPctTotal?delta(baseM.indPctTotal,m.indPctTotal):'');}));
 
   html+='</tbody></table></div>';
