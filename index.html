@@ -3496,18 +3496,26 @@ function calcCotMetrics(cot){
   var tc=parseFloat(cot.tipoCambio)||18;
   var m2=parseFloat(cot.areaM2)||0;
   var catCot=migrateCotCat(getCotCat());
-  var bySection={};var grandDirect=0;
+  var bySection={};var grandDirect=0;var grandWithInd=0;
   Object.keys(catCot).forEach(function(cat){
     var esps=(cot.especialidades||[]).filter(function(e){return e.categoria===cat;});
-    var catTot=0;
+    var indCat=parseFloat(cat==='Estudios Preliminares'?cot.indEst:cot.indDis)||0;
+    var catDirect=0;var catIndir=0;var espDetail=[];
     esps.forEach(function(esp){
       var elegido=(esp.asesores||[]).find(function(a){return a.elegido;});
       var histAvg=getHistAvgM2(esp.nombre,cot.id);
       var isParam=!!(esp.parametrico)&&!((esp.asesores||[]).find(function(a){return a.costoMXN;}));
       var mxn=isParam&&m2&&histAvg?Math.round(histAvg*m2):(parseFloat(elegido&&elegido.costoMXN)||0);
-      catTot+=mxn;
+      var ind=parseFloat(esp.indirecto!=null?esp.indirecto:indCat)||0;
+      var indir=mxn*(ind/100);
+      catDirect+=mxn;catIndir+=indir;
+      if(mxn) espDetail.push({nombre:esp.nombre,mxn:mxn,ind:ind,indir:indir,withInd:mxn+indir});
     });
-    if(catTot){bySection[cat]=catTot;grandDirect+=catTot;}
+    if(catDirect||catIndir){
+      var withInd=catDirect+catIndir;
+      bySection[cat]={direct:catDirect,indir:catIndir,withInd:withInd,indPct:catDirect?(catIndir/catDirect*100):0,esps:espDetail};
+      grandDirect+=catDirect;grandWithInd+=withInd;
+    }
   });
   var indRows=cot.indirectos||[];
   if(typeof indRows==='string'){try{indRows=JSON.parse(indRows);}catch(e){indRows=[];}}
@@ -3518,11 +3526,20 @@ function calcCotMetrics(cot){
   var indFinal=indTotal+indExtra;
   var indBySec={};
   IND_SECCIONS.forEach(function(sec){
-    var t=indRows.filter(function(r){return r.seccion===sec;}).reduce(function(s,r){return s+(parseFloat(r.qty)||0)*(parseFloat(r.precio)||0);},0);
-    indBySec[sec]=t;
+    var rows=indRows.filter(function(r){return r.seccion===sec;});
+    var t=rows.reduce(function(s,r){return s+(parseFloat(r.qty)||0)*(parseFloat(r.precio)||0);},0);
+    indBySec[sec]={total:t,rows:rows};
   });
-  var grandTotal=grandDirect+indFinal;
-  return{m2:m2,tc:tc,grandTotal:grandTotal,grandDirect:grandDirect,bySection:bySection,indTotal:indFinal,indBySec:indBySec,mxnM2:m2?grandTotal/m2:0,usdM2:m2&&tc?grandTotal/m2/tc:0,indPctTotal:grandTotal?(indFinal/grandTotal*100):0};
+  var grandTotal=grandWithInd+indFinal;
+  return{m2:m2,tc:tc,grandTotal:grandTotal,grandDirect:grandDirect,grandWithInd:grandWithInd,bySection:bySection,indTotal:indFinal,indBySec:indBySec,mxnM2:m2?grandTotal/m2:0,usdM2:m2&&tc?grandTotal/m2/tc:0,indPctTotal:grandTotal?(indFinal/grandTotal*100):0};
+}
+
+function toggleCompGrp(grpId){
+  var rows=document.querySelectorAll('[data-compgrp="'+grpId+'"]');
+  var btn=document.getElementById('compbtn-'+grpId);
+  var hidden=rows.length&&rows[0].style.display==='none';
+  rows.forEach(function(r){r.style.display=hidden?'':'none';});
+  if(btn) btn.textContent=hidden?'−':'+';
 }
 
 function openComparativaModal(cotId){
@@ -3584,18 +3601,18 @@ function renderComparativaTable(cotId){
   var metrics=cols.map(function(col){return calcCotMetrics(col.cot);});
   var baseM=metrics[0];
   var allSections=[...new Set(metrics.flatMap(function(m){return Object.keys(m.bySection);}))];
-  var allIndSecs=[...new Set(metrics.flatMap(function(m){return Object.keys(m.indBySec).filter(function(k){return m.indBySec[k]>0;});}))];
 
   function fmt(n){return n?'$'+Math.round(n).toLocaleString('es-MX'):'—';}
   function fmtM2(n){return n?'$'+n.toFixed(2):'—';}
   function fmtPct(n){return n?n.toFixed(1)+'%':'—';}
   function delta(base,val){
-    if(!base||!val) return '';
+    if(!base||!val||base===val) return '';
     var d=(val-base)/base*100;
     var color=d>0?'#e65a27':'#639922';
     return ' <span style="font-size:9px;font-weight:700;color:'+color+'">'+(d>0?'▲+':'▼')+d.toFixed(1)+'%</span>';
   }
 
+  var N=cols.length;
   var thBase='background:#254467;color:#fff;';
   var thOther='background:#f0f5fa;color:#254467;';
   var tdBase='background:#f8fbff;font-weight:700;';
@@ -3603,55 +3620,105 @@ function renderComparativaTable(cotId){
 
   var html='<div style="overflow-x:auto;margin-top:10px"><table style="width:100%;border-collapse:collapse;font-size:11px;min-width:560px">'
     +'<thead><tr>'
-    +'<th style="padding:8px 10px;text-align:left;font-size:9px;font-weight:700;color:#67727a;border-bottom:.5px solid #bfd1e5;min-width:160px">Métrica</th>'
+    +'<th style="padding:8px 10px;text-align:left;font-size:9px;font-weight:700;color:#67727a;border-bottom:.5px solid #bfd1e5;min-width:180px">Métrica</th>'
     +cols.map(function(col,i){
       var pN=col.proj?col.proj.nombre:'Proyecto';
       var cN=col.cot.nombre;
-      var style=i===0?thBase:thOther;
-      return '<th style="padding:8px 10px;text-align:right;border-bottom:.5px solid #bfd1e5;min-width:130px;'+style+'">'
+      var s=i===0?thBase:thOther;
+      return '<th style="padding:8px 10px;text-align:right;border-bottom:.5px solid #bfd1e5;min-width:130px;'+s+'">'
         +'<div style="font-size:10px;font-weight:700">'+pN+'</div>'
         +'<div style="font-size:9px;opacity:.8">'+cN+(i===0?' ★':'')+'</div>'
         +'</th>';
-    }).join('')
-    +'</tr></thead><tbody>';
+    }).join('')+'</tr></thead><tbody>';
 
-  function row(label,vals,style,isDelta){
-    var s=style||'';
-    return '<tr style="border-bottom:.5px solid #eef2f6'+s+'">'
-      +'<td style="padding:6px 10px;color:#475569;font-size:10px">'+label+'</td>'
-      +vals.map(function(v,i){
-        var bg=i===0?tdBase:tdOther;
-        return '<td style="padding:6px 10px;text-align:right;'+bg+'">'+v+'</td>';
-      }).join('')
+  function row(label,vals,extraStyle,indent){
+    var pad=indent?'padding:4px 10px 4px '+(10+indent*14)+'px':'padding:6px 10px';
+    return '<tr style="border-bottom:.5px solid #eef2f6'+(extraStyle||'')+'">'
+      +'<td style="'+pad+';color:#475569;font-size:10px">'+label+'</td>'
+      +vals.map(function(v,i){return '<td style="padding:6px 10px;text-align:right;'+(i===0?tdBase:tdOther)+'">'+v+'</td>';}).join('')
       +'</tr>';
   }
-  function secRow(label){
-    return '<tr style="background:#f0f5fa"><td colspan="'+(cols.length+1)+'" style="padding:5px 10px;font-size:9px;font-weight:700;color:#254467;text-transform:uppercase;letter-spacing:.06em">'+label+'</td></tr>';
+  function secHeader(label){
+    return '<tr style="background:#254467"><td colspan="'+(N+1)+'" style="padding:6px 10px;font-size:9px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.07em">'+label+'</td></tr>';
+  }
+  function subsecHeader(label,grpId){
+    return '<tr style="background:#eef2f6;cursor:pointer" onclick="toggleCompGrp(\''+grpId+'\')">'
+      +'<td colspan="'+(N+1)+'" style="padding:5px 10px;font-size:10px;font-weight:700;color:#254467">'
+      +'<span id="compbtn-'+grpId+'" style="display:inline-block;width:16px;height:16px;background:#254467;color:#fff;border-radius:3px;text-align:center;line-height:16px;font-size:11px;font-weight:700;margin-right:6px;cursor:pointer">+</span>'
+      +label+'</td></tr>';
+  }
+  function detailRow(label,vals,grpId){
+    return '<tr data-compgrp="'+grpId+'" style="display:none;border-bottom:.5px solid #eef2f6;background:#fafcff">'
+      +'<td style="padding:4px 10px 4px 30px;color:#67727a;font-size:10px;font-style:italic">↳ '+label+'</td>'
+      +vals.map(function(v,i){return '<td style="padding:4px 10px;text-align:right;font-size:10px;color:#67727a;'+(i===0?'background:#f8fbff;':'background:#fafcff;')+'">'+v+'</td>';}).join('')
+      +'</tr>';
   }
 
-  // Fecha de entrega
-  html+=secRow('General');
+  // ── GENERAL ────────────────────────────────────────────────
+  html+=secHeader('General');
   html+=row('Fecha de entrega',cols.map(function(col){return col.proj&&col.proj.entrega?fmtD(col.proj.entrega):'—';}));
   html+=row('Área m²',cols.map(function(col,i){var m=metrics[i];return m.m2?Number(m.m2).toLocaleString()+' m²':'—';}));
 
-  // Totales
-  html+=secRow('Totales');
+  // ── TOTALES ────────────────────────────────────────────────
+  html+=secHeader('Totales');
   html+=row('Total general MXN',cols.map(function(col,i){var m=metrics[i];return fmt(m.grandTotal)+(i>0?delta(baseM.grandTotal,m.grandTotal):'');}));
   html+=row('MXN / m²',cols.map(function(col,i){var m=metrics[i];return fmtM2(m.mxnM2)+(i>0&&baseM.mxnM2?delta(baseM.mxnM2,m.mxnM2):'');}));
   html+=row('USD / m²',cols.map(function(col,i){var m=metrics[i];return fmtM2(m.usdM2)+(i>0&&baseM.usdM2?delta(baseM.usdM2,m.usdM2):'');}));
 
-  // Por sección
-  html+=secRow('Por sección');
-  allSections.forEach(function(sec){
-    html+=row(sec,cols.map(function(col,i){var m=metrics[i];return fmt(m.bySection[sec]||0)+(i>0?delta(baseM.bySection[sec]||0,m.bySection[sec]||0):'');}));
+  // ── POR SECCIÓN (costos directos) ──────────────────────────
+  html+=secHeader('Por sección — Costos directos');
+  allSections.forEach(function(sec,si){
+    var grpId='sec'+si;
+    // Header row with + toggle
+    html+=subsecHeader(sec,grpId);
+    // Sub-rows: directo / % ind / con indirecto
+    html+=row('Costo directo',cols.map(function(col,i){var s=metrics[i].bySection[sec];return s?fmt(s.direct)+(i>0?delta(baseM.bySection[sec]?baseM.bySection[sec].direct:0,s.direct):''):'—';}),';background:#fffef8',1);
+    html+=row('% Indirecto aplicado',cols.map(function(col,i){var s=metrics[i].bySection[sec];return s?fmtPct(s.indPct):'—';}),';background:#fffef8',1);
+    html+=row('$ Con indirecto',cols.map(function(col,i){var s=metrics[i].bySection[sec];return s?fmt(s.withInd)+(i>0?delta(baseM.bySection[sec]?baseM.bySection[sec].withInd:0,s.withInd):''):'—';}),';background:#fffef8;font-weight:600',1);
+    // Expandable detail rows (per specialty)
+    var allEsps=[...new Set(metrics.flatMap(function(m){return (m.bySection[sec]?m.bySection[sec].esps:[]).map(function(e){return e.nombre;});}))];
+    allEsps.forEach(function(espNom){
+      html+=detailRow(espNom,cols.map(function(col,i){
+        var s=metrics[i].bySection[sec];
+        var e=s?(s.esps||[]).find(function(x){return x.nombre===espNom;}):null;
+        return e?fmt(e.withInd):'—';
+      }),grpId);
+    });
   });
 
-  // Indirectos
-  html+=secRow('Indirectos');
-  html+=row('Total indirectos',cols.map(function(col,i){var m=metrics[i];return fmt(m.indTotal)+(i>0?delta(baseM.indTotal,m.indTotal):'');}));
-  html+=row('% indirectos / total',cols.map(function(col,i){var m=metrics[i];return fmtPct(m.indPctTotal)+(i>0&&baseM.indPctTotal?delta(baseM.indPctTotal,m.indPctTotal):'');}));
-  allIndSecs.forEach(function(sec){
-    html+=row('↳ '+sec,cols.map(function(col,i){var m=metrics[i];return fmt(m.indBySec[sec]||0);}),';color:#67727a');
+  // ── POR SECCIÓN — SUELDOS (desde indirectos) ───────────────
+  var grpSueldos='indsec0';
+  html+=subsecHeader('Sueldos (Indirectos)',grpSueldos);
+  html+=row('Total sueldos',cols.map(function(col,i){var s=metrics[i].indBySec['Sueldos'];return s?fmt(s.total)+(i>0?delta(baseM.indBySec['Sueldos']?baseM.indBySec['Sueldos'].total:0,s.total):''):'—';}),';background:#fffef8',1);
+  var allSueldoRows=[...new Set(metrics.flatMap(function(m){return (m.indBySec['Sueldos']?m.indBySec['Sueldos'].rows:[]).map(function(r){return r.desc;});}))];
+  allSueldoRows.forEach(function(desc){
+    html+=detailRow(desc,cols.map(function(col,i){
+      var sec=metrics[i].indBySec['Sueldos'];
+      var r=sec?(sec.rows||[]).find(function(x){return x.desc===desc;}):null;
+      var imp=r?(parseFloat(r.qty)||0)*(parseFloat(r.precio)||0):0;
+      return imp?fmt(imp):'—';
+    }),grpSueldos);
+  });
+
+  // ── INDIRECTOS TOTALES ─────────────────────────────────────
+  html+=secHeader('Indirectos totales');
+  html+=row('Total indirectos $',cols.map(function(col,i){var m=metrics[i];return fmt(m.indTotal)+(i>0?delta(baseM.indTotal,m.indTotal):'');}));
+  html+=row('% indirectos / total general',cols.map(function(col,i){var m=metrics[i];return fmtPct(m.indPctTotal)+(i>0&&baseM.indPctTotal?delta(baseM.indPctTotal,m.indPctTotal):'');}));
+  IND_SECCIONS.forEach(function(sec,si){
+    var grpId='indsec'+(si+1);
+    var hasSome=metrics.some(function(m){return m.indBySec[sec]&&m.indBySec[sec].total>0;});
+    if(!hasSome) return;
+    html+=subsecHeader(sec,grpId);
+    html+=row('Total '+sec.split(' ')[0],cols.map(function(col,i){var s=metrics[i].indBySec[sec];return s?fmt(s.total)+(i>0?delta(baseM.indBySec[sec]?baseM.indBySec[sec].total:0,s.total):''):'—';}),';background:#fffef8',1);
+    var allRows=[...new Set(metrics.flatMap(function(m){return (m.indBySec[sec]?m.indBySec[sec].rows:[]).map(function(r){return r.desc;});}))];
+    allRows.forEach(function(desc){
+      html+=detailRow(desc,cols.map(function(col,i){
+        var s=metrics[i].indBySec[sec];
+        var r=s?(s.rows||[]).find(function(x){return x.desc===desc;}):null;
+        var imp=r?(parseFloat(r.qty)||0)*(parseFloat(r.precio)||0):0;
+        return imp?fmt(imp):'—';
+      }),grpId);
+    });
   });
 
   html+='</tbody></table></div>';
