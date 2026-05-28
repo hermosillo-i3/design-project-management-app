@@ -3100,8 +3100,26 @@ function buildIndModal(rows, title, cotId){
     }).join('')
     +'</div>';
 
+  // Build "copy from project" options
+  var allCots=getCots();
+  var allProjs=ld(K.proj,[]);
+  var copyOpts=allCots.filter(function(c){return c.indirectos&&c.indirectos.length&&String(c.id)!==String(cotId);}).map(function(c){
+    var proj=allProjs.find(function(p){return String(p.id)===String(c.projId);});
+    return '<option value="'+c.id+'">'+(proj?proj.nombre:'Proyecto')+' — '+c.nombre+'</option>';
+  }).join('');
+  var copyHtml=copyOpts
+    ?'<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:10px;padding:8px 10px;background:#EEF2FF;border-radius:8px;border:.5px solid #C7D2FE">'
+      +'<span style="font-size:10px;font-weight:700;color:#3730A3;white-space:nowrap">Copiar de:</span>'
+      +'<select id="copy-ind-src" style="font-size:11px;padding:4px 8px;border:.5px solid #C7D2FE;border-radius:6px;font-family:Arial;flex:1;min-width:180px">'
+      +'<option value="">-- Elige un proyecto --</option>'+copyOpts
+      +'</select>'
+      +'<button type="button" onclick="applyIndCopy()" style="font-size:10px;padding:4px 12px;border-radius:6px;border:none;background:#3730A3;color:#fff;cursor:pointer;font-family:Arial;font-weight:700">Copiar indirectos</button>'
+      +'</div>'
+    :'';
+
   document.getElementById('modal-body').innerHTML =
     '<h3 style="margin-bottom:10px">'+title+'</h3>'
+    + copyHtml
     + secToggleHtml
     +'<div style="overflow-x:auto;margin-bottom:10px"><table id="ind-tbl" style="width:100%;border-collapse:collapse;font-size:11px">'
     +'<thead><tr style="background:#f0f5fa">'
@@ -3478,6 +3496,33 @@ function openEditIndirectos(cotId){
   if(!cot) return;
   var rows = (cot.indirectos && cot.indirectos.length) ? cot.indirectos : getIndBase();
   buildIndModal(rows, 'Indirectos — '+cot.nombre, cotId);
+}
+
+function applyIndCopy(){
+  var sel=document.getElementById('copy-ind-src');
+  if(!sel||!sel.value) return;
+  var srcCot=getCots().find(function(c){return String(c.id)===String(sel.value);});
+  if(!srcCot||!srcCot.indirectos||!srcCot.indirectos.length){alert('El proyecto seleccionado no tiene indirectos guardados.');return;}
+  if(!confirm('¿Reemplazar los indirectos actuales con los de "'+srcCot.nombre+'"?')) return;
+  var rows=JSON.parse(JSON.stringify(srcCot.indirectos));
+  window._indBaseRows=rows;
+  var tbody=document.getElementById('ind-tbody');
+  if(!tbody) return;
+  tbody.innerHTML=rows.map(function(r,i){
+    var imp=(parseFloat(r.qty)||0)*(parseFloat(r.precio)||0);
+    return '<tr data-ind="'+i+'">'
+      +'<td><select data-field="seccion" style="font-size:10px;padding:2px 4px;border:.5px solid #bfd1e5;border-radius:4px;font-family:Arial;width:100%">'
+      +IND_SECCIONS.map(function(s){return'<option value="'+s+'"'+(r.seccion===s?' selected':'')+'>'+s+'</option>';}).join('')
+      +'</select></td>'
+      +'<td><input data-field="desc" value="'+r.desc.replace(/"/g,'&quot;')+'" style="font-size:10px;padding:2px 6px;border:.5px solid #bfd1e5;border-radius:4px;font-family:Arial;width:100%"></td>'
+      +'<td><input data-field="unidad" value="'+r.unidad+'" style="font-size:10px;padding:2px 6px;border:.5px solid #bfd1e5;border-radius:4px;font-family:Arial;width:55px"></td>'
+      +'<td><input data-field="qty" type="number" value="'+r.qty+'" style="font-size:10px;padding:2px 6px;border:.5px solid #bfd1e5;border-radius:4px;font-family:Arial;width:65px"></td>'
+      +'<td><input data-field="precio" type="number" value="'+r.precio+'" style="font-size:10px;padding:2px 6px;border:.5px solid #bfd1e5;border-radius:4px;font-family:Arial;width:95px"></td>'
+      +'<td style="text-align:right;font-size:10px;color:#254467;font-weight:600;padding:3px 8px">'+(imp?'$'+imp.toLocaleString('es-MX',{maximumFractionDigits:0}):'-')+'</td>'
+      +'<td><button type="button" onclick="this.parentNode.parentNode.remove();recalcIndModal()" style="background:none;border:none;color:#bfd1e5;cursor:pointer;font-size:14px;padding:0 4px">✕</button></td>'
+      +'</tr>';
+  }).join('');
+  recalcIndModal();
 }
 
 
