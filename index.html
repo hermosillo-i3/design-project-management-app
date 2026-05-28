@@ -1304,7 +1304,7 @@ function renderProyectos(){
     const epCls={Ongoing:'b-ok',StandBy:'b-risk',Perdido:'b-crit',Ganado:'b-purple',Cancelado:'b-pause'};
     return`<tr>
       <td style="color:#a8a8a8">${idx+1}</td>
-      <td style="color:#bfd1e5;font-size:10px">${(new Date(p.id).getFullYear()+'').slice(-2)}-${p.num}</td>
+      <td style="color:#bfd1e5;font-size:10px">${(p.arranque&&p.arranque.length>=4?p.arranque.slice(2,4):(new Date().getFullYear()+'').slice(-2))}-${p.num}</td>
       <td style="font-weight:700;max-width:150px">${p.nombre}</td>
       <td>${etapaBadge(p.etapa,p.interno)}</td>
       <td style="font-size:9px;max-width:110px;color:#475569">${p.tipo||'—'}</td>
@@ -1335,7 +1335,7 @@ function renderProyectos(){
 
 // ── PROYECTO MODAL ───────────────────────────────────────────
 function openProyecto(id,isInterno){
-  const _newId=Date.now();const _yr=new Date(_newId).getFullYear();const _yrProjs=ld(K.proj,[]).filter(function(p){return new Date(p.id).getFullYear()===_yr&&!p.interno;});
+  const _newId=Date.now();const _yr=new Date().getFullYear();const _yrStr=String(_yr);const _yrProjs=ld(K.proj,[]).filter(function(p){return (p.arranque&&p.arranque.startsWith(_yrStr))&&!p.interno;});
   const blank={id:_newId,num:isInterno?internos().length+1:_yrProjs.length+1,interno:isInterno,etapa:isInterno?'INTERNO':'PRECON',nombre:'',cliente:'',tipo:'',coord:'',equipo:[],consultores:[],arranque:'',entrega:'',presentacion:'',estatus:'En tiempo',avance:0,prioridad:'Media',causa:'',sinCliente:0,docs:{ckRev:'❌',ckEnt:'❌',lista:'❌',prog:'❌'},bloqueadoPor:'',archivado:false,archivedAt:'',ultimaActualizacion:todayStr,proximoAvance:''};
   const p=id?projects.find(x=>x.id===id):blank;
   const isInt=p.interno;
@@ -8271,9 +8271,10 @@ function renderEstadisticas(){
       </div>
       ${(function(){
         const estatusColors={Ganado:{bg:'#eaf3de',color:'#3B6D11',border:'#6EE7B7'},Perdido:{bg:'#FFF5F5',color:'#991B1B',border:'#f5b89b'},Cancelado:{bg:'#f8fafc',color:'#475569',border:'#bfd1e5'},StandBy:{bg:'#fff8f6',color:'#92400E',border:'#FDE68A'},Ongoing:{bg:'#EEF2FF',color:'#3730A3',border:'#C7D2FE'}};
+        const curYr=new Date().getFullYear();
         const byYear={};
         allP.forEach(function(p){
-          const yr=new Date(p.id).getFullYear();
+          const yr=p.arranque&&p.arranque.length>=4?parseInt(p.arranque.slice(0,4)):curYr;
           if(!byYear[yr]) byYear[yr]=[];
           byYear[yr].push(p);
         });
