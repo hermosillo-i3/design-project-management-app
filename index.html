@@ -276,6 +276,7 @@ body.qas-env{padding-top:32px}
   <button class="tab" onclick="goTab('equipo',this)">Equipo</button>
   <button class="tab" onclick="goTab('consultores',this)">Consultores</button>
   <button class="tab" onclick="goTab('cotizaciones',this)" style="color:#e65a27">$ Cotizaciones</button>
+  <button class="tab" onclick="goTab('costos',this)" style="color:#3B6D11">💰 Costos</button>
   <button class="tab internal" onclick="goTab('internos',this)">Desarrollo interno</button>
   
   <button class="tab" onclick="goTab('kpis',this)" style="color:#e65a27">◎ KPIs</button>
@@ -433,6 +434,11 @@ body.qas-env{padding-top:32px}
 <!-- CONSULTORES -->
 <div id="p-cotizaciones" class="panel">
   <div id="cotizaciones-list"></div>
+</div>
+
+<!-- COSTOS EJECUCIÓN -->
+<div id="p-costos" class="panel">
+  <div id="costos-container" style="padding:16px 20px"></div>
 </div>
 
 <div id="p-consultores" class="panel">
@@ -1604,6 +1610,264 @@ function deleteExtraordinario(projId,idx){
   p.ultimaActualizacion=todayStr;
   sv(K.proj,projects);
   openExtraordinario(projId);
+}
+
+// ── COSTOS DE EJECUCIÓN ──────────────────────────────────────
+window.__costosEspKeys=[];
+
+function renderCostos(){
+  var container=document.getElementById('costos-container');
+  if(!container)return;
+  var ejecutivoProjs=projects.filter(function(p){return !p.archivado&&(p.etapa==='EJECUTIVO'||p.etapa==='REVISIONES')&&p.presupuestoControlCotId;});
+  var selProjId=ld('gh_costos_proj','');
+  var selProj=ejecutivoProjs.find(function(p){return String(p.id)===String(selProjId);});
+  var projOpts=ejecutivoProjs.map(function(p){return '<option value="'+p.id+'"'+(String(p.id)===String(selProjId)?' selected':'')+'>'+p.nombre+'</option>';}).join('');
+  var fmt=function(n){return Math.round(n).toLocaleString('es-MX');};
+  var html='<div style="display:flex;align-items:center;gap:12px;margin-bottom:1rem;flex-wrap:wrap;padding-bottom:12px;border-bottom:.5px solid #eef2f6">'
+    +'<h3 style="margin:0;color:#254467;font-size:14px;font-family:Arial">💰 Control de Costos — Ejecución</h3>'
+    +'<div style="display:flex;align-items:center;gap:8px;margin-left:auto">'
+    +'<label style="font-size:11px;color:#67727a">Proyecto:</label>'
+    +'<select style="font-size:11px;padding:5px 10px;border-radius:6px;border:.5px solid #bfd1e5;font-family:Arial" onchange="sv(\'gh_costos_proj\',this.value);renderCostos()">'
+    +'<option value="">— Selecciona —</option>'+projOpts+'</select></div></div>';
+  if(ejecutivoProjs.length===0){
+    container.innerHTML=html+'<div style="background:#f0f5fa;border-radius:8px;padding:2rem;text-align:center;color:#67727a;font-size:11px;font-family:Arial">'
+      +'No hay proyectos en ejecución con presupuesto de control asignado.<br>'
+      +'<span style="font-size:10px;color:#a8a8a8">Usa el botón ✍ Firmar en un proyecto PRECON para asignar un presupuesto de control.</span></div>';
+    return;
+  }
+  if(!selProj){
+    container.innerHTML=html+'<div style="background:#f0f5fa;border-radius:8px;padding:2rem;text-align:center;color:#67727a;font-size:11px;font-family:Arial">Selecciona un proyecto para ver su control de costos.</div>';
+    return;
+  }
+  var allCots=getCots();
+  var ctrlCot=allCots.find(function(c){return String(c.id)===String(selProj.presupuestoControlCotId);});
+  if(!ctrlCot){
+    container.innerHTML=html+'<div style="background:#fff3cd;border-radius:8px;padding:1rem;color:#856404;font-size:11px;font-family:Arial">No se encontró la cotización de presupuesto de control.</div>';
+    return;
+  }
+  var metrics=calcCotMetrics(ctrlCot);
+  var costosData=selProj.costosEjec||{};
+  window.__costosEspKeys=[];
+  var totalCobrado=0;var totalPagado=0;
+  Object.values(costosData).forEach(function(esp){
+    totalCobrado+=(esp.cobros||[]).reduce(function(s,c){return s+(parseFloat(c.monto)||0);},0);
+    totalPagado+=(esp.pagos||[]).reduce(function(s,pg){return s+(parseFloat(pg.monto)||0);},0);
+  });
+  var totalMargen=totalCobrado-totalPagado;
+  var totalPpto=metrics.grandTotal;
+  // Summary chips
+  html+='<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:1.25rem">'
+    +'<div style="background:#EEF2FF;border-radius:8px;padding:10px 16px;min-width:120px">'
+    +'<div style="font-size:9px;color:#67727a;text-transform:uppercase;letter-spacing:.5px;font-family:Arial">Ppto. Control</div>'
+    +'<div style="font-weight:800;color:#254467;font-size:15px;font-family:Arial">$'+fmt(totalPpto)+'</div></div>'
+    +'<div style="background:#f0f8ec;border-radius:8px;padding:10px 16px;min-width:120px">'
+    +'<div style="font-size:9px;color:#67727a;text-transform:uppercase;letter-spacing:.5px;font-family:Arial">Cobrado</div>'
+    +'<div style="font-weight:800;color:#3B6D11;font-size:15px;font-family:Arial">$'+fmt(totalCobrado)+'</div>'
+    +'<div style="font-size:9px;color:#67727a;font-family:Arial">'+(totalPpto?Math.round(totalCobrado/totalPpto*100):0)+'% del ppto.</div></div>'
+    +'<div style="background:#fff8f0;border-radius:8px;padding:10px 16px;min-width:120px">'
+    +'<div style="font-size:9px;color:#67727a;text-transform:uppercase;letter-spacing:.5px;font-family:Arial">Pagado asesores</div>'
+    +'<div style="font-weight:800;color:#e65a27;font-size:15px;font-family:Arial">$'+fmt(totalPagado)+'</div></div>'
+    +'<div style="background:'+(totalMargen>=0?'#f0f8ec':'#fff0f0')+';border-radius:8px;padding:10px 16px;min-width:120px">'
+    +'<div style="font-size:9px;color:#67727a;text-transform:uppercase;letter-spacing:.5px;font-family:Arial">Margen neto</div>'
+    +'<div style="font-weight:800;color:'+(totalMargen>=0?'#3B6D11':'#e65a27')+';font-size:15px;font-family:Arial">$'+fmt(totalMargen)+'</div>'
+    +'<div style="font-size:9px;color:#67727a;font-family:Arial">'+(totalCobrado?Math.round(totalMargen/totalCobrado*100):0)+'% del cobrado</div></div>'
+    +'</div>';
+  // Table
+  html+='<div class="tbl-wrap"><table>'
+    +'<thead><tr style="background:#EEF2FF">'
+    +'<th style="min-width:160px">Especialidad</th>'
+    +'<th style="min-width:140px">Asesor / Contacto</th>'
+    +'<th style="min-width:120px;text-align:right">Ppto. Control</th>'
+    +'<th style="min-width:170px">Cobrado al cliente</th>'
+    +'<th style="min-width:170px">Pagado al asesor</th>'
+    +'<th style="min-width:100px;text-align:right">Margen</th>'
+    +'</tr></thead><tbody>';
+  var espIdx=0;
+  Object.entries(metrics.bySection).forEach(function(secEntry){
+    var secName=secEntry[0];var secData=secEntry[1];
+    html+='<tr style="background:#f7faff"><td colspan="6" style="padding:5px 10px;font-size:9px;font-weight:800;color:#3a6080;text-transform:uppercase;letter-spacing:.5px;font-family:Arial">'+secName+'</td></tr>';
+    secData.esps.forEach(function(esp){
+      var myIdx=espIdx;
+      window.__costosEspKeys[myIdx]=esp.nombre;
+      espIdx++;
+      var espData=(costosData[esp.nombre])||{};
+      var cobros=espData.cobros||[];
+      var pagos=espData.pagos||[];
+      var cobTotal=cobros.reduce(function(s,c){return s+(parseFloat(c.monto)||0);},0);
+      var pagTotal=pagos.reduce(function(s,pg){return s+(parseFloat(pg.monto)||0);},0);
+      var margen=cobTotal-pagTotal;
+      var cobrosLog=cobros.map(function(c,i){
+        return '<div style="display:flex;align-items:center;gap:4px;font-size:9px;color:#67727a;padding:2px 0;border-bottom:.5px solid #f0f4f8">'
+          +'<span style="flex:1">'+fmtD(c.fecha)+(c.concepto?' · '+c.concepto:'')+'</span>'
+          +'<span style="font-weight:700;color:#3B6D11;white-space:nowrap">$'+fmt(c.monto)+'</span>'
+          +'<button onclick="deleteCobPag('+selProj.id+','+myIdx+',\'cobro\','+i+')" style="background:none;border:none;cursor:pointer;color:#e65a27;font-size:9px;padding:0 2px" title="Eliminar">✕</button></div>';
+      }).join('');
+      var pagosLog=pagos.map(function(pg,i){
+        return '<div style="display:flex;align-items:center;gap:4px;font-size:9px;color:#67727a;padding:2px 0;border-bottom:.5px solid #f0f4f8">'
+          +'<span style="flex:1">'+fmtD(pg.fecha)+(pg.concepto?' · '+pg.concepto:'')+'</span>'
+          +'<span style="font-weight:700;color:#e65a27;white-space:nowrap">$'+fmt(pg.monto)+'</span>'
+          +'<button onclick="deleteCobPag('+selProj.id+','+myIdx+',\'pago\','+i+')" style="background:none;border:none;cursor:pointer;color:#e65a27;font-size:9px;padding:0 2px" title="Eliminar">✕</button></div>';
+      }).join('');
+      html+='<tr style="border-bottom:.5px solid #eef2f6;vertical-align:top">'
+        +'<td style="padding:8px 10px;font-size:11px;font-weight:600;color:#1a2a3a;font-family:Arial">'+esp.nombre+'</td>'
+        +'<td style="padding:8px 10px">'
+        +'<div style="font-size:11px;font-weight:600;color:#254467;font-family:Arial">'+(espData.asesor||'<span style="color:#a8a8a8;font-weight:400">— Sin asignar —</span>')+'</div>'
+        +(espData.contacto?'<div style="font-size:9px;color:#67727a;font-family:Arial">'+espData.contacto+'</div>':'')
+        +'<button onclick="openAsesorEdit('+selProj.id+','+myIdx+')" style="margin-top:4px;background:none;border:.5px solid #bfd1e5;border-radius:4px;cursor:pointer;font-size:9px;color:#3a6080;padding:2px 8px;font-family:Arial">✏ Editar</button>'
+        +'</td>'
+        +'<td style="padding:8px 10px;text-align:right;font-size:12px;font-weight:700;color:#254467;font-family:Arial;white-space:nowrap">$'+fmt(esp.withInd)+'</td>'
+        +'<td style="padding:8px 10px">'
+        +'<div style="display:flex;justify-content:space-between;align-items:center;gap:6px">'
+        +'<span style="font-size:12px;font-weight:700;color:'+(cobTotal>0?'#254467':'#a8a8a8')+';font-family:Arial;white-space:nowrap">$'+fmt(cobTotal)+'</span>'
+        +(cobTotal>0?'<span style="font-size:9px;color:'+(cobTotal>=esp.withInd?'#3B6D11':'#e65a27')+'">'+( cobTotal>=esp.withInd?'✓ Completo':'Falta $'+fmt(esp.withInd-cobTotal))+'</span>':'')
+        +'</div>'
+        +cobrosLog
+        +'<button onclick="openCobPagModal('+selProj.id+','+myIdx+',\'cobro\')" style="margin-top:5px;background:#EEF2FF;border:none;border-radius:4px;cursor:pointer;font-size:9px;color:#254467;padding:3px 9px;font-family:Arial;font-weight:700">+ Cobro</button>'
+        +'</td>'
+        +'<td style="padding:8px 10px">'
+        +'<div style="display:flex;justify-content:space-between;align-items:center;gap:6px">'
+        +'<span style="font-size:12px;font-weight:700;color:'+(pagTotal>0?'#254467':'#a8a8a8')+';font-family:Arial;white-space:nowrap">$'+fmt(pagTotal)+'</span>'
+        +(pagTotal>esp.mxn&&pagTotal>0?'<span style="font-size:9px;color:#e65a27">⚠ Sobre ppto.</span>':'')
+        +'</div>'
+        +pagosLog
+        +'<button onclick="openCobPagModal('+selProj.id+','+myIdx+',\'pago\')" style="margin-top:5px;background:#fff3e0;border:none;border-radius:4px;cursor:pointer;font-size:9px;color:#e65a27;padding:3px 9px;font-family:Arial;font-weight:700">+ Pago</button>'
+        +'</td>'
+        +'<td style="padding:8px 10px;text-align:right;font-weight:700;font-size:12px;font-family:Arial;color:'+(cobTotal>0||pagTotal>0?(margen>=0?'#3B6D11':'#e65a27'):'#a8a8a8')+'">'
+        +(cobTotal>0||pagTotal>0?'$'+fmt(margen):'—')
+        +'</td></tr>';
+    });
+  });
+  // Totals row
+  html+='<tr style="background:#EEF2FF;border-top:2px solid #bfd1e5">'
+    +'<td colspan="2" style="padding:9px 10px;font-size:11px;font-weight:800;color:#254467;font-family:Arial">TOTAL PROYECTO</td>'
+    +'<td style="padding:9px 10px;text-align:right;font-weight:800;font-size:12px;color:#254467;font-family:Arial;white-space:nowrap">$'+fmt(totalPpto)+'</td>'
+    +'<td style="padding:9px 10px;font-weight:800;font-size:12px;color:#3B6D11;font-family:Arial;white-space:nowrap">$'+fmt(totalCobrado)+'</td>'
+    +'<td style="padding:9px 10px;font-weight:800;font-size:12px;color:#e65a27;font-family:Arial;white-space:nowrap">$'+fmt(totalPagado)+'</td>'
+    +'<td style="padding:9px 10px;text-align:right;font-weight:800;font-size:12px;font-family:Arial;color:'+(totalMargen>=0?'#3B6D11':'#e65a27')+';white-space:nowrap">$'+fmt(totalMargen)+'</td></tr>';
+  html+='</tbody></table></div>';
+  // Extraordinarios section
+  var extras=selProj.extraordinarios||[];
+  if(extras.length>0){
+    var totalExtras=extras.reduce(function(s,e){return s+(parseFloat(e.monto)||0);},0);
+    html+='<div style="margin-top:1.5rem">'
+      +'<div style="font-size:11px;font-weight:800;color:#e65a27;margin-bottom:8px;font-family:Arial">⭐ Extraordinarios (Cambios de alcance)</div>'
+      +'<div class="tbl-wrap"><table>'
+      +'<thead><tr style="background:#fff3e0"><th>Fecha</th><th>Descripción</th><th style="text-align:right">Monto</th><th>Responsable</th></tr></thead><tbody>'
+      +extras.map(function(e){return '<tr>'
+        +'<td style="font-size:10px;color:#67727a">'+fmtD(e.fecha)+'</td>'
+        +'<td style="font-size:11px;font-weight:600">'+e.descripcion+'</td>'
+        +'<td style="text-align:right;font-weight:700;color:#e65a27;white-space:nowrap">$'+fmt(e.monto||0)+'</td>'
+        +'<td style="font-size:10px;color:#67727a">'+(e.responsable||'—')+'</td></tr>';}).join('')
+      +'<tr style="background:#fff3e0">'
+      +'<td colspan="2" style="font-size:11px;font-weight:800;font-family:Arial">Total extraordinarios</td>'
+      +'<td style="text-align:right;font-weight:800;color:#e65a27;font-family:Arial">$'+fmt(totalExtras)+'</td>'
+      +'<td></td></tr>'
+      +'</tbody></table></div></div>';
+  }
+  container.innerHTML=html;
+}
+
+function openCobPagModal(projId,espIdx,tipo){
+  var espKey=window.__costosEspKeys[espIdx];
+  if(espKey===undefined)return;
+  var p=projects.find(function(x){return x.id===projId;});if(!p)return;
+  var espData=((p.costosEjec||{})[espKey])||{};
+  var entries=tipo==='cobro'?(espData.cobros||[]):(espData.pagos||[]);
+  var tipoCap=tipo==='cobro'?'Cobro al cliente':'Pago al asesor';
+  var colorAcc=tipo==='cobro'?'#3B6D11':'#e65a27';
+  var fmt=function(n){return Math.round(n).toLocaleString('es-MX');};
+  var listHtml=entries.length
+    ?'<div style="margin-bottom:12px">'
+    +'<div style="font-size:10px;font-weight:700;color:#67727a;margin-bottom:5px;font-family:Arial">'+(tipo==='cobro'?'Cobros registrados:':'Pagos registrados:')+'</div>'
+    +entries.map(function(e,i){return '<div style="display:flex;gap:8px;align-items:center;padding:6px 8px;background:#f7faff;border-radius:5px;margin-bottom:3px;font-size:10px;font-family:Arial">'
+      +'<span style="color:#67727a;white-space:nowrap">'+fmtD(e.fecha)+'</span>'
+      +'<span style="flex:1">'+(e.concepto||'—')+'</span>'
+      +'<span style="font-weight:800;color:'+colorAcc+';white-space:nowrap">$'+fmt(e.monto)+'</span>'
+      +'<button onclick="deleteCobPag('+projId+','+espIdx+',\''+tipo+'\','+i+')" style="background:none;border:none;cursor:pointer;color:#e65a27;font-size:12px;padding:0 3px">✕</button></div>';}).join('')
+    +'</div>'
+    :'<div style="color:#a8a8a8;font-size:10px;margin-bottom:12px;font-family:Arial">Sin registros aún.</div>';
+  document.getElementById('modal-body').innerHTML=
+    '<h3 style="color:'+colorAcc+'">'+tipoCap+': '+espKey+'</h3>'
+    +listHtml
+    +'<div style="background:#f7faff;border-radius:8px;padding:12px;border:.5px solid #bfd1e5">'
+    +'<div style="font-size:10px;font-weight:700;color:#254467;margin-bottom:8px;font-family:Arial">Agregar nuevo registro</div>'
+    +'<div class="frow"><div class="fg"><label>Fecha</label><input type="date" id="cp-fecha" value="'+todayStr+'"></div>'
+    +'<div class="fg"><label>Monto (MXN)</label><input type="number" id="cp-monto" placeholder="0" min="0" step="100"></div></div>'
+    +'<div class="fg"><label>Concepto / Descripción</label><input type="text" id="cp-concepto" placeholder="'+(tipo==='cobro'?'Ej: Anticipo, Parcialidad 1...':'Ej: Anticipo, Finiquito...')+'"></div>'
+    +'</div>'
+    +'<div class="btn-row" style="margin-top:12px">'
+    +'<button class="btn" onclick="closeModal()">Cancelar</button>'
+    +'<button class="btn btn-primary" style="background:'+colorAcc+';border-color:'+colorAcc+'" onclick="saveCobPag('+projId+','+espIdx+',\''+tipo+'\')">Guardar</button>'
+    +'</div>';
+  openModal();
+}
+
+function saveCobPag(projId,espIdx,tipo){
+  var espKey=window.__costosEspKeys[espIdx];
+  if(espKey===undefined)return;
+  var p=projects.find(function(x){return x.id===projId;});if(!p)return;
+  var fecha=document.getElementById('cp-fecha').value;
+  var monto=parseFloat(document.getElementById('cp-monto').value);
+  var concepto=document.getElementById('cp-concepto').value.trim();
+  if(!fecha){alert('La fecha es obligatoria.');return;}
+  if(!monto||monto<=0){alert('Ingresa un monto válido.');return;}
+  if(!p.costosEjec)p.costosEjec={};
+  if(!p.costosEjec[espKey])p.costosEjec[espKey]={cobros:[],pagos:[]};
+  if(!p.costosEjec[espKey].cobros)p.costosEjec[espKey].cobros=[];
+  if(!p.costosEjec[espKey].pagos)p.costosEjec[espKey].pagos=[];
+  var target=tipo==='cobro'?p.costosEjec[espKey].cobros:p.costosEjec[espKey].pagos;
+  target.push({id:Date.now(),fecha:fecha,monto:monto,concepto:concepto});
+  p.ultimaActualizacion=todayStr;
+  sv(K.proj,projects);
+  openCobPagModal(projId,espIdx,tipo);
+}
+
+function deleteCobPag(projId,espIdx,tipo,idx){
+  var espKey=window.__costosEspKeys[espIdx];
+  if(espKey===undefined)return;
+  var p=projects.find(function(x){return x.id===projId;});if(!p)return;
+  if(!confirm('¿Eliminar este registro?'))return;
+  var ec=p.costosEjec;
+  if(!ec||!ec[espKey])return;
+  var arr=tipo==='cobro'?ec[espKey].cobros:ec[espKey].pagos;
+  if(arr)arr.splice(idx,1);
+  p.ultimaActualizacion=todayStr;
+  sv(K.proj,projects);
+  var modalOpen=document.getElementById('modal-bg')&&document.getElementById('modal-bg').style.display==='flex';
+  if(modalOpen){openCobPagModal(projId,espIdx,tipo);}else{renderCostos();}
+}
+
+function openAsesorEdit(projId,espIdx){
+  var espKey=window.__costosEspKeys[espIdx];
+  if(espKey===undefined)return;
+  var p=projects.find(function(x){return x.id===projId;});if(!p)return;
+  var espData=((p.costosEjec||{})[espKey])||{};
+  var consulOpts=cat.consultores.map(function(c){return '<option value="'+c.nombre+'"'+(c.nombre===espData.asesor?' selected':'')+'>'+c.nombre+'</option>';}).join('');
+  document.getElementById('modal-body').innerHTML=
+    '<h3 style="color:#254467">Asesor — '+espKey+'</h3>'
+    +'<div class="fg"><label>Asesor / Consultor</label>'
+    +'<select id="ae-asesor" style="font-size:11px;padding:6px 8px;border-radius:6px;border:.5px solid #bfd1e5;font-family:Arial;width:100%">'
+    +'<option value="">— Sin asesor —</option>'+consulOpts+'</select></div>'
+    +'<div class="fg"><label>Contacto (teléfono / correo)</label>'
+    +'<input type="text" id="ae-contacto" value="'+(espData.contacto||'')+'" placeholder="Ej: +52 55 1234 5678 / nombre@correo.com"></div>'
+    +'<div class="btn-row">'
+    +'<button class="btn" onclick="closeModal()">Cancelar</button>'
+    +'<button class="btn btn-primary" onclick="saveAsesorEdit('+projId+','+espIdx+')">Guardar</button></div>';
+  openModal();
+}
+
+function saveAsesorEdit(projId,espIdx){
+  var espKey=window.__costosEspKeys[espIdx];
+  if(espKey===undefined)return;
+  var p=projects.find(function(x){return x.id===projId;});if(!p)return;
+  if(!p.costosEjec)p.costosEjec={};
+  if(!p.costosEjec[espKey])p.costosEjec[espKey]={cobros:[],pagos:[]};
+  p.costosEjec[espKey].asesor=document.getElementById('ae-asesor').value;
+  p.costosEjec[espKey].contacto=document.getElementById('ae-contacto').value.trim();
+  p.ultimaActualizacion=todayStr;
+  sv(K.proj,projects);
+  closeModal();
+  renderCostos();
 }
 
 // ── PROYECTO MODAL ───────────────────────────────────────────
@@ -8571,7 +8835,8 @@ function goTab(id,el){
     log:renderLog,
     archivo:renderArchivo,
     pendientes:renderPendientes,
-    cotizaciones:renderCotizaciones
+    cotizaciones:renderCotizaciones,
+    costos:renderCostos
   };
   if(renders[id]) renders[id]();
 }
