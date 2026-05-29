@@ -2136,9 +2136,13 @@ function saveProyecto(id,isInt){
 }
 
 function archivar(id,fromModal){
-  if(!confirm('¿Archivar este proyecto?'))return;
+  const openTasks=tasks.filter(function(t){return !t.done&&!t.archivado&&t.projId===id;});
+  var msg='¿Archivar este proyecto?';
+  if(openTasks.length>0) msg='¿Archivar este proyecto?\n\nTiene '+openTasks.length+' tarea(s) abierta(s) que se cerrarán automáticamente.';
+  if(!confirm(msg))return;
   const i=projects.findIndex(x=>x.id===id);
   projects[i].archivado=true;projects[i].archivedAt=todayStr;
+  if(openTasks.length>0){openTasks.forEach(function(t){t.done=true;});sv(K.tasks,tasks);}
   sv(K.proj,projects);if(fromModal)closeModal();renderAll();
 }
 function desarchivar(id){
@@ -2412,7 +2416,8 @@ function renderPendientes(){
   const filterBy=ld('gh_pend_filter','');
   const allPs=[...activeProjs(),...internos()];
 
-  let open=tasks.filter(t=>!t.done&&!t.archivado&&t.projId);
+  const archivedProjIds=new Set(projects.filter(p=>p.archivado).map(p=>p.id));
+  let open=tasks.filter(t=>!t.done&&!t.archivado&&t.projId&&!archivedProjIds.has(t.projId));
 
   // Apply filter
   if(filterBy){
