@@ -2138,11 +2138,10 @@ function saveProyecto(id,isInt){
 function archivar(id,fromModal){
   const openTasks=tasks.filter(function(t){return !t.done&&!t.archivado&&t.projId===id;});
   var msg='¿Archivar este proyecto?';
-  if(openTasks.length>0) msg='¿Archivar este proyecto?\n\nTiene '+openTasks.length+' tarea(s) abierta(s) que se cerrarán automáticamente.';
+  if(openTasks.length>0) msg='¿Archivar este proyecto?\n\nQueda(n) '+openTasks.length+' tarea(s) abierta(s). Seguirán visibles en Pendientes hasta que se completen.';
   if(!confirm(msg))return;
   const i=projects.findIndex(x=>x.id===id);
   projects[i].archivado=true;projects[i].archivedAt=todayStr;
-  if(openTasks.length>0){openTasks.forEach(function(t){t.done=true;});sv(K.tasks,tasks);}
   sv(K.proj,projects);if(fromModal)closeModal();renderAll();
 }
 function desarchivar(id){
@@ -2415,9 +2414,9 @@ function renderPendientes(){
   const sortBy=ld('gh_pend_sort','fecha');
   const filterBy=ld('gh_pend_filter','');
   const allPs=[...activeProjs(),...internos()];
+  const allPsLookup=[...projects]; // includes archived, for task lookup
 
-  const archivedProjIds=new Set(projects.filter(p=>p.archivado).map(p=>p.id));
-  let open=tasks.filter(t=>!t.done&&!t.archivado&&t.projId&&!archivedProjIds.has(t.projId));
+  let open=tasks.filter(t=>!t.done&&!t.archivado&&t.projId);
 
   // Apply filter
   if(filterBy){
@@ -2438,8 +2437,8 @@ function renderPendientes(){
 
   // Sort project groups
   let projEntries=Object.entries(byProjId).map(([pid,ts])=>{
-    const p=allPs.find(x=>String(x.id)===String(pid));
-    return {pid,ts,p,nombre:p?p.nombre:'Desconocido',jefe:p?p.jefe:'',coord:p?p.coord:''};
+    const p=allPsLookup.find(x=>String(x.id)===String(pid));
+    return {pid,ts,p,nombre:p?p.nombre:'Desconocido',jefe:p?p.jefe:'',coord:p?p.coord:'',arch:p?!!p.archivado:false};
   });
   if(sortBy==='alpha') projEntries.sort((a,b)=>a.nombre.localeCompare(b.nombre));
   else if(sortBy==='jefe') projEntries.sort((a,b)=>a.jefe.localeCompare(b.jefe)||a.nombre.localeCompare(b.nombre));
@@ -2465,15 +2464,17 @@ function renderPendientes(){
     +'</select>'
     +'</div></div>';
 
-  const taskRows=projEntries.map(({pid,ts,p,nombre,jefe,coord})=>{
-    const s=p?sem(p):{cls:'none',label:'—'};
+  const taskRows=projEntries.map(({pid,ts,p,nombre,jefe,coord,arch})=>{
+    const s=p&&!arch?sem(p):{cls:'none',label:'—'};
     return'<div style="margin-bottom:.75rem">'
-      +'<div style="display:flex;align-items:center;gap:8px;padding:5px 8px;background:#EEF2FF;border-radius:6px;margin-bottom:4px">'
-      +'<span style="font-size:11px;font-weight:700;color:#254467;flex:1">'+nombre+'</span>'
-      +(p?'<span class="sem '+s.cls+'" style="font-size:9px">'+s.label+'</span>':'')
-      +(jefe?'<span style="font-size:9px;color:#67727a">'+jefe+'</span>':'')
-      +'<button onclick="openAddTaskForProj('+pid+')" style="font-size:9px;padding:2px 8px;border:.5px solid #254467;border-radius:4px;background:#fff;color:#254467;cursor:pointer;font-family:Arial">+ Tarea</button>'
-      +'<button onclick="openAddCommentForProj('+pid+')" style="font-size:9px;padding:2px 8px;border:.5px solid #6990ab;border-radius:4px;background:#fff;color:#6990ab;cursor:pointer;font-family:Arial">+ Comentario</button>'
+      +'<div style="display:flex;align-items:center;gap:8px;padding:5px 8px;background:'+(arch?'#f5f5f5':'#EEF2FF')+';border-radius:6px;margin-bottom:4px">'
+      +'<span style="font-size:11px;font-weight:700;color:'+(arch?'#a8a8a8':'#254467')+';flex:1">'+nombre
+      +(arch?' <span style="font-size:9px;font-weight:400;color:#a8a8a8;border:.5px solid #ccc;border-radius:3px;padding:1px 5px;margin-left:4px">Archivado</span>':'')
+      +'</span>'
+      +(p&&!arch?'<span class="sem '+s.cls+'" style="font-size:9px">'+s.label+'</span>':'')
+      +(jefe&&!arch?'<span style="font-size:9px;color:#67727a">'+jefe+'</span>':'')
+      +(!arch?'<button onclick="openAddTaskForProj('+pid+')" style="font-size:9px;padding:2px 8px;border:.5px solid #254467;border-radius:4px;background:#fff;color:#254467;cursor:pointer;font-family:Arial">+ Tarea</button>':'')
+      +(!arch?'<button onclick="openAddCommentForProj('+pid+')" style="font-size:9px;padding:2px 8px;border:.5px solid #6990ab;border-radius:4px;background:#fff;color:#6990ab;cursor:pointer;font-family:Arial">+ Comentario</button>':'')
       +'</div>'
       +ts.map(t=>{
         const ov=t.fechaCompromiso&&t.fechaCompromiso<todayStr;
