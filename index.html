@@ -5848,7 +5848,7 @@ function renderConsultores(){
       const ov=t.fechaCompromiso&&t.fechaCompromiso<todayStr;
       const soon=!ov&&t.fechaCompromiso&&Math.round((new Date(t.fechaCompromiso)-today)/86400000)<=2;
       const dc=ov?'#e65a27':soon?'#6990ab':'#67727a';
-      const proj=allProjs.find(function(p){return p.id===t.projId;});
+      const proj=projects.find(function(p){return p.id===t.projId;});
       const st='padding:7px 12px;border-bottom:.5px solid #e8eef4;background:'+(ov?'#fff8f6':'#fff')+(tIdx>=10?';display:none':'');
       html+='<div data-task="'+t.id+'" style="'+st+'">'
         +'<div style="display:flex;align-items:flex-start;gap:6px;margin-bottom:3px">'
@@ -5856,7 +5856,7 @@ function renderConsultores(){
         +'<div style="font-size:11px;color:#1A1A2E;line-height:1.4;flex:1">'+t.texto.substring(0,65)+(t.texto.length>65?'…':'')+'</div>'
         +'</div>'
         +'<div style="display:flex;gap:5px;align-items:center;font-size:10px;flex-wrap:wrap;margin-left:18px">'
-        +(proj?'<span style="color:#254467;font-weight:700;font-size:9px">'+proj.nombre.substring(0,22)+'</span>':'')
+        +(proj?'<span style="color:'+(proj.archivado?'#a8a8a8':'#254467')+';font-weight:700;font-size:9px">'+proj.nombre.substring(0,22)+(proj.archivado?' <span style="font-weight:400;border:.5px solid #ccc;border-radius:3px;padding:0 3px">arch</span>':'')+'</span>':'')
         +(t.fechaCompromiso?'<span style="color:'+dc+';font-weight:700">'+fmtD(t.fechaCompromiso)+(ov?' VENC':soon?' ⚠':'')+'</span>':'')
         +'<button onclick="addTaskNote('+t.id+')" style="font-size:9px;padding:1px 6px;border:.5px solid #bfd1e5;border-radius:4px;background:#fff;cursor:pointer;font-family:Arial;color:#67727a">+ Nota</button>'
         +'<button onclick="archiveTask('+t.id+')" style="font-size:9px;padding:1px 6px;border:.5px solid #bfd1e5;border-radius:4px;background:#fff;cursor:pointer;font-family:Arial;color:#a8a8a8">Arch.</button>'
