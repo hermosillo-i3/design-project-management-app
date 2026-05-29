@@ -328,6 +328,12 @@ body.qas-env{padding-top:32px}
 <div id="p-proyectos" class="panel">
   <div class="pdf-break">
     <h2 class="pdf-sh" style="display:none">Proyectos activos</h2>
+    <!-- Sub-tabs Concurso / Ejecutivo -->
+    <div style="display:flex;gap:0;border-bottom:2px solid #bfd1e5;margin-bottom:12px" class="no-print">
+      <button id="projtab-btn-concurso" onclick="setProjSubTab('concurso')" style="padding:9px 20px;font-size:12px;font-weight:700;font-family:Arial;border:none;cursor:pointer;background:transparent;color:#254467;border-bottom:3px solid #254467;margin-bottom:-2px;transition:all .2s">🏆 Concurso</button>
+      <button id="projtab-btn-ejecutivo" onclick="setProjSubTab('ejecutivo')" style="padding:9px 20px;font-size:12px;font-weight:700;font-family:Arial;border:none;cursor:pointer;background:transparent;color:#a8a8a8;border-bottom:3px solid transparent;margin-bottom:-2px;transition:all .2s">⚙ Ejecutivo</button>
+    </div>
+    <!-- Controles comunes -->
     <div style="display:flex;gap:6px;margin-bottom:7px;flex-wrap:wrap;align-items:center" class="no-print">
       <button class="btn btn-ghost btn-sm" onclick="openProyecto(null,false)">+ Proyecto</button>
       <select id="proj-sort" onchange="renderProyectos()" style="font-size:11px;padding:4px 8px;border-radius:6px;border:.5px solid #bfd1e5;font-family:Arial">
@@ -341,16 +347,36 @@ body.qas-env{padding-top:32px}
       <span id="filtro-lbl" style="font-size:10px;color:#254467;font-weight:700"></span>
       <button class="btn btn-sm" id="btn-cf" style="display:none" onclick="clearFilter()">✕ Quitar filtro</button>
     </div>
-    <div class="tbl-wrap">
-      <table>
-        <thead><tr>
-   <thead><tr>
-          <th>#</th><th>Hist.#</th><th>Proyecto</th><th>Etapa</th><th>Tipo</th><th>Cliente</th><th>Jefe</th><th>Coord.</th>
-          <th>Equipo</th><th>Consultor</th><th>Entrega V1</th><th>V2</th><th>V3</th>
-          <th>Prioridad</th><th>Semáforo</th><th>% Avz</th><th>Estatus</th><th>Estatus Proy.</th><th>Últ. act.</th><th class="no-print"></th>
-        </tr></thead>
-        <tbody id="tbody-proj"></tbody>
-      </table>
+    <!-- Panel Concurso -->
+    <div id="proj-panel-concurso">
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr>
+            <th>#</th><th>Hist.#</th><th>Proyecto</th><th>Etapa</th><th>Tipo</th><th>Cliente</th><th>Jefe</th><th>Coord.</th>
+            <th>Equipo</th><th>Consultor</th><th>Entrega V1</th><th>V2</th><th>V3</th>
+            <th>Prioridad</th><th>Semáforo</th><th>% Avz</th><th>Estatus</th><th>Estatus Proy.</th><th>Últ. act.</th><th class="no-print"></th>
+          </tr></thead>
+          <tbody id="tbody-proj"></tbody>
+        </table>
+      </div>
+    </div>
+    <!-- Panel Ejecutivo -->
+    <div id="proj-panel-ejecutivo" style="display:none">
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr>
+            <th>#</th><th>Hist.#</th><th>Proyecto</th><th>Etapa</th><th>Cliente</th><th>Coord.</th>
+            <th style="color:#639922">Ppto. Control</th>
+            <th style="color:#639922">Cobrado</th>
+            <th style="color:#6990ab">Firma contrato</th>
+            <th style="color:#6990ab">Inicio obra</th>
+            <th style="color:#6990ab">Fin obra</th>
+            <th style="color:#e65a27">Extras</th>
+            <th>Semáforo</th><th>% Avz</th><th>Estatus</th><th class="no-print"></th>
+          </tr></thead>
+          <tbody id="tbody-proj-ejec"></tbody>
+        </table>
+      </div>
     </div>
   </div>
 </div>
@@ -1284,53 +1310,292 @@ function momentum(p){
   if(ep==='Cancelado') return{label:'Cancelado',cls:'mom-lost'};
   return{label:ep||'—',cls:'mom-pause'};
 }
+// ── SUB-TABS PROYECTOS ────────────────────────────────────────
+function getProjSubTab(){return ld('gh_proj_subtab','concurso');}
+function setProjSubTab(tab){
+  sv('gh_proj_subtab',tab);
+  ['concurso','ejecutivo'].forEach(function(t){
+    var btn=document.getElementById('projtab-btn-'+t);
+    var panel=document.getElementById('proj-panel-'+t);
+    if(btn){btn.style.color=t===tab?'#254467':'#a8a8a8';btn.style.borderBottom=t===tab?'3px solid #254467':'3px solid transparent';}
+    if(panel) panel.style.display=t===tab?'':'none';
+  });
+  renderProyectos();
+}
+
+function histNum(p){return(p.arranque&&p.arranque.length>=4?p.arranque.slice(2,4):(new Date().getFullYear()+'').slice(-2))+'-'+p.num;}
+
+function getPptoControl(p){
+  if(!p.presupuestoControlCotId) return null;
+  var cots=getCots();
+  var cot=cots.find(function(c){return String(c.id)===String(p.presupuestoControlCotId);});
+  if(!cot) return null;
+  var m=calcCotMetrics(cot);
+  return m.grandTotal;
+}
+
+function getCobradoTotal(p){
+  var cots=getCots().filter(function(c){return String(c.projId)===String(p.id);});
+  var total=0;
+  cots.forEach(function(cot){
+    (cot.especialidades||[]).forEach(function(esp){
+      var elegido=(esp.asesores||[]).find(function(a){return a.elegido;});
+      total+=parseFloat(elegido&&elegido.cobradoMXN)||0;
+    });
+  });
+  return total;
+}
+
 // ─────────────────────────────────────────────────────────────
 function renderProyectos(){
-  let ps=activeProjs();
+  const tab=getProjSubTab();
+  // Sync tab button styles
+  ['concurso','ejecutivo'].forEach(function(t){
+    var btn=document.getElementById('projtab-btn-'+t);
+    var panel=document.getElementById('proj-panel-'+t);
+    if(btn){btn.style.color=t===tab?'#254467':'#a8a8a8';btn.style.borderBottom=t===tab?'3px solid #254467':'3px solid transparent';}
+    if(panel) panel.style.display=t===tab?'':'none';
+  });
+
+  let all=activeProjs();
   const projSort=document.getElementById('proj-sort')?document.getElementById('proj-sort').value:'num';
-  if(activeFilter){
-    if(['PRECON','EJECUTIVO','REVISIONES'].includes(activeFilter))ps=ps.filter(p=>p.etapa===activeFilter);
-    else if(activeFilter==='crit')ps=ps.filter(p=>sem(p).cls==='crit');
-    else if(activeFilter==='risk')ps=ps.filter(p=>sem(p).cls==='risk');
+
+  // Sort
+  function sortPs(ps){
+    if(projSort==='coord') return [...ps].sort((a,b)=>(a.coord||'').localeCompare(b.coord||''));
+    if(projSort==='sem'){const o={crit:0,risk:1,none:2,ok:3};return[...ps].sort((a,b)=>(o[sem(a).cls]||3)-(o[sem(b).cls]||3));}
+    if(projSort==='avz') return[...ps].sort((a,b)=>a.avance-b.avance);
+    if(projSort==='prio'){const po={'Alta':0,'Media':1,'Baja':2};return[...ps].sort((a,b)=>(po[a.prioridad]||1)-(po[b.prioridad]||1));}
+    if(projSort==='cliente') return[...ps].sort((a,b)=>(a.cliente||'').localeCompare(b.cliente||''));
+    return[...ps].sort((a,b)=>a.num-b.num);
   }
-  if(projSort==='coord') ps=[...ps].sort((a,b)=>(a.coord||'').localeCompare(b.coord||''));
-  else if(projSort==='sem'){const o={crit:0,risk:1,none:2,ok:3};ps=[...ps].sort((a,b)=>(o[sem(a).cls]||3)-(o[sem(b).cls]||3));}
-  else if(projSort==='avz') ps=[...ps].sort((a,b)=>a.avance-b.avance);
-  else if(projSort==='prio'){const po={'Alta':0,'Media':1,'Baja':2};ps=[...ps].sort((a,b)=>(po[a.prioridad]||1)-(po[b.prioridad]||1));}
-  else if(projSort==='cliente') ps=[...ps].sort((a,b)=>(a.cliente||'').localeCompare(b.cliente||''));
-  else ps=[...ps].sort((a,b)=>a.num-b.num);
-  document.getElementById('tbody-proj').innerHTML=ps.map((p,idx)=>{
-    const s=sem(p);const m=momentum(p);
-    const epCls={Ongoing:'b-ok',StandBy:'b-risk',Perdido:'b-crit',Ganado:'b-purple',Cancelado:'b-pause'};
-    return`<tr>
-      <td style="color:#a8a8a8">${idx+1}</td>
-      <td style="color:#bfd1e5;font-size:10px">${(p.arranque&&p.arranque.length>=4?p.arranque.slice(2,4):(new Date().getFullYear()+'').slice(-2))}-${p.num}</td>
-      <td style="font-weight:700;max-width:150px">${p.nombre}</td>
-      <td>${etapaBadge(p.etapa,p.interno)}</td>
-      <td style="font-size:9px;max-width:110px;color:#475569">${p.tipo||'—'}</td>
-      <td style="font-size:10px;max-width:90px">${p.cliente||'—'}</td>
-      <td style="font-size:10px;color:#475569">${p.jefe||'—'}</td>
-      <td><span class="badge b-blue">${p.coord||'—'}</span></td>
-      <td style="max-width:120px">${pills(p.equipo)}</td>
-      <td>${consulBadges(p.consultores)}</td>
-      <td style="font-size:10px;white-space:nowrap">${fmtD(p.entregaV1||p.entrega||'')}</td>
-      <td style="font-size:10px;color:#67727a">${fmtD(p.entregaV2||'')}</td>
-      <td style="font-size:10px;color:#67727a">${fmtD(p.entregaV3||'')}</td>
-      <td><select onchange="updatePrioridad(${p.id},this.value)" style="font-size:10px;padding:2px 4px;border-radius:4px;border:.5px solid ${p.prioridad==='Alta'?'#f5b89b':p.prioridad==='Media'?'#FDE68A':'#86EFAC'};background:${p.prioridad==='Alta'?'#FFF5F5':p.prioridad==='Media'?'#fff8f6':'#eaf3de'};color:${p.prioridad==='Alta'?'#991B1B':p.prioridad==='Media'?'#92400E':'#14532D'};font-family:Arial;cursor:pointer">
-        ${['Alta','Media','Baja'].map(v=>`<option value="${v}" ${p.prioridad===v?'selected':''}>${v}</option>`).join('')}
-      </select></td>
-      <td><span class="sem ${s.cls}">${s.label}</span></td>
-      <td><div style="display:flex;align-items:center;gap:2px"><div class="pbar"><div class="pfill" style="width:${p.avance}%"></div></div><span style="font-size:9px">${p.avance}%</span></div></td>
-      <td><span class="badge ${p.estatus==='Completado'?'b-comp':p.estatus==='Pausado'?'b-pause':p.estatus==='Retrasado'?'b-crit':p.estatus==='En riesgo'?'b-risk':'b-ok'}">${p.estatus}</span></td>
-      <td><span class="badge ${epCls[p.estatusProy]||'b-gray'}" style="font-size:9px">${p.estatusProy||'—'}</span></td>
-      <td><span class="momentum ${m.cls}" style="font-size:9px">${m.label}</span></td>
-      <td class="no-print" style="white-space:nowrap">
-        <button class="btn btn-sm" onclick="openProyecto(${p.id},false)" style="margin-right:2px">Editar</button>
-        <button class="btn btn-sm" onclick="abrirSeguimientoProyecto(${p.id})" style="margin-right:2px;background:#EEF2FF;color:#254467;border-color:#C7D2FE">+Seg</button>
-        <button class="btn btn-sm btn-danger" onclick="archivar(${p.id})">Arch.</button>
-      </td>
-    </tr>`;
+
+  const epCls={Ongoing:'b-ok',StandBy:'b-risk',Perdido:'b-crit',Ganado:'b-purple',Cancelado:'b-pause'};
+
+  if(tab==='concurso'){
+    let ps=all.filter(p=>p.etapa==='PRECON'||p.etapa==='INTERNO'||['Perdido','StandBy','Cancelado'].includes(p.estatusProy));
+    if(activeFilter){
+      if(['PRECON','EJECUTIVO','REVISIONES'].includes(activeFilter))ps=ps.filter(p=>p.etapa===activeFilter);
+      else if(activeFilter==='crit')ps=ps.filter(p=>sem(p).cls==='crit');
+      else if(activeFilter==='risk')ps=ps.filter(p=>sem(p).cls==='risk');
+    }
+    ps=sortPs(ps);
+    document.getElementById('tbody-proj').innerHTML=ps.map((p,idx)=>{
+      const s=sem(p);const m=momentum(p);
+      const esPrecon=p.etapa==='PRECON';
+      return`<tr>
+        <td style="color:#a8a8a8">${idx+1}</td>
+        <td style="color:#bfd1e5;font-size:10px">${histNum(p)}</td>
+        <td style="font-weight:700;max-width:150px">${p.nombre}</td>
+        <td>${etapaBadge(p.etapa,p.interno)}</td>
+        <td style="font-size:9px;max-width:110px;color:#475569">${p.tipo||'—'}</td>
+        <td style="font-size:10px;max-width:90px">${p.cliente||'—'}</td>
+        <td style="font-size:10px;color:#475569">${p.jefe||'—'}</td>
+        <td><span class="badge b-blue">${p.coord||'—'}</span></td>
+        <td style="max-width:120px">${pills(p.equipo)}</td>
+        <td>${consulBadges(p.consultores)}</td>
+        <td style="font-size:10px;white-space:nowrap">${fmtD(p.entregaV1||p.entrega||'')}</td>
+        <td style="font-size:10px;color:#67727a">${fmtD(p.entregaV2||'')}</td>
+        <td style="font-size:10px;color:#67727a">${fmtD(p.entregaV3||'')}</td>
+        <td><select onchange="updatePrioridad(${p.id},this.value)" style="font-size:10px;padding:2px 4px;border-radius:4px;border:.5px solid ${p.prioridad==='Alta'?'#f5b89b':p.prioridad==='Media'?'#FDE68A':'#86EFAC'};background:${p.prioridad==='Alta'?'#FFF5F5':p.prioridad==='Media'?'#fff8f6':'#eaf3de'};color:${p.prioridad==='Alta'?'#991B1B':p.prioridad==='Media'?'#92400E':'#14532D'};font-family:Arial;cursor:pointer">
+          ${['Alta','Media','Baja'].map(v=>`<option value="${v}" ${p.prioridad===v?'selected':''}>${v}</option>`).join('')}
+        </select></td>
+        <td><span class="sem ${s.cls}">${s.label}</span></td>
+        <td><div style="display:flex;align-items:center;gap:2px"><div class="pbar"><div class="pfill" style="width:${p.avance}%"></div></div><span style="font-size:9px">${p.avance}%</span></div></td>
+        <td><span class="badge ${p.estatus==='Completado'?'b-comp':p.estatus==='Pausado'?'b-pause':p.estatus==='Retrasado'?'b-crit':p.estatus==='En riesgo'?'b-risk':'b-ok'}">${p.estatus}</span></td>
+        <td><span class="badge ${epCls[p.estatusProy]||'b-gray'}" style="font-size:9px">${p.estatusProy||'—'}</span></td>
+        <td><span class="momentum ${m.cls}" style="font-size:9px">${m.label}</span></td>
+        <td class="no-print" style="white-space:nowrap">
+          <button class="btn btn-sm" onclick="openProyecto(${p.id},false)" style="margin-right:2px">Editar</button>
+          <button class="btn btn-sm" onclick="abrirSeguimientoProyecto(${p.id})" style="margin-right:2px;background:#EEF2FF;color:#254467;border-color:#C7D2FE">+Seg</button>
+          ${esPrecon?`<button class="btn btn-sm" onclick="openFirmarContrato(${p.id})" style="margin-right:2px;background:#eaf3de;color:#3B6D11;border-color:#6EE7B7">✍ Firmar</button>`:''}
+          <button class="btn btn-sm btn-danger" onclick="archivar(${p.id})">Arch.</button>
+        </td>
+      </tr>`;
+    }).join('');
+
+  } else {
+    // Tab Ejecutivo
+    let ps=all.filter(p=>p.etapa==='EJECUTIVO'||p.etapa==='REVISIONES');
+    ps=sortPs(ps);
+    document.getElementById('tbody-proj-ejec').innerHTML=ps.map((p,idx)=>{
+      const s=sem(p);
+      const ppto=getPptoControl(p);
+      const cobrado=getCobradoTotal(p);
+      const extras=(p.extraordinarios||[]);
+      const extTotal=extras.reduce(function(s,e){return s+(parseFloat(e.monto)||0);},0);
+      const pptoFmt=ppto?'$'+Math.round(ppto).toLocaleString('es-MX'):'<span style="color:#a8a8a8;font-size:9px">Sin definir</span>';
+      const cobFmt=cobrado?'<span style="color:#639922;font-weight:700">$'+Math.round(cobrado).toLocaleString('es-MX')+'</span>':'—';
+      const extFmt=extras.length?`<span style="color:#e65a27;font-weight:700">$${Math.round(extTotal).toLocaleString('es-MX')}</span> <span style="font-size:9px;color:#a8a8a8">(${extras.length})</span>`:'—';
+      return`<tr style="${p.etapa==='REVISIONES'?'background:#fffef8':''}">
+        <td style="color:#a8a8a8">${idx+1}</td>
+        <td style="color:#bfd1e5;font-size:10px">${histNum(p)}</td>
+        <td style="font-weight:700;max-width:140px">${p.nombre}${p.presupuestoControlCotId?'<span title="Presupuesto de control definido" style="color:#639922;margin-left:4px;font-size:10px">●</span>':''}</td>
+        <td>${etapaBadge(p.etapa,p.interno)}</td>
+        <td style="font-size:10px;max-width:90px">${p.cliente||'—'}</td>
+        <td><span class="badge b-blue">${p.coord||'—'}</span></td>
+        <td style="font-size:11px;font-weight:700;color:#254467">${pptoFmt}</td>
+        <td style="font-size:11px">${cobFmt}</td>
+        <td style="font-size:10px;white-space:nowrap;color:#6990ab">${fmtD(p.fechaFirma||'')}</td>
+        <td style="font-size:10px;white-space:nowrap;color:#6990ab">${fmtD(p.fechaInicioObra||'')}</td>
+        <td style="font-size:10px;white-space:nowrap;color:#6990ab">${fmtD(p.fechaFinObra||'')}</td>
+        <td style="font-size:10px">${extFmt}</td>
+        <td><span class="sem ${s.cls}">${s.label}</span></td>
+        <td><div style="display:flex;align-items:center;gap:2px"><div class="pbar"><div class="pfill" style="width:${p.avance}%"></div></div><span style="font-size:9px">${p.avance}%</span></div></td>
+        <td><span class="badge ${p.estatus==='Completado'?'b-comp':p.estatus==='Pausado'?'b-pause':p.estatus==='Retrasado'?'b-crit':p.estatus==='En riesgo'?'b-risk':'b-ok'}">${p.estatus}</span></td>
+        <td class="no-print" style="white-space:nowrap">
+          <button class="btn btn-sm" onclick="openProyecto(${p.id},false)" style="margin-right:2px">Editar</button>
+          <button class="btn btn-sm" onclick="abrirSeguimientoProyecto(${p.id})" style="margin-right:2px;background:#EEF2FF;color:#254467;border-color:#C7D2FE">+Seg</button>
+          <button class="btn btn-sm" onclick="openFirmarContrato(${p.id})" style="margin-right:2px;background:#eaf3de;color:#3B6D11;border-color:#6EE7B7" title="Ver / editar contrato">✍</button>
+          <button class="btn btn-sm" onclick="openExtraordinario(${p.id})" style="margin-right:2px;background:#fff8f6;color:#e65a27;border-color:#f5b89b">+Extra</button>
+          <button class="btn btn-sm btn-danger" onclick="archivar(${p.id})">Arch.</button>
+        </td>
+      </tr>`;
+    }).join('');
+  }
+}
+
+// ── FIRMA DE CONTRATO ────────────────────────────────────────
+function openFirmarContrato(projId){
+  const p=projects.find(x=>x.id===projId);if(!p)return;
+  const cots=getCots().filter(c=>String(c.projId)===String(projId));
+  const cotOpts=cots.map(c=>{
+    const m=calcCotMetrics(c);
+    const total=m.grandTotal?'$'+Math.round(m.grandTotal).toLocaleString('es-MX'):'sin total';
+    return`<option value="${c.id}" ${String(p.presupuestoControlCotId)===String(c.id)?'selected':''}>${c.nombre} — ${total} (${fmtDY(c.fecha)})</option>`;
   }).join('');
+  const yaFirmado=!!(p.fechaFirma);
+  document.getElementById('modal-body').innerHTML=`
+    <h3 style="margin-bottom:4px">${yaFirmado?'✍ Contrato firmado':'✍ Firmar contrato'}</h3>
+    <div style="font-size:11px;color:#67727a;margin-bottom:16px">${p.nombre}</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+      <label style="font-size:11px;font-weight:700;color:#254467">Fecha de firma <span style="color:#e65a27">*</span>
+        <input type="date" id="fc-fecha" value="${p.fechaFirma||''}" style="display:block;width:100%;margin-top:4px;font-size:11px;padding:5px 8px;border:.5px solid #bfd1e5;border-radius:6px;font-family:Arial">
+      </label>
+      <label style="font-size:11px;font-weight:700;color:#254467">Inicio de obra
+        <input type="date" id="fc-inicio" value="${p.fechaInicioObra||''}" style="display:block;width:100%;margin-top:4px;font-size:11px;padding:5px 8px;border:.5px solid #bfd1e5;border-radius:6px;font-family:Arial">
+      </label>
+      <label style="font-size:11px;font-weight:700;color:#254467">Fin de obra
+        <input type="date" id="fc-fin" value="${p.fechaFinObra||''}" style="display:block;width:100%;margin-top:4px;font-size:11px;padding:5px 8px;border:.5px solid #bfd1e5;border-radius:6px;font-family:Arial">
+      </label>
+    </div>
+    <label style="font-size:11px;font-weight:700;color:#254467;display:block;margin-bottom:14px">
+      Presupuesto de Control <span style="font-size:10px;font-weight:400;color:#67727a">(cotización que queda congelada)</span>
+      <select id="fc-cot" style="display:block;width:100%;margin-top:4px;font-size:11px;padding:5px 8px;border:.5px solid #bfd1e5;border-radius:6px;font-family:Arial">
+        <option value="">— Sin definir —</option>
+        ${cotOpts||'<option disabled>Sin cotizaciones para este proyecto</option>'}
+      </select>
+    </label>
+    ${p.presupuestoControlCotId?`<div style="background:#eaf3de;border-radius:8px;padding:10px 14px;font-size:11px;color:#3B6D11;margin-bottom:12px">
+      ✅ Presupuesto de Control ya definido. Solo actualiza si necesitas cambiarlo.
+    </div>`:''}
+    <div class="btn-row" style="position:sticky;bottom:0;background:#fff;padding-top:10px;border-top:1px solid #eef2f6">
+      <button type="button" class="btn" onclick="closeModal()">Cancelar</button>
+      <button type="button" class="btn btn-primary" style="background:#3B6D11;border-color:#3B6D11" onclick="saveFirmarContrato(${projId})">
+        ${yaFirmado?'Actualizar contrato':'✍ Confirmar firma y pasar a Ejecutivo'}
+      </button>
+    </div>`;
+  document.querySelector('.modal').classList.remove('wide');
+  openModal();
+}
+
+function saveFirmarContrato(projId){
+  const p=projects.find(x=>x.id===projId);if(!p)return;
+  const fecha=document.getElementById('fc-fecha').value;
+  if(!fecha){alert('La fecha de firma es obligatoria.');return;}
+  const cotId=document.getElementById('fc-cot').value;
+  const inicio=document.getElementById('fc-inicio').value;
+  const fin=document.getElementById('fc-fin').value;
+  const eraPrecon=p.etapa==='PRECON';
+  p.fechaFirma=fecha;
+  p.fechaInicioObra=inicio||p.fechaInicioObra||'';
+  p.fechaFinObra=fin||p.fechaFinObra||'';
+  if(cotId) p.presupuestoControlCotId=cotId;
+  if(eraPrecon){p.etapa='EJECUTIVO';p.estatusProy='Ganado';}
+  p.ultimaActualizacion=todayStr;
+  sv(K.proj,projects);
+  closeModal();
+  if(eraPrecon){
+    setProjSubTab('ejecutivo');
+  } else {
+    renderProyectos();
+  }
+}
+
+// ── EXTRAORDINARIOS ──────────────────────────────────────────
+function openExtraordinario(projId){
+  const p=projects.find(x=>x.id===projId);if(!p)return;
+  const extras=p.extraordinarios||[];
+  const listaHtml=extras.length?extras.map((e,i)=>`
+    <tr style="border-bottom:.5px solid #eef2f6">
+      <td style="padding:5px 8px;font-size:10px;color:#67727a">${fmtD(e.fecha)}</td>
+      <td style="padding:5px 8px;font-size:11px;font-weight:600">${e.descripcion}</td>
+      <td style="padding:5px 8px;font-size:11px;font-weight:700;color:#e65a27;text-align:right">$${Math.round(e.monto||0).toLocaleString('es-MX')}</td>
+      <td style="padding:5px 8px;font-size:10px;color:#67727a">${e.responsable||'—'}</td>
+      <td style="padding:5px 8px"><button class="btn btn-sm btn-danger" onclick="deleteExtraordinario(${projId},${i})">✕</button></td>
+    </tr>`).join('')
+    :'<tr><td colspan="5" style="padding:1rem;color:#a8a8a8;font-size:11px;text-align:center">Sin extraordinarios registrados</td></tr>';
+  const totalExtra=extras.reduce((s,e)=>s+(parseFloat(e.monto)||0),0);
+  document.getElementById('modal-body').innerHTML=`
+    <h3 style="margin-bottom:4px">⚡ Extraordinarios — ${p.nombre}</h3>
+    <div style="font-size:11px;color:#67727a;margin-bottom:14px">Cambios de alcance o adicionales al contrato original</div>
+    <table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:14px">
+      <thead><tr style="background:#f8fafc">
+        <th style="padding:5px 8px;text-align:left;font-size:9px;color:#67727a">Fecha</th>
+        <th style="padding:5px 8px;text-align:left;font-size:9px;color:#67727a">Descripción</th>
+        <th style="padding:5px 8px;text-align:right;font-size:9px;color:#e65a27">Monto MXN</th>
+        <th style="padding:5px 8px;text-align:left;font-size:9px;color:#67727a">Responsable</th>
+        <th></th>
+      </tr></thead>
+      <tbody>${listaHtml}</tbody>
+      ${totalExtra?`<tfoot><tr style="background:#fff8f6"><td colspan="2" style="padding:6px 8px;font-size:11px;font-weight:700;color:#e65a27">Total extraordinarios</td><td style="padding:6px 8px;text-align:right;font-size:13px;font-weight:700;color:#e65a27">$${Math.round(totalExtra).toLocaleString('es-MX')}</td><td colspan="2"></td></tr></tfoot>`:''}
+    </table>
+    <div style="background:#f8fafc;border-radius:8px;padding:12px;border:.5px solid #bfd1e5;margin-bottom:14px">
+      <div style="font-size:11px;font-weight:700;color:#254467;margin-bottom:10px">+ Agregar extraordinario</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <label style="font-size:10px;font-weight:700;color:#475569">Fecha
+          <input type="date" id="ext-fecha" value="${todayStr}" style="display:block;width:100%;margin-top:3px;font-size:11px;padding:4px 7px;border:.5px solid #bfd1e5;border-radius:5px;font-family:Arial">
+        </label>
+        <label style="font-size:10px;font-weight:700;color:#475569">Monto MXN
+          <input type="number" id="ext-monto" placeholder="0" style="display:block;width:100%;margin-top:3px;font-size:11px;padding:4px 7px;border:.5px solid #bfd1e5;border-radius:5px;font-family:Arial">
+        </label>
+      </div>
+      <label style="font-size:10px;font-weight:700;color:#475569;display:block;margin-bottom:8px">Descripción
+        <input type="text" id="ext-desc" placeholder="Descripción del cambio de alcance..." style="display:block;width:100%;margin-top:3px;font-size:11px;padding:4px 7px;border:.5px solid #bfd1e5;border-radius:5px;font-family:Arial">
+      </label>
+      <label style="font-size:10px;font-weight:700;color:#475569;display:block;margin-bottom:8px">Responsable
+        <input type="text" id="ext-resp" placeholder="Nombre..." style="display:block;width:100%;margin-top:3px;font-size:11px;padding:4px 7px;border:.5px solid #bfd1e5;border-radius:5px;font-family:Arial">
+      </label>
+      <button type="button" class="btn btn-primary" onclick="saveExtraordinario(${projId})" style="background:#e65a27;border-color:#e65a27">+ Agregar</button>
+    </div>
+    <div class="btn-row" style="position:sticky;bottom:0;background:#fff;padding-top:10px;border-top:1px solid #eef2f6">
+      <button type="button" class="btn" onclick="closeModal()">Cerrar</button>
+    </div>`;
+  document.querySelector('.modal').classList.remove('wide');
+  openModal();
+}
+
+function saveExtraordinario(projId){
+  const p=projects.find(x=>x.id===projId);if(!p)return;
+  const desc=document.getElementById('ext-desc').value.trim();
+  const monto=parseFloat(document.getElementById('ext-monto').value)||0;
+  const fecha=document.getElementById('ext-fecha').value;
+  const resp=document.getElementById('ext-resp').value.trim();
+  if(!desc){alert('Agrega una descripción.');return;}
+  if(!p.extraordinarios) p.extraordinarios=[];
+  p.extraordinarios.push({id:Date.now(),fecha,descripcion:desc,monto,responsable:resp});
+  p.ultimaActualizacion=todayStr;
+  sv(K.proj,projects);
+  openExtraordinario(projId);
+}
+
+function deleteExtraordinario(projId,idx){
+  const p=projects.find(x=>x.id===projId);if(!p)return;
+  if(!confirm('¿Eliminar este extraordinario?'))return;
+  p.extraordinarios.splice(idx,1);
+  p.ultimaActualizacion=todayStr;
+  sv(K.proj,projects);
+  openExtraordinario(projId);
 }
 
 // ── PROYECTO MODAL ───────────────────────────────────────────
