@@ -1478,6 +1478,12 @@ function openFirmarContrato(projId){
       <label style="font-size:11px;font-weight:700;color:#254467">Fin de obra
         <input type="date" id="fc-fin" value="${p.fechaFinObra||''}" style="display:block;width:100%;margin-top:4px;font-size:11px;padding:5px 8px;border:.5px solid #bfd1e5;border-radius:6px;font-family:Arial">
       </label>
+      <label style="font-size:11px;font-weight:700;color:#6990ab">Inicio de diseño
+        <input type="date" id="fc-ini-dis" value="${p.fechaInicioDis||''}" style="display:block;width:100%;margin-top:4px;font-size:11px;padding:5px 8px;border:.5px solid #bfd1e5;border-radius:6px;font-family:Arial">
+      </label>
+      <label style="font-size:11px;font-weight:700;color:#6990ab">Fin de diseño
+        <input type="date" id="fc-fin-dis" value="${p.fechaFinDis||''}" style="display:block;width:100%;margin-top:4px;font-size:11px;padding:5px 8px;border:.5px solid #bfd1e5;border-radius:6px;font-family:Arial">
+      </label>
     </div>
     <label style="font-size:11px;font-weight:700;color:#254467;display:block;margin-bottom:14px">
       Presupuesto de Control <span style="font-size:10px;font-weight:400;color:#67727a">(cotización que queda congelada)</span>
@@ -1510,6 +1516,8 @@ function saveFirmarContrato(projId){
   p.fechaFirma=fecha;
   p.fechaInicioObra=inicio||p.fechaInicioObra||'';
   p.fechaFinObra=fin||p.fechaFinObra||'';
+  p.fechaInicioDis=document.getElementById('fc-ini-dis').value||p.fechaInicioDis||'';
+  p.fechaFinDis=document.getElementById('fc-fin-dis').value||p.fechaFinDis||'';
   if(cotId) p.presupuestoControlCotId=cotId;
   if(eraPrecon){p.etapa='EJECUTIVO';p.estatusProy='Ganado';}
   p.ultimaActualizacion=todayStr;
