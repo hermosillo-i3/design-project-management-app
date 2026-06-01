@@ -2392,6 +2392,8 @@ function savePersonTask(nombre){
   sv(K.tasks,tasks);
   closeModal();
   renderEquipo();
+  if(typeof renderConsultores==='function') renderConsultores();
+  renderPendientes();
 }
 
 function toggleTask(id,val){
@@ -5927,7 +5929,7 @@ function renderConsultores(){
       +'<span>Tareas</span>'
       +'<div style="display:flex;gap:5px;align-items:center">'
       +(nVenc?'<span style="background:#fff8f6;color:#e65a27;border-radius:10px;padding:1px 6px;font-size:9px;font-weight:700">'+nVenc+' venc.</span>':'<span style="background:#eef2f6;color:#67727a;border-radius:10px;padding:1px 6px">'+myTasks.length+'</span>')
-      +'<button onclick="addPersonTask(\''+nombre.replace(/\'/g,"\\\'")+'\'" style="font-size:9px;padding:2px 8px;border:.5px solid #254467;border-radius:5px;background:#254467;color:#fff;cursor:pointer;font-family:Arial;font-weight:700">+ Tarea</button>'
+      +'<button onclick="addPersonTask(\''+nombre.replace(/\'/g,"\\'")+'\');event.stopPropagation()" style="font-size:9px;padding:2px 8px;border:none;border-radius:5px;background:#254467;color:#fff;cursor:pointer;font-family:Arial;font-weight:700">+ Tarea</button>'
       +'</div></div>';
 
     myTasks.forEach(function(t,tIdx){
