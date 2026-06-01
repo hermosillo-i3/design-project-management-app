@@ -2490,7 +2490,9 @@ function renderPendientes(){
           +'<span style="color:'+dateColor+';font-weight:'+dateWeight+'">'+fmtD(t.fechaCompromiso)+'</span>'
           +(ov?' <span class="overdue">VENCIDA</span>':soon?' <span style="color:#6990ab;font-weight:700">⚠ PRÓXIMA</span>':'')
           +(t.bloqueante?'<span class="badge b-crit" style="margin-left:4px">Bloqueante</span>':'')
-          +'</div></div></div>';
+          +'</div>'
+          +'<button onclick="openEditTask('+t.id+')" style="flex-shrink:0;font-size:9px;padding:2px 7px;border:.5px solid #6990ab;border-radius:4px;background:#fff;cursor:pointer;font-family:Arial;color:#6990ab">✏</button>'
+          +'</div></div>';
       }).join('')
       +'</div>';
   }).join('');
@@ -5887,7 +5889,8 @@ function renderConsultores(){
         +(proj?'<span style="color:'+(proj.archivado?'#a8a8a8':'#254467')+';font-weight:700;font-size:9px">'+proj.nombre.substring(0,22)+(proj.archivado?' <span style="font-weight:400;border:.5px solid #ccc;border-radius:3px;padding:0 3px">arch</span>':'')+'</span>':'')
         +(t.fechaCompromiso?'<span style="color:'+dc+';font-weight:700">'+fmtD(t.fechaCompromiso)+(ov?' VENC':soon?' ⚠':'')+'</span>':'')
         +'<button onclick="addTaskNote('+t.id+')" style="font-size:9px;padding:1px 6px;border:.5px solid #bfd1e5;border-radius:4px;background:#fff;cursor:pointer;font-family:Arial;color:#67727a">+ Nota</button>'
-        +'<button onclick="archiveTask('+t.id+')" style="font-size:9px;padding:1px 6px;border:.5px solid #bfd1e5;border-radius:4px;background:#fff;cursor:pointer;font-family:Arial;color:#a8a8a8">Arch.</button>'
+        +'<button onclick="openEditTask('+t.id+')" style="font-size:9px;padding:1px 6px;border:.5px solid #6990ab;border-radius:4px;background:#fff;cursor:pointer;font-family:Arial;color:#6990ab">✏</button>'
+        +'<button onclick="archiveTask('+t.id+')" style="font-size:9px;padding:1px 6px;border:.5px solid #bfd1e5;border-radius:4px;background:#fff;cursor:pointer;font-family:Arial;color:#a8a8a8" title="Archivar — visible en Seguimiento > Ver archivados">Arch.</button>'
         +'</div></div>';
     });
     if(myTasks.length>10) html+='<div style="padding:7px 12px;font-size:10px;color:#6990ab;cursor:pointer;font-weight:700" onclick="consulVerMas(this,\''+cNombreEsc+'\')">Ver '+(myTasks.length-10)+' más...</div>';
@@ -7871,7 +7874,8 @@ function renderEquipoDetalle(allProjs){
         +(proj?'<span style="color:'+(proj.archivado?'#a8a8a8':'#254467')+';font-weight:700;font-size:9px">'+proj.nombre.substring(0,22)+(proj.archivado?' <span style="font-weight:400;border:.5px solid #ccc;border-radius:3px;padding:0 3px">arch</span>':'')+'</span>':'')
         +(t.fechaCompromiso?'<span style="color:'+dc+';font-weight:700">'+fmtD(t.fechaCompromiso)+(ov?' VENC':soon?' ⚠':'')+'</span>':'')
         +'<button onclick="addTaskNote('+t.id+')" style="font-size:9px;padding:1px 6px;border:.5px solid #bfd1e5;border-radius:4px;background:#fff;cursor:pointer;font-family:Arial;color:#67727a">+ Nota</button>'
-        +'<button onclick="archiveTask('+t.id+')" style="font-size:9px;padding:1px 6px;border:.5px solid #bfd1e5;border-radius:4px;background:#fff;cursor:pointer;font-family:Arial;color:#a8a8a8">Arch.</button>'
+        +'<button onclick="openEditTask('+t.id+')" style="font-size:9px;padding:1px 6px;border:.5px solid #6990ab;border-radius:4px;background:#fff;cursor:pointer;font-family:Arial;color:#6990ab">✏</button>'
+        +'<button onclick="archiveTask('+t.id+')" style="font-size:9px;padding:1px 6px;border:.5px solid #bfd1e5;border-radius:4px;background:#fff;cursor:pointer;font-family:Arial;color:#a8a8a8" title="Archivar — visible en Seguimiento > Ver archivados">Arch.</button>'
         +'</div>'
         +(t.notas&&t.notas.length?'<div style="margin-left:18px;margin-top:3px">'+t.notas.slice(-1).map(function(n){return'<div style="font-size:10px;color:#67727a;background:#f8fafc;border-radius:4px;padding:2px 6px;margin-top:2px">'+(n.fecha?n.fecha+' · ':'')+n.texto+'</div>';}).join('')+'</div>':'')
         +'</div>';
