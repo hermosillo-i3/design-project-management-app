@@ -3122,14 +3122,28 @@ function saveCots(a){sv(K.cot,a);}
 // ─── RENDER PRINCIPAL ────────────────────────────────────────
 function renderCotizaciones(){
   const el=document.getElementById('cotizaciones-list');if(!el)return;
-  const cots=getCots(),allProjs=[...activeProjs(),...internos()];
+  const cots=getCots();
+  // allProjsAll: todos los proyectos (activos, archivados, perdidos) para lookup de nombres
+  const allProjsAll=[...projects];
   const view=ld('gh_cot_view','tabla'),filterProj=ld('gh_cot_filter','');
   const catCot=migrateCotCat(getCotCat());
 
+  // Agrupar proyectos con cotizaciones en 3 grupos
+  const hasCot=function(p){return cots.some(function(c){return String(c.projId)===String(p.id);});};
+  const PERDIDOS=['Perdido','Cancelado'];
+  const grpActivos=allProjsAll.filter(function(p){return !p.archivado&&!p.interno&&!PERDIDOS.includes(p.estatusProy||'')&&hasCot(p);}).sort(function(a,b){return a.nombre.localeCompare(b.nombre);});
+  const grpArchivados=allProjsAll.filter(function(p){return p.archivado&&!p.interno&&hasCot(p);}).sort(function(a,b){return a.nombre.localeCompare(b.nombre);});
+  const grpPerdidos=allProjsAll.filter(function(p){return !p.archivado&&!p.interno&&PERDIDOS.includes(p.estatusProy||'')&&hasCot(p);}).sort(function(a,b){return a.nombre.localeCompare(b.nombre);});
+
+  const mkOpts=function(arr){return arr.map(function(p){return '<option value="'+p.id+'"'+(String(filterProj)===String(p.id)?' selected':'')+'>'+p.nombre+'</option>';}).join('');};
+  const dropdownOpts='<option value="">Todos los proyectos</option>'
+    +(grpActivos.length?'<optgroup label="── Activos ──">'+mkOpts(grpActivos)+'</optgroup>':'')
+    +(grpArchivados.length?'<optgroup label="── Archivados ──">'+mkOpts(grpArchivados)+'</optgroup>':'')
+    +(grpPerdidos.length?'<optgroup label="── Perdidos / Cancelados ──">'+mkOpts(grpPerdidos)+'</optgroup>':'');
+
   let top='<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap">'
-    +'<select onchange="sv(\'gh_cot_filter\',this.value);renderCotizaciones()" style="font-size:11px;padding:5px 8px;border-radius:6px;border:.5px solid #bfd1e5;font-family:Arial;max-width:240px">'
-    +'<option value="">Todos los proyectos</option>'
-    +(function(){var archived=ld('gh_proj',[]).filter(function(p){return p.archivado;});var all=[...allProjs,...archived.filter(function(a){return !allProjs.find(function(p){return p.id===a.id;});})];return all.filter(function(p){return cots.some(function(c){return String(c.projId)===String(p.id);});}).sort(function(a,b){return a.nombre.localeCompare(b.nombre);}).map(function(p){return '<option value="'+p.id+'"'+(filterProj==p.id?' selected':'')+'>'+(p.archivado?'[Arch.] ':'')+p.nombre+'</option>';}).join('');})() 
+    +'<select onchange="sv(\'gh_cot_filter\',this.value);renderCotizaciones()" style="font-size:11px;padding:5px 8px;border-radius:6px;border:.5px solid #bfd1e5;font-family:Arial;max-width:260px">'
+    +dropdownOpts
     +'</select>'
     +'<div style="display:flex;border:.5px solid #bfd1e5;border-radius:6px;overflow:hidden;margin-left:auto">'
     +['tabla','historico','asesores'].map(function(v){
@@ -3145,9 +3159,10 @@ function renderCotizaciones(){
     +'<button onclick="openGestionEsps()" style="padding:5px 10px;font-size:11px;font-family:Arial;border:.5px solid #bfd1e5;background:#fff;color:#67727a;border-radius:6px;cursor:pointer" title="Especialidades">⚙</button>'
     +'</div>';
   el.innerHTML=top;
-  if(view==='tabla') renderCotTabla(el,cots,allProjs,filterProj,catCot);
-  else if(view==='historico') renderCotHistorico(el,cots,allProjs,catCot);
-  else renderCotAsesores(el,cots,allProjs,catCot);
+  // Pasar allProjsAll para que los proyectos archivados/perdidos también resuelvan su nombre
+  if(view==='tabla') renderCotTabla(el,cots,allProjsAll,filterProj,catCot);
+  else if(view==='historico') renderCotHistorico(el,cots,allProjsAll,catCot);
+  else renderCotAsesores(el,cots,allProjsAll,catCot);
 }
 
 // ─── VISTA TABLA ─────────────────────────────────────────────
@@ -3161,13 +3176,17 @@ function renderCotTabla(el,cots,allProjs,filterProj,catCot){
     var projId=entry[0],projCots=entry[1];
     var proj=allProjs.find(function(p){return String(p.id)===String(projId);});
     var pN=proj?proj.nombre:'Proyecto #'+projId;
-    var s=proj?sem(proj):{cls:'none',label:'—'};
+    var s=proj&&!proj.archivado?sem(proj):{cls:'none',label:'—'};
+    var isArch=proj&&proj.archivado;
+    var isPerd=proj&&['Perdido','Cancelado'].includes(proj.estatusProy||'');
     projCots.sort(function(a,b){return b.fecha.localeCompare(a.fecha);});
-    html+='<div style="background:#fff;border-radius:10px;border:.5px solid #bfd1e5;margin-bottom:1rem;overflow:hidden">'
-      +'<div style="background:#f8fafc;border-bottom:.5px solid #bfd1e5;padding:9px 14px;display:flex;align-items:center;gap:8px">'
-      +'<div style="font-size:13px;font-weight:700;color:#254467;flex:1">'+pN+'</div>'
-      +(proj?'<span class="sem '+s.cls+'" style="font-size:9px">'+s.label+'</span>':'')
-      +(proj?'<span style="font-size:9px;background:#e0eaf2;color:#254467;border-radius:4px;padding:1px 6px;font-weight:700">'+proj.etapa+'</span>':'')
+    html+='<div style="background:#fff;border-radius:10px;border:.5px solid '+(isArch?'#ddd':isPerd?'#fdd':'#bfd1e5')+';margin-bottom:1rem;overflow:hidden">'
+      +'<div style="background:'+(isArch?'#f5f5f5':isPerd?'#fff8f8':'#f8fafc')+';border-bottom:.5px solid #bfd1e5;padding:9px 14px;display:flex;align-items:center;gap:8px">'
+      +'<div style="font-size:13px;font-weight:700;color:'+(isArch?'#a8a8a8':isPerd?'#c0392b':'#254467')+';flex:1">'+pN+'</div>'
+      +(isArch?'<span style="font-size:9px;background:#eee;color:#888;border-radius:4px;padding:1px 6px;font-weight:700">Archivado</span>':'')
+      +(isPerd?'<span style="font-size:9px;background:#fdd;color:#c0392b;border-radius:4px;padding:1px 6px;font-weight:700">'+(proj.estatusProy||'')+'</span>':'')
+      +(!isArch&&!isPerd&&proj?'<span class="sem '+s.cls+'" style="font-size:9px">'+s.label+'</span>':'')
+      +(!isArch&&!isPerd&&proj?'<span style="font-size:9px;background:#e0eaf2;color:#254467;border-radius:4px;padding:1px 6px;font-weight:700">'+proj.etapa+'</span>':'')
       +'<button onclick="openNuevaVersion('+projId+')" style="font-size:10px;padding:3px 10px;border:.5px solid #6990ab;border-radius:5px;background:#fff;color:#6990ab;cursor:pointer;font-family:Arial">+ Nueva versión</button>'
       +'<button onclick="openNuevaCotizacion('+projId+')" style="font-size:10px;padding:3px 10px;border:.5px solid #bfd1e5;border-radius:5px;background:#fff;cursor:pointer;font-family:Arial">+ Cotización</button>'
       +'</div>';
