@@ -5767,7 +5767,15 @@ function renderConsultores(){
   const deadline=new Date(today);deadline.setDate(today.getDate()+30);
   const dlStr=deadline.toISOString().slice(0,10);
 
-  let html='<div style="font-size:9px;color:#a8a8a8;margin-bottom:12px">'+consuls.length+' consultor(es) · arrastra proyectos para reordenar por prioridad</div>';
+  let html='<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;padding:8px 12px;background:#f8fafc;border:.5px solid #bfd1e5;border-radius:8px">'
+    +'<span style="font-size:10px;font-weight:700;color:#254467;font-family:Arial">Simbología:</span>'
+    +'<span style="font-size:10px;font-family:Arial;color:#67727a;display:flex;align-items:center;gap:4px"><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#e65a27"></span> Crítico / Vencido</span>'
+    +'<span style="font-size:10px;font-family:Arial;color:#67727a;display:flex;align-items:center;gap:4px"><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#6990ab"></span> En riesgo</span>'
+    +'<span style="font-size:10px;font-family:Arial;color:#67727a;display:flex;align-items:center;gap:4px"><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#639922"></span> En tiempo</span>'
+    +'<span style="font-size:10px;font-family:Arial;color:#67727a;display:flex;align-items:center;gap:4px"><span style="background:#fff3e0;color:#e65a27;border-radius:10px;padding:1px 7px;font-size:9px;font-weight:700">N tareas</span> Proyectos con pendientes tuyos</span>'
+    +'<span style="font-size:10px;font-family:Arial;color:#a8a8a8;display:flex;align-items:center;gap:4px"><span style="opacity:.4;background:#e8edf2;border-radius:3px;padding:1px 5px;font-size:9px">proyecto</span> Sin actividad reciente</span>'
+    +'<span style="margin-left:auto;font-size:9px;color:#a8a8a8;font-family:Arial">'+consuls.length+' consultor(es) · arrastra para reordenar</span>'
+    +'</div>';
 
   consuls.forEach(function(consul){
     const nombre=consul.nombre;
@@ -5789,6 +5797,9 @@ function renderConsultores(){
         return (a.fechaCompromiso||'z').localeCompare(b.fechaCompromiso||'z');
       });
     const nVenc=myTasks.filter(function(t){return t.fechaCompromiso&&t.fechaCompromiso<todayStr;}).length;
+    // Pre-calculate project groups so header can use them
+    const projsConTarea=myProjs.filter(function(p){return myTasks.some(function(t){return t.projId===p.id;});});
+    const projsSinTarea=myProjs.filter(function(p){return !myTasks.some(function(t){return t.projId===p.id;});});
 
     const entregas=[];
     myProjs.forEach(function(p){
@@ -5817,7 +5828,11 @@ function renderConsultores(){
     html+='<div style="background:#254467;padding:10px 14px;display:flex;align-items:center;gap:10px">'
       +'<div style="width:38px;height:38px;border-radius:50%;background:#6990ab;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;flex-shrink:0">'+initials+'</div>'
       +'<div style="flex:1"><div style="font-size:13px;font-weight:700;color:#fff">'+nombre+'</div>'
-      +'<div style="font-size:10px;color:#bfd1e5">'+( consul.especialidad||'Consultor')+'</div></div>'
+      +'<div style="font-size:10px;color:#bfd1e5">'+( consul.especialidad||'Consultor')+'</div>'
+      +(myProjs.length?'<div style="font-size:10px;color:#FCD34D;margin-top:3px;font-weight:600">'
+        +myProjs.length+' proyecto'+(myProjs.length>1?'s':'')+(projsConTarea.length?' · <span style="color:#f5b89b">'+projsConTarea.length+' con tareas pendientes</span>':' · sin tareas activas')
+        +'</div>':'')
+      +'</div>'
       +'<div style="display:flex;gap:6px">'
       +[{n:myProjs.length,l:'Proyectos'},{n:myTasks.length,l:'Tareas'},{n:nVenc,l:'Vencidas',warn:nVenc>0},{n:entregas.length,l:'Entregas'}].map(function(s){
         return '<div style="background:rgba(255,255,255,.12);border-radius:6px;padding:4px 9px;text-align:center">'
@@ -5841,10 +5856,6 @@ function renderConsultores(){
       +(nCrit?'<span style="color:#e65a27">'+nCrit+' crít.</span>':'')
       +(nRisk?'<span style="color:#6990ab">'+nRisk+' riesg.</span>':'')
       +'</div></div>';
-
-    // Split into: projects with active tasks vs without
-    const projsConTarea=myProjs.filter(function(p){return myTasks.some(function(t){return t.projId===p.id;});});
-    const projsSinTarea=myProjs.filter(function(p){return !myTasks.some(function(t){return t.projId===p.id;});});
 
     function renderProjCard(p,hasTasks){
       const s=sem(p);const sc=semColors[s.cls]||'#a8a8a8';
