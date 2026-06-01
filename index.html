@@ -4115,14 +4115,19 @@ function openComparativaModal(cotId){
 
   // Build selector list — all other cots
   var otherCots=allCots.filter(function(c){return String(c.id)!==String(cotId);});
+  var PERDIDOS_EST=['Perdido','Cancelado'];
   var listHtml=otherCots.map(function(c){
     var p=allProjs.find(function(p){return String(p.id)===String(c.projId);});
     var pName=p?p.nombre:'Proyecto';
-    var cliente=p?(' — <span style="color:#6990ab">'+p.cliente+'</span>'):'';
+    var isArch=p&&p.archivado;
+    var isPerd=p&&PERDIDOS_EST.includes(p.estatusProy||'');
+    var badge=isArch?'<span style="font-size:8px;background:#eee;color:#888;border-radius:3px;padding:1px 4px;margin-left:4px">Archivado</span>'
+      :isPerd?'<span style="font-size:8px;background:#fdd;color:#c0392b;border-radius:3px;padding:1px 4px;margin-left:4px">'+(p.estatusProy)+'</span>':'';
+    var cliente=p&&p.cliente?(' — <span style="color:#6990ab">'+p.cliente+'</span>'):'';
     var m2=c.areaM2?(' · '+Number(c.areaM2).toLocaleString()+' m²'):'';
     return '<label style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:7px;border:.5px solid #bfd1e5;cursor:pointer;font-size:11px;background:#fff;transition:background .15s" onmouseover="this.style.background=\'#f0f5fa\'" onmouseout="this.style.background=\'#fff\'">'
       +'<input type="checkbox" value="'+c.id+'" style="cursor:pointer;accent-color:#7C3AED">'
-      +'<span><strong>'+pName+'</strong>'+cliente+' / '+c.nombre+'<span style="color:#a8a8a8">'+m2+'</span></span>'
+      +'<span><strong>'+pName+'</strong>'+badge+cliente+' / '+c.nombre+'<span style="color:#a8a8a8">'+m2+'</span></span>'
       +'</label>';
   }).join('');
 
@@ -4189,8 +4194,12 @@ function renderComparativaTable(cotId){
       var pN=col.proj?col.proj.nombre:'Proyecto';
       var cN=col.cot.nombre;
       var s=i===0?thBase:thOther;
+      var isArch=col.proj&&col.proj.archivado;
+      var isPerd=col.proj&&['Perdido','Cancelado'].includes(col.proj.estatusProy||'');
+      var badge=isArch?'<span style="font-size:8px;background:rgba(255,255,255,.2);border-radius:3px;padding:1px 5px;margin-left:4px">Arch.</span>'
+        :isPerd?'<span style="font-size:8px;background:rgba(255,100,100,.25);border-radius:3px;padding:1px 5px;margin-left:4px">'+(col.proj.estatusProy)+'</span>':'';
       return '<th style="padding:8px 10px;text-align:right;border-bottom:.5px solid #bfd1e5;min-width:130px;'+s+'">'
-        +'<div style="font-size:10px;font-weight:700">'+pN+'</div>'
+        +'<div style="font-size:10px;font-weight:700">'+pN+badge+'</div>'
         +'<div style="font-size:9px;opacity:.8">'+cN+(i===0?' ★':'')+'</div>'
         +'</th>';
     }).join('')+'</tr></thead><tbody>';
