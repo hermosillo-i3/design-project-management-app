@@ -7735,9 +7735,11 @@ function renderEquipoDetalle(allProjs){
   var el=document.getElementById('equipo-list');
   if(!el) return;
 
-  // Only show personas that have open tasks
+  // Exclude consultores (they appear in the Consultores tab)
+  var consulNames=new Set((cat.consultores||[]).map(function(c){return c.nombre;}));
+  // Only show internal personas (not consultores) that have open tasks
   var personasConTareas=cat.personas.filter(function(p){
-    return tasks.some(function(t){return t.asignado===p.nombre&&!t.done&&!t.archivado;});
+    return !consulNames.has(p.nombre)&&tasks.some(function(t){return t.asignado===p.nombre&&!t.done&&!t.archivado;});
   }).sort(function(a,b){return a.nombre.localeCompare(b.nombre);});
 
   if(!personasConTareas.length){
@@ -7843,9 +7845,10 @@ function renderEquipoDetalle(allProjs){
 
     // COL 2 — Tareas (draggable)
     html+='<div style="border-right:.5px solid #bfd1e5">'
-      +'<div style="padding:7px 12px;border-bottom:.5px solid #bfd1e5;font-size:9px;font-weight:700;color:#67727a;text-transform:uppercase;letter-spacing:.06em;display:flex;justify-content:space-between">'
+      +'<div style="padding:7px 12px;border-bottom:.5px solid #bfd1e5;font-size:9px;font-weight:700;color:#67727a;text-transform:uppercase;letter-spacing:.06em;display:flex;align-items:center;gap:5px">'
       +'<span>Tareas <span style="font-weight:400;color:#a8a8a8">(arrastra)</span></span>'
       +(nVenc?'<span style="background:#fff8f6;color:#e65a27;border-radius:10px;padding:1px 6px;font-size:9px;font-weight:700">'+nVenc+' venc.</span>':'<span style="background:#eef2f6;color:#67727a;border-radius:10px;padding:1px 6px">'+myTasks.length+'</span>')
+      +'<button onclick="addPersonTask(\''+nombre.replace(/\'/g,"\\'")+'\');event.stopPropagation()" style="margin-left:auto;font-size:9px;padding:2px 8px;border:none;border-radius:5px;background:#254467;color:#fff;cursor:pointer;font-family:Arial;font-weight:700">+ Tarea</button>'
       +'</div>'
       +'<div id="eqdet-task-'+nombre.replace(/\s/g,'_')+'">';
 
