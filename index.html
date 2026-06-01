@@ -7219,24 +7219,24 @@ function openVsHistModal(cotId,espNombre){
   var elegido=esp?(esp.asesores||[]).find(function(a){return a.elegido;}):null;
   var mxnActual=parseFloat(elegido&&elegido.costoMXN)||0;
   var m2vActual=m2&&mxnActual?mxnActual/m2:0;
-  var refProj=[...activeProjs(),...internos(),...ld('gh_proj',[]).filter(function(p){return p.archivado;})].find(function(p){return String(p.id)===String(cot.projId);});
+  var allProjsAll=[...projects]; // todos: activos, archivados, perdidos
+  var refProj=allProjsAll.find(function(p){return String(p.id)===String(cot.projId);});
 
   // Read saved filters for this modal
   var mFilters=ld('gh_vsmod_filters_'+cotId+'_'+espNombre,{cliente:false,etapa:false,metraje:false});
   var mManual=ld('gh_vsmod_manual_'+cotId+'_'+espNombre,[]);
 
-  var allProjs=[...activeProjs(),...internos(),...ld('gh_proj',[]).filter(function(p){return p.archivado;})];
   var allHistRows=[];
   cots.forEach(function(c){
     if(c.id===cotId) return;
     var m2c=parseFloat(c.areaM2)||0;
-    var proj=allProjs.find(function(p){return String(p.id)===String(c.projId);});
+    var proj=allProjsAll.find(function(p){return String(p.id)===String(c.projId);});
     (c.especialidades||[]).forEach(function(e){
       if(e.nombre!==espNombre) return;
       var el=(e.asesores||[]).find(function(a){return a.elegido;});
       if(!el||!el.costoMXN) return;
       var mxn=parseFloat(el.costoMXN)||0;
-      allHistRows.push({projNombre:proj?proj.nombre:'#'+c.projId,projId:String(c.projId),
+      allHistRows.push({projNombre:proj?proj.nombre:(c.nombre||'Sin proyecto'),projId:String(c.projId),
         fecha:c.fecha,cotNombre:c.nombre,empresa:el.empresa,
         mxn,m2v:m2c?mxn/m2c:0,m2c,archivado:proj&&proj.archivado,
         cliente:proj?proj.cliente:'',etapa:proj?proj.etapa:''});
