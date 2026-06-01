@@ -1453,6 +1453,7 @@ function renderProyectos(){
           <button class="btn btn-sm" onclick="openProyecto(${p.id},false)" style="margin-right:2px">Editar</button>
           <button class="btn btn-sm" onclick="abrirSeguimientoProyecto(${p.id})" style="margin-right:2px;background:#EEF2FF;color:#254467;border-color:#C7D2FE">+Seg</button>
           <button class="btn btn-sm" onclick="openFirmarContrato(${p.id})" style="margin-right:2px;background:#eaf3de;color:#3B6D11;border-color:#6EE7B7" title="Ver / editar contrato">✍</button>
+          ${p.preconSnapshot?`<button class="btn btn-sm" onclick="openPreconSnapshot(${p.id})" style="margin-right:2px;background:#F5F3FF;color:#6D28D9;border-color:#DDD6FE" title="Historial PRECON">📋 PRECON</button>`:''}
           <button class="btn btn-sm" onclick="openExtraordinario(${p.id})" style="margin-right:2px;background:#fff8f6;color:#e65a27;border-color:#f5b89b">+Extra</button>
           <button class="btn btn-sm btn-danger" onclick="archivar(${p.id})">Arch.</button>
         </td>
@@ -1525,7 +1526,22 @@ function saveFirmarContrato(projId){
   p.fechaInicioDis=document.getElementById('fc-ini-dis').value||p.fechaInicioDis||'';
   p.fechaFinDis=document.getElementById('fc-fin-dis').value||p.fechaFinDis||'';
   if(cotId) p.presupuestoControlCotId=cotId;
-  if(eraPrecon){p.etapa='EJECUTIVO';p.estatusProy='Ganado';}
+  if(eraPrecon){
+    // Snapshot del equipo y estado PRECON antes de cambiar
+    p.preconSnapshot={
+      fechaSnap:todayStr,
+      equipo:JSON.parse(JSON.stringify(p.equipo||[])),
+      jefe:p.jefe||'',
+      coord:p.coord||'',
+      consultores:JSON.parse(JSON.stringify(p.consultores||[])),
+      arranque:p.arranque||'',
+      entrega:p.entrega||p.entregaV1||'',
+      presentacion:p.presentacion||'',
+      avance:p.avance||0,
+      estatus:p.estatus||''
+    };
+    p.etapa='EJECUTIVO';p.estatusProy='Ganado';
+  }
   p.ultimaActualizacion=todayStr;
   sv(K.proj,projects);
   closeModal();
@@ -1534,6 +1550,41 @@ function saveFirmarContrato(projId){
   } else {
     renderProyectos();
   }
+}
+
+// ── HISTORIAL PRECON ────────────────────────────────────────
+function openPreconSnapshot(projId){
+  const p=projects.find(x=>x.id===projId);if(!p||!p.preconSnapshot)return;
+  const sn=p.preconSnapshot;
+  const equipo=(sn.equipo||[]).join(', ')||'—';
+  const consuls=(sn.consultores||[]).map(function(c){return c.nombre+(c.rol?' ('+c.rol+')':'');}).join(', ')||'—';
+  document.getElementById('modal-body').innerHTML=`
+    <h3 style="color:#6D28D9;margin-bottom:4px">📋 Historial PRECON — ${p.nombre}</h3>
+    <div style="font-size:10px;color:#a8a8a8;margin-bottom:16px">Snapshot guardado al firmar contrato el ${fmtD(sn.fechaSnap)}</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+      <div style="background:#F5F3FF;border-radius:8px;padding:10px 14px">
+        <div style="font-size:9px;font-weight:700;color:#6D28D9;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Equipo de concurso</div>
+        <div style="font-size:11px;color:#1a2a3a"><b>Jefe:</b> ${sn.jefe||'—'}</div>
+        <div style="font-size:11px;color:#1a2a3a;margin-top:3px"><b>Coordinador:</b> ${sn.coord||'—'}</div>
+        <div style="font-size:11px;color:#1a2a3a;margin-top:3px"><b>Equipo:</b> ${equipo}</div>
+        <div style="font-size:11px;color:#1a2a3a;margin-top:3px"><b>Consultores:</b> ${consuls}</div>
+      </div>
+      <div style="background:#f0f5fa;border-radius:8px;padding:10px 14px">
+        <div style="font-size:9px;font-weight:700;color:#254467;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Datos del concurso</div>
+        <div style="font-size:11px;color:#1a2a3a"><b>Arranque:</b> ${fmtD(sn.arranque)||'—'}</div>
+        <div style="font-size:11px;color:#1a2a3a;margin-top:3px"><b>Entrega:</b> ${fmtD(sn.entrega)||'—'}</div>
+        <div style="font-size:11px;color:#1a2a3a;margin-top:3px"><b>Presentación:</b> ${fmtD(sn.presentacion)||'—'}</div>
+        <div style="font-size:11px;color:#1a2a3a;margin-top:3px"><b>Avance al ganar:</b> ${sn.avance||0}%</div>
+        <div style="font-size:11px;color:#1a2a3a;margin-top:3px"><b>Estatus:</b> ${sn.estatus||'—'}</div>
+      </div>
+    </div>
+    <div style="font-size:10px;color:#67727a;background:#fafafa;border-radius:6px;padding:8px 12px;border:.5px solid #bfd1e5">
+      💡 Este registro es de solo lectura. Refleja el estado del proyecto en el momento de firmar el contrato.
+    </div>
+    <div class="btn-row" style="margin-top:12px">
+      <button class="btn btn-primary" onclick="closeModal()">Cerrar</button>
+    </div>`;
+  openModal();
 }
 
 // ── EXTRAORDINARIOS ──────────────────────────────────────────
