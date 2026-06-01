@@ -6005,15 +6005,21 @@ function renderConsultores(){
       +'<div style="display:flex;gap:5px;align-items:center">'
       +(nVenc?'<span style="background:#fff8f6;color:#e65a27;border-radius:10px;padding:1px 6px;font-size:9px;font-weight:700">'+nVenc+' venc.</span>':'<span style="background:#eef2f6;color:#67727a;border-radius:10px;padding:1px 6px">'+myTasks.length+'</span>')
       +'<button onclick="addPersonTask(\''+nombre.replace(/\'/g,"\\'")+'\');event.stopPropagation()" style="font-size:9px;padding:2px 8px;border:none;border-radius:5px;background:#254467;color:#fff;cursor:pointer;font-family:Arial;font-weight:700">+ Tarea</button>'
-      +'</div></div>';
+      +'</div></div>'
+      +'<div id="eqdet-task-'+nombre.replace(/\s/g,'_')+'">';
 
     myTasks.forEach(function(t,tIdx){
       const ov=t.fechaCompromiso&&t.fechaCompromiso<todayStr;
       const soon=!ov&&t.fechaCompromiso&&Math.round((new Date(t.fechaCompromiso)-today)/86400000)<=2;
       const dc=ov?'#e65a27':soon?'#6990ab':'#67727a';
       const proj=projects.find(function(p){return p.id===t.projId;});
-      const st='padding:7px 12px;border-bottom:.5px solid #e8eef4;background:'+(ov?'#fff8f6':'#fff')+(tIdx>=10?';display:none':'');
-      html+='<div data-task="'+t.id+'" style="'+st+'">'
+      const st='padding:7px 12px;border-bottom:.5px solid #e8eef4;background:'+(ov?'#fff8f6':'#fff')+';cursor:grab'+(tIdx>=10?';display:none':'');
+      html+='<div draggable="true"'
+        +' data-task="'+t.id+'" data-owner="'+nombre.replace(/"/g,'&quot;')+'"'
+        +' ondragstart="eqDetTaskDragStart(event)"'
+        +' ondragover="event.preventDefault()"'
+        +' ondrop="eqDetTaskDrop(event)"'
+        +' style="'+st+'">'
         +'<div style="display:flex;align-items:flex-start;gap:6px;margin-bottom:3px">'
         +'<input type="checkbox" onchange="toggleTask('+t.id+',this.checked)" style="margin-top:2px;flex-shrink:0;cursor:pointer">'
         +'<div style="font-size:11px;color:#1A1A2E;line-height:1.4;flex:1">'+t.texto.substring(0,65)+(t.texto.length>65?'…':'')+'</div>'
@@ -6026,6 +6032,7 @@ function renderConsultores(){
         +'<button onclick="archiveTask('+t.id+')" style="font-size:9px;padding:1px 6px;border:.5px solid #bfd1e5;border-radius:4px;background:#fff;cursor:pointer;font-family:Arial;color:#a8a8a8" title="Archivar — visible en Seguimiento > Ver archivados">Arch.</button>'
         +'</div></div>';
     });
+    html+='</div>';
     if(myTasks.length>10) html+='<div style="padding:7px 12px;font-size:10px;color:#6990ab;cursor:pointer;font-weight:700" onclick="consulVerMas(this,\''+cNombreEsc+'\')">Ver '+(myTasks.length-10)+' más...</div>';
     if(!myTasks.length) html+='<div style="padding:12px;font-size:11px;color:#a8a8a8">Sin tareas. ✓</div>';
     html+='</div>';
