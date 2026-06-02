@@ -2183,22 +2183,26 @@ function saveProyecto(id,isInt){
   };
   if(id){
     const i=projects.findIndex(x=>x.id===id);
-    const prev=projects[i];
-    // Merge: form data overwrites, but preserve execution/operational fields not in the form
-    projects[i]={...prev,...dat,
-      archivado:prev.archivado,archivedAt:prev.archivedAt,
-      preconSnapshot:prev.preconSnapshot,
-      fechaFirma:prev.fechaFirma||'',
-      fechaInicioObra:prev.fechaInicioObra||'',
-      fechaFinObra:prev.fechaFinObra||'',
-      fechaInicioDis:prev.fechaInicioDis||'',
-      fechaFinDis:prev.fechaFinDis||'',
-      presupuestoControlCotId:prev.presupuestoControlCotId||'',
-      extraordinarios:prev.extraordinarios||[],
-      costosEjec:prev.costosEjec||{},
-      requiereAtencion:prev.requiereAtencion||false,
-      gerPrio:prev.gerPrio
-    };
+    if(i>=0){
+      const prev=projects[i];
+      // Preserve execution/operational fields not exposed in the edit form
+      dat.archivado=prev.archivado||false;
+      dat.archivedAt=prev.archivedAt||'';
+      if(prev.preconSnapshot!=null) dat.preconSnapshot=prev.preconSnapshot;
+      if(prev.fechaFirma) dat.fechaFirma=prev.fechaFirma;
+      if(prev.fechaInicioObra) dat.fechaInicioObra=prev.fechaInicioObra;
+      if(prev.fechaFinObra) dat.fechaFinObra=prev.fechaFinObra;
+      if(prev.fechaInicioDis) dat.fechaInicioDis=prev.fechaInicioDis;
+      if(prev.fechaFinDis) dat.fechaFinDis=prev.fechaFinDis;
+      if(prev.presupuestoControlCotId) dat.presupuestoControlCotId=prev.presupuestoControlCotId;
+      if(prev.extraordinarios&&prev.extraordinarios.length) dat.extraordinarios=prev.extraordinarios;
+      if(prev.costosEjec&&Object.keys(prev.costosEjec).length) dat.costosEjec=prev.costosEjec;
+      if(prev.requiereAtencion) dat.requiereAtencion=prev.requiereAtencion;
+      if(prev.gerPrio!=null) dat.gerPrio=prev.gerPrio;
+      projects[i]=dat;
+    } else {
+      projects.push(dat);
+    }
   }
   else projects.push(dat);
   sv(K.proj,projects);closeModal();renderAll();
