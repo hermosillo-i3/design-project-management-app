@@ -6007,7 +6007,7 @@ function renderConsultores(){
         +(isInt?'<span style="background:#e0eaf2;color:#4a6580;border-radius:20px;padding:1px 6px;font-size:9px;font-weight:700">INTERNO</span>'
                :'<span style="background:#e8edf2;color:#254467;border-radius:20px;padding:1px 6px;font-size:9px;font-weight:700">'+p.etapa+'</span>')
         +'<span style="color:'+sc+';font-weight:700">'+s.label+'</span>'
-        +(ent?'<span style="color:#67727a">'+fmtD(ent)+'</span>':'')
+        +(ent?'<span style="color:'+(ent<todayStr?'#e65a27':'#67727a')+'">📅 '+fmtD(ent)+(ent<todayStr?' VENC':'')+'</span>':'')
         +'</div>'
         +(c.comentario?'<div style="font-size:9px;color:#67727a;margin-top:3px;font-style:italic">'+c.comentario+'</div>':'')
         +((p.coord||p.jefe||(p.equipo&&p.equipo.length))?
@@ -8012,7 +8012,7 @@ function renderEquipoDetalle(allProjs){
         +'<div style="display:flex;gap:5px;align-items:center;font-size:10px;flex-wrap:wrap">'
         +'<span style="background:#e8edf2;color:#254467;border-radius:20px;padding:1px 6px;font-size:9px;font-weight:700">'+p.etapa+'</span>'
         +'<span style="color:'+sc+';font-weight:700">'+s.label+'</span>'
-        +(ent?'<span style="color:#67727a">'+fmtD(ent)+'</span>':'')
+        +(ent?'<span style="color:'+(ent<todayStr?'#e65a27':'#67727a')+'">📅 '+fmtD(ent)+(ent<todayStr?' VENC':'')+'</span>':'')
         +'</div>'
         +((p.coord||p.jefe||(p.equipo&&p.equipo.length>1))?
           '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:3px">'
