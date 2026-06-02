@@ -8014,6 +8014,13 @@ function renderEquipoDetalle(allProjs){
         +'<span style="color:'+sc+';font-weight:700">'+s.label+'</span>'
         +(ent?'<span style="color:#67727a">'+fmtD(ent)+'</span>':'')
         +'</div>'
+        +((p.coord||p.jefe||(p.equipo&&p.equipo.length>1))?
+          '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:3px">'
+          +(p.coord?'<span style="font-size:9px;color:#3a6080">📐 '+p.coord+'</span>':'')
+          +(p.jefe?'<span style="font-size:9px;color:#3a6080">★ '+p.jefe+'</span>':'')
+          +((p.equipo&&p.equipo.length>1)?'<span style="font-size:9px;color:#67727a">'+p.equipo.filter(function(e){return e!==nombre;}).slice(0,3).join(', ')+'</span>':'')
+          +'</div>'
+        :'')
         +'<div style="height:3px;background:#bfd1e5;border-radius:2px;margin-top:4px;overflow:hidden">'
         +'<div style="height:100%;border-radius:2px;background:'+sc+';width:'+p.avance+'%"></div></div>'
         +'</div>';
