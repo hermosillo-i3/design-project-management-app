@@ -1472,6 +1472,11 @@ function openFirmarContrato(projId){
     return`<option value="${c.id}" ${String(p.presupuestoControlCotId)===String(c.id)?'selected':''}>${c.nombre} — ${total} (${fmtDY(c.fecha)})</option>`;
   }).join('');
   const yaFirmado=!!(p.fechaFirma);
+  const eraPrecon=p.etapa==='PRECON';
+  const coordOpts=cat.coordinadores.map(c=>`<option value="${c}" ${(p.coord||'')=== c?'selected':''}>${c}</option>`).join('');
+  const jefeOpts=jefes.map(j=>`<option value="${j}" ${(p.jefe||'')=== j?'selected':''}>${j}</option>`).join('');
+  const personOpts=[...cat.personas].sort((a,b)=>a.nombre.localeCompare(b.nombre)).map(pe=>`<option value="${pe.nombre}">${pe.nombre} (${pe.rol})</option>`).join('');
+  const eqArr=p.equipo||[];
   document.getElementById('modal-body').innerHTML=`
     <h3 style="margin-bottom:4px">${yaFirmado?'✍ Contrato firmado':'✍ Firmar contrato'}</h3>
     <div style="font-size:11px;color:#67727a;margin-bottom:16px">${p.nombre}</div>
@@ -1499,6 +1504,29 @@ function openFirmarContrato(projId){
         ${cotOpts||'<option disabled>Sin cotizaciones para este proyecto</option>'}
       </select>
     </label>
+    <div style="background:#f0f8ec;border:.5px solid #c3e6cb;border-radius:8px;padding:12px 14px;margin-bottom:14px">
+      <div style="font-size:11px;font-weight:700;color:#3B6D11;margin-bottom:10px">👥 Equipo de ejecución ${eraPrecon?'<span style="font-size:9px;font-weight:400;color:#67727a">(puede ser diferente al equipo de concurso)</span>':''}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <label style="font-size:11px;font-weight:600;color:#254467">Jefe de proyecto
+          <select id="fc-jefe" style="display:block;width:100%;margin-top:4px;font-size:11px;padding:5px 8px;border:.5px solid #bfd1e5;border-radius:6px;font-family:Arial">
+            <option value="">— Sin jefe —</option>${jefeOpts}
+          </select>
+        </label>
+        <label style="font-size:11px;font-weight:600;color:#254467">Coordinador
+          <select id="fc-coord" style="display:block;width:100%;margin-top:4px;font-size:11px;padding:5px 8px;border:.5px solid #bfd1e5;border-radius:6px;font-family:Arial">
+            <option value="">—</option>${coordOpts}
+          </select>
+        </label>
+      </div>
+      <div style="margin-top:10px">
+        <label style="font-size:11px;font-weight:600;color:#254467">Equipo involucrado</label>
+        <select onchange="addTag(this,'fc-eq-tags','fc-eq-data','person-pill')" style="font-size:11px;padding:5px 8px;border-radius:6px;border:.5px solid #bfd1e5;font-family:Arial;width:100%;margin-top:4px">
+          <option value="">+ Agregar persona...</option>${personOpts}
+        </select>
+        <div id="fc-eq-tags" class="tag-list" style="margin-top:4px">${eqArr.map(e=>`<span class="tag green">${e}<span class="xt" onclick="removeTag(this,'fc-eq-data')">×</span></span>`).join('')}</div>
+        <input type="hidden" id="fc-eq-data" value='${JSON.stringify(eqArr)}'>
+      </div>
+    </div>
     ${p.presupuestoControlCotId?`<div style="background:#eaf3de;border-radius:8px;padding:10px 14px;font-size:11px;color:#3B6D11;margin-bottom:12px">
       ✅ Presupuesto de Control ya definido. Solo actualiza si necesitas cambiarlo.
     </div>`:''}
@@ -1508,7 +1536,7 @@ function openFirmarContrato(projId){
         ${yaFirmado?'Actualizar contrato':'✍ Confirmar firma y pasar a Ejecutivo'}
       </button>
     </div>`;
-  document.querySelector('.modal').classList.remove('wide');
+  document.querySelector('.modal').classList.add('wide');
   openModal();
 }
 
@@ -1526,6 +1554,10 @@ function saveFirmarContrato(projId){
   p.fechaInicioDis=document.getElementById('fc-ini-dis').value||p.fechaInicioDis||'';
   p.fechaFinDis=document.getElementById('fc-fin-dis').value||p.fechaFinDis||'';
   if(cotId) p.presupuestoControlCotId=cotId;
+  // Actualizar equipo de ejecución (siempre, no solo en PRECON)
+  const nuevoJefe=document.getElementById('fc-jefe')?document.getElementById('fc-jefe').value:'';
+  const nuevoCoord=document.getElementById('fc-coord')?document.getElementById('fc-coord').value:'';
+  const nuevoEq=(function(){try{return JSON.parse(document.getElementById('fc-eq-data').value||'[]');}catch(e){return p.equipo||[];}})();
   if(eraPrecon){
     // Snapshot del equipo y estado PRECON antes de cambiar
     p.preconSnapshot={
@@ -1542,6 +1574,9 @@ function saveFirmarContrato(projId){
     };
     p.etapa='EJECUTIVO';p.estatusProy='Ganado';
   }
+  if(nuevoJefe) p.jefe=nuevoJefe;
+  if(nuevoCoord) p.coord=nuevoCoord;
+  if(nuevoEq&&nuevoEq.length) p.equipo=nuevoEq;
   p.ultimaActualizacion=todayStr;
   sv(K.proj,projects);
   closeModal();
@@ -2181,7 +2216,18 @@ function saveProyecto(id,isInt){
     ultimaActualizacion:todayStr,
     proximoAvance:document.getElementById('ppav')?document.getElementById('ppav').value:'',
   };
-  if(id){const i=projects.findIndex(x=>x.id===id);if(i>=0){const prev=projects[i];dat.archivado=prev.archivado;dat.archivedAt=prev.archivedAt;projects[i]=dat;}else{projects.push(dat);}}
+  if(id){
+    const i=projects.findIndex(x=>x.id===id);
+    if(i>=0){
+      const prev=projects[i];
+      dat.archivado=prev.archivado;
+      dat.archivedAt=prev.archivedAt;
+      // Restore execution fields not present in the edit form
+      var _keep=['preconSnapshot','fechaFirma','fechaInicioObra','fechaFinObra','fechaInicioDis','fechaFinDis','presupuestoControlCotId','extraordinarios','costosEjec','requiereAtencion','gerPrio'];
+      _keep.forEach(function(f){if(prev[f]!=null&&prev[f]!==undefined)dat[f]=prev[f];});
+      projects[i]=dat;
+    }else{projects.push(dat);}
+  }
   else projects.push(dat);
   sv(K.proj,projects);closeModal();renderAll();
 }
