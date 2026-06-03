@@ -3068,6 +3068,13 @@ function exportRetro(nombre){
       +'<span style="font-size:9px;color:#67727a">'+p.avance+'%</span>'
       +(p.cliente?'<span style="font-size:9px;color:#a8a8a8">'+p.cliente+'</span>':'')
       +'</div>'
+      +((p.coord||p.jefe||(p.equipo&&p.equipo.length))?
+        '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;font-size:9px;color:#3a6080">'
+        +(p.jefe?'<span>★ '+p.jefe+'</span>':'')
+        +(p.coord?'<span>📐 '+p.coord+'</span>':'')
+        +((p.equipo&&p.equipo.length)?'<span>👥 '+p.equipo.filter(function(e){return e!==nombre;}).join(', ')+'</span>':'')
+        +'</div>'
+      :'')
       +docsHtml
       +(hasHitos?'<div style="margin-top:6px;padding-top:5px;border-top:.5px dashed #bfd1e5">'+hitosHtml+'</div>':'')
       +'</div></div></div>';
@@ -5766,6 +5773,11 @@ function exportRetroConsultor(nombre){
           ${p.cliente?`<span style="font-size:9px;color:#a8a8a8">${p.cliente}</span>`:''}
           ${p.estructuraCompleta?'<span style="font-size:9px;color:#639922;font-weight:700">Struct. ✓</span>':''}
         </div>
+        ${(p.jefe||p.coord||(p.equipo&&p.equipo.length))?`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;font-size:9px;color:#3a6080">
+          ${p.jefe?`<span>★ ${p.jefe}</span>`:''}
+          ${p.coord?`<span>📐 ${p.coord}</span>`:''}
+          ${(p.equipo&&p.equipo.length)?`<span>👥 ${p.equipo.join(', ')}</span>`:''}
+        </div>`:''}
         ${c.comentario?`<div style="font-size:10px;color:#67727a;margin-top:3px;font-style:italic">${c.comentario}</div>`:''}
       </div>
     </div>`;
