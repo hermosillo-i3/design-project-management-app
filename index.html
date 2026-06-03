@@ -5924,6 +5924,13 @@ function renderConsultores(){
         return (a.fechaCompromiso||'z').localeCompare(b.fechaCompromiso||'z');
       });
     const nVenc=myTasks.filter(function(t){return t.fechaCompromiso&&t.fechaCompromiso<todayStr;}).length;
+    // PPC: compromisos de las últimas 4 semanas
+    var hace4sem=new Date(today);hace4sem.setDate(today.getDate()-28);var hace4semStr=hace4sem.toISOString().slice(0,10);
+    var tareasComp=tasks.filter(function(t){return t.asignado===nombre&&t.fechaCompromiso&&t.fechaCompromiso>=hace4semStr&&t.fechaCompromiso<=todayStr&&!t.archivado;});
+    var ppcCumplidas=tareasComp.filter(function(t){return t.done;}).length;
+    var ppcTotal=tareasComp.length;
+    var ppc=ppcTotal>0?Math.round(ppcCumplidas/ppcTotal*100):null;
+    var ppcColor=ppc===null?'#a8a8a8':ppc>=80?'#639922':ppc>=60?'#e6a817':'#e65a27';
     // Pre-calculate project groups so header can use them
     const projsConTarea=myProjs.filter(function(p){return myTasks.some(function(t){return t.projId===p.id;});});
     const projsSinTarea=myProjs.filter(function(p){return !myTasks.some(function(t){return t.projId===p.id;});});
@@ -5960,12 +5967,15 @@ function renderConsultores(){
         +myProjs.length+' proyecto'+(myProjs.length>1?'s':'')+(projsConTarea.length?' · <span style="color:#f5b89b">'+projsConTarea.length+' con tareas pendientes</span>':' · sin tareas activas')
         +'</div>':'')
       +'</div>'
-      +'<div style="display:flex;gap:6px">'
-      +[{n:myProjs.length,l:'Proyectos'},{n:myTasks.length,l:'Tareas'},{n:nVenc,l:'Vencidas',warn:nVenc>0},{n:entregas.length,l:'Entregas'}].map(function(s){
+      +'<div style="display:flex;gap:6px;align-items:center">'
+      +[{n:myProjs.length,l:'Proyectos'},{n:myTasks.length,l:'Objetivos'},{n:nVenc,l:'Vencidos',warn:nVenc>0},{n:entregas.length,l:'Entregas'}].map(function(s){
         return '<div style="background:rgba(255,255,255,.12);border-radius:6px;padding:4px 9px;text-align:center">'
           +'<div style="font-size:14px;font-weight:700;color:'+(s.warn?'#f5b89b':'#fff')+'">'+s.n+'</div>'
           +'<div style="font-size:9px;color:#bfd1e5;text-transform:uppercase;letter-spacing:.04em">'+s.l+'</div></div>';
       }).join('')
+      +(ppc!==null?'<div style="background:rgba(255,255,255,.12);border-radius:6px;padding:4px 9px;text-align:center;border:1.5px solid '+ppcColor+'">'
+        +'<div style="font-size:14px;font-weight:700;color:'+ppcColor+'">'+ppc+'%</div>'
+        +'<div style="font-size:9px;color:#bfd1e5;text-transform:uppercase;letter-spacing:.04em">PPC</div></div>':'')
       +'</div>'
       +'<div style="display:flex;flex-direction:column;gap:5px;margin-left:6px">'
       +'<button onclick="exportRetroConsultor(\''+cNombreEsc+'\')" style="font-size:9px;padding:3px 9px;border:none;border-radius:5px;background:#6990ab;color:#fff;cursor:pointer;font-family:Arial;font-weight:700;white-space:nowrap">📋 Retro</button>'
@@ -5978,7 +5988,7 @@ function renderConsultores(){
     // COL 1 — Proyectos
     html+='<div style="border-right:.5px solid #bfd1e5">'
       +'<div style="padding:7px 12px;border-bottom:.5px solid #bfd1e5;font-size:9px;font-weight:700;color:#67727a;text-transform:uppercase;letter-spacing:.06em;display:flex;justify-content:space-between">'
-      +'<span>Proyectos <span style="font-weight:400;color:#a8a8a8">(arrastra)</span></span>'
+      +'<span>Proyectos <span style="font-weight:400;color:#a8a8a8">(Backlog)</span></span>'
       +'<div style="display:flex;gap:5px;font-size:9px;font-weight:700">'
       +(nCrit?'<span style="color:#e65a27">'+nCrit+' crít.</span>':'')
       +(nRisk?'<span style="color:#6990ab">'+nRisk+' riesg.</span>':'')
@@ -6036,7 +6046,7 @@ function renderConsultores(){
     // COL 2 — Tareas
     html+='<div style="border-right:.5px solid #bfd1e5">'
       +'<div style="padding:7px 12px;border-bottom:.5px solid #bfd1e5;font-size:9px;font-weight:700;color:#67727a;text-transform:uppercase;letter-spacing:.06em;display:flex;justify-content:space-between">'
-      +'<span>Tareas</span>'
+      +'<span>Objetivos <span style="font-weight:400;color:#a8a8a8">(To Do\'s)</span></span>'
       +'<div style="display:flex;gap:5px;align-items:center">'
       +(nVenc?'<span style="background:#fff8f6;color:#e65a27;border-radius:10px;padding:1px 6px;font-size:9px;font-weight:700">'+nVenc+' venc.</span>':'<span style="background:#eef2f6;color:#67727a;border-radius:10px;padding:1px 6px">'+myTasks.length+'</span>')
       +'<button onclick="addPersonTask(\''+nombre.replace(/\'/g,"\\'")+'\');event.stopPropagation()" style="font-size:9px;padding:2px 8px;border:none;border-radius:5px;background:#254467;color:#fff;cursor:pointer;font-family:Arial;font-weight:700">+ Tarea</button>'
@@ -7953,6 +7963,14 @@ function renderEquipoDetalle(allProjs){
 
     var nVenc=myTasks.filter(function(t){return t.fechaCompromiso&&t.fechaCompromiso<todayStr;}).length;
 
+    // PPC: compromisos de las últimas 4 semanas
+    var eqHace4sem=new Date(today);eqHace4sem.setDate(today.getDate()-28);var eqHace4semStr=eqHace4sem.toISOString().slice(0,10);
+    var eqTareasComp=tasks.filter(function(t){return t.asignado===nombre&&t.fechaCompromiso&&t.fechaCompromiso>=eqHace4semStr&&t.fechaCompromiso<=todayStr&&!t.archivado;});
+    var eqPpcCumplidas=eqTareasComp.filter(function(t){return t.done;}).length;
+    var eqPpcTotal=eqTareasComp.length;
+    var eqPpc=eqPpcTotal>0?Math.round(eqPpcCumplidas/eqPpcTotal*100):null;
+    var eqPpcColor=eqPpc===null?'#a8a8a8':eqPpc>=80?'#639922':eqPpc>=60?'#e6a817':'#e65a27';
+
     // Entregas próximas 30 días
     var deadline=new Date(today);deadline.setDate(today.getDate()+30);
     var dlStr=deadline.toISOString().slice(0,10);
@@ -7976,12 +7994,15 @@ function renderEquipoDetalle(allProjs){
       +'<div style="font-size:13px;font-weight:700;color:#fff">'+nombre+'</div>'
       +'<div style="font-size:10px;color:#bfd1e5">'+persona.rol+'</div>'
       +'</div>'
-      +'<div style="display:flex;gap:6px">'
-      +[{n:myProjs.length,l:'Proyectos'},{n:myTasks.length,l:'Tareas'},{n:nVenc,l:'Vencidas',warn:nVenc>0},{n:entregas.length,l:'Entregas'}].map(function(s){
+      +'<div style="display:flex;gap:6px;align-items:center">'
+      +[{n:myProjs.length,l:'Proyectos'},{n:myTasks.length,l:'Objetivos'},{n:nVenc,l:'Vencidos',warn:nVenc>0},{n:entregas.length,l:'Entregas'}].map(function(s){
         return '<div style="background:rgba(255,255,255,.12);border-radius:6px;padding:4px 9px;text-align:center">'
           +'<div style="font-size:14px;font-weight:700;color:'+(s.warn?'#f5b89b':'#fff')+'">'+s.n+'</div>'
           +'<div style="font-size:9px;color:#bfd1e5;text-transform:uppercase;letter-spacing:.04em">'+s.l+'</div></div>';
       }).join('')
+      +(eqPpc!==null?'<div style="background:rgba(255,255,255,.12);border-radius:6px;padding:4px 9px;text-align:center;border:1.5px solid '+eqPpcColor+'">'
+        +'<div style="font-size:14px;font-weight:700;color:'+eqPpcColor+'">'+eqPpc+'%</div>'
+        +'<div style="font-size:9px;color:#bfd1e5;text-transform:uppercase;letter-spacing:.04em">PPC</div></div>':'')
       +'</div>'
       +'<div style="display:flex;flex-direction:column;gap:5px;margin-left:6px">'
       +'<button onclick="openRetroNotes(\''+nombre+'\')" style="font-size:9px;padding:3px 9px;border:none;border-radius:5px;background:rgba(255,255,255,.15);color:#fff;cursor:pointer;font-family:Arial;font-weight:700;white-space:nowrap">✏️ Notas</button>'
@@ -7995,7 +8016,7 @@ function renderEquipoDetalle(allProjs){
     // COL 1 — Proyectos (draggable)
     html+='<div style="border-right:.5px solid #bfd1e5">'
       +'<div style="padding:7px 12px;border-bottom:.5px solid #bfd1e5;font-size:9px;font-weight:700;color:#67727a;text-transform:uppercase;letter-spacing:.06em;display:flex;justify-content:space-between">'
-      +'<span>Proyectos <span style="font-weight:400;color:#a8a8a8">(arrastra)</span></span>'
+      +'<span>Proyectos <span style="font-weight:400;color:#a8a8a8">(Backlog)</span></span>'
       +'<span style="background:#eef2f6;color:#67727a;border-radius:10px;padding:1px 6px">'+myProjs.length+'</span></div>'
       +'<div id="eqdet-proj-'+nombre.replace(/\s/g,'_')+'">';
 
@@ -8031,7 +8052,7 @@ function renderEquipoDetalle(allProjs){
     // COL 2 — Tareas (draggable)
     html+='<div style="border-right:.5px solid #bfd1e5">'
       +'<div style="padding:7px 12px;border-bottom:.5px solid #bfd1e5;font-size:9px;font-weight:700;color:#67727a;text-transform:uppercase;letter-spacing:.06em;display:flex;align-items:center;gap:5px">'
-      +'<span>Tareas <span style="font-weight:400;color:#a8a8a8">(arrastra)</span></span>'
+      +'<span>Objetivos <span style="font-weight:400;color:#a8a8a8">(To Do\'s)</span></span>'
       +(nVenc?'<span style="background:#fff8f6;color:#e65a27;border-radius:10px;padding:1px 6px;font-size:9px;font-weight:700">'+nVenc+' venc.</span>':'<span style="background:#eef2f6;color:#67727a;border-radius:10px;padding:1px 6px">'+myTasks.length+'</span>')
       +'<button onclick="addPersonTask(\''+nombre.replace(/\'/g,"\\'")+'\');event.stopPropagation()" style="margin-left:auto;font-size:9px;padding:2px 8px;border:none;border-radius:5px;background:#254467;color:#fff;cursor:pointer;font-family:Arial;font-weight:700">+ Tarea</button>'
       +'</div>'
