@@ -2723,6 +2723,12 @@ function openPersonDetail(nombre, rol){
     });
   var nVenc=myTasks.filter(function(t){return t.fechaCompromiso&&t.fechaCompromiso<todayStr;}).length;
 
+  // PPC últimas 4 semanas
+  var pdHace4=new Date(today);pdHace4.setDate(today.getDate()-28);var pdHace4Str=pdHace4.toISOString().slice(0,10);
+  var pdComp=tasks.filter(function(t){return t.asignado===nombre&&t.fechaCompromiso&&t.fechaCompromiso>=pdHace4Str&&t.fechaCompromiso<=todayStr&&!t.archivado;});
+  var pdPpc=pdComp.length>0?Math.round(pdComp.filter(function(t){return t.done;}).length/pdComp.length*100):null;
+  var pdPpcColor=pdPpc===null?'#a8a8a8':pdPpc>=80?'#639922':pdPpc>=60?'#e6a817':'#e65a27';
+
   // Entregas próximas (30 días)
   var deadline=new Date(today);deadline.setDate(today.getDate()+30);
   var dlStr=deadline.toISOString().slice(0,10);
@@ -2751,12 +2757,15 @@ function openPersonDetail(nombre, rol){
     +'<div style="width:44px;height:44px;border-radius:50%;background:#6990ab;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:#fff;flex-shrink:0">'+initials+'</div>'
     +'<div style="flex:1"><div style="font-size:15px;font-weight:700;color:#fff">'+nombre+'</div>'
     +'<div style="font-size:11px;color:#bfd1e5">'+rol+'</div></div>'
-    +'<div style="display:flex;gap:6px">'
-    +[{n:myProjs.length,l:'Proyectos'},{n:myTasks.length,l:'Tareas'},{n:nVenc,l:'Vencidas',warn:nVenc>0},{n:entregas.length,l:'Entregas'}].map(function(s){
+    +'<div style="display:flex;gap:6px;align-items:center">'
+    +[{n:myProjs.length,l:'Proyectos'},{n:myTasks.length,l:'Objetivos'},{n:nVenc,l:'Vencidos',warn:nVenc>0},{n:entregas.length,l:'Entregas'}].map(function(s){
       return '<div style="background:rgba(255,255,255,.12);border-radius:6px;padding:5px 10px;text-align:center">'
         +'<div style="font-size:16px;font-weight:700;color:'+(s.warn?'#f5b89b':'#fff')+'">'+s.n+'</div>'
         +'<div style="font-size:9px;color:#bfd1e5;text-transform:uppercase;letter-spacing:.04em">'+s.l+'</div></div>';
     }).join('')
+    +(pdPpc!==null?'<div style="background:rgba(255,255,255,.12);border-radius:6px;padding:5px 10px;text-align:center;border:1.5px solid '+pdPpcColor+'">'
+      +'<div style="font-size:16px;font-weight:700;color:'+pdPpcColor+'">'+pdPpc+'%</div>'
+      +'<div style="font-size:9px;color:#bfd1e5;text-transform:uppercase;letter-spacing:.04em">PPC</div></div>':'')
     +'</div></div>';
 
   // 3 columns
@@ -2765,7 +2774,7 @@ function openPersonDetail(nombre, rol){
   // COL 1 — Proyectos
   html+='<div style="background:#fff;border-radius:8px;border:.5px solid #bfd1e5;overflow:hidden">'
     +'<div style="padding:7px 12px;border-bottom:.5px solid #bfd1e5;display:flex;justify-content:space-between;align-items:center">'
-    +'<span style="font-size:9px;font-weight:700;color:#67727a;text-transform:uppercase;letter-spacing:.06em">Proyectos</span>'
+    +'<span style="font-size:9px;font-weight:700;color:#67727a;text-transform:uppercase;letter-spacing:.06em">Proyectos <span style="font-weight:400;color:#a8a8a8">(Backlog)</span></span>'
     +'<span style="font-size:9px;background:#eef2f6;color:#67727a;border-radius:10px;padding:1px 7px;font-weight:700">'+myProjs.length+'</span></div>';
   if(myProjs.length){
     myProjs.forEach(function(p){
@@ -2776,7 +2785,7 @@ function openPersonDetail(nombre, rol){
         +'<div style="display:flex;gap:5px;align-items:center;font-size:10px;flex-wrap:wrap">'
         +'<span style="background:#e8edf2;color:#254467;border-radius:20px;padding:1px 6px;font-size:9px;font-weight:700">'+p.etapa+'</span>'
         +'<span style="color:'+sc+';font-weight:700">'+semLabels[s.cls]+'</span>'
-        +(ent?'<span style="color:#67727a">'+fmtD(ent)+'</span>':'')
+        +(ent?'<span style="color:'+(ent<todayStr?'#e65a27':'#67727a')+'">📅 '+fmtD(ent)+(ent<todayStr?' VENC':'')+'</span>':'')
         +'<span style="color:#67727a">'+p.avance+'%</span>'
         +'</div>'
         +'<div style="height:3px;background:#bfd1e5;border-radius:2px;margin-top:4px;overflow:hidden">'
@@ -2788,11 +2797,11 @@ function openPersonDetail(nombre, rol){
   }
   html+='</div>';
 
-  // COL 2 — Tareas
+  // COL 2 — Objetivos
   html+='<div style="background:#fff;border-radius:8px;border:.5px solid #bfd1e5;overflow:hidden">'
     +'<div style="padding:7px 12px;border-bottom:.5px solid #bfd1e5;display:flex;justify-content:space-between;align-items:center">'
-    +'<span style="font-size:9px;font-weight:700;color:#67727a;text-transform:uppercase;letter-spacing:.06em">Tareas abiertas</span>'
-    +(nVenc?'<span style="font-size:9px;background:#fff8f6;color:#e65a27;border-radius:10px;padding:1px 7px;font-weight:700">'+nVenc+' vencidas</span>':'<span style="font-size:9px;background:#eef2f6;color:#67727a;border-radius:10px;padding:1px 7px;font-weight:700">'+myTasks.length+'</span>')
+    +'<span style="font-size:9px;font-weight:700;color:#67727a;text-transform:uppercase;letter-spacing:.06em">Objetivos <span style="font-weight:400;color:#a8a8a8">(To Do\'s)</span></span>'
+    +(nVenc?'<span style="font-size:9px;background:#fff8f6;color:#e65a27;border-radius:10px;padding:1px 7px;font-weight:700">'+nVenc+' vencidos</span>':'<span style="font-size:9px;background:#eef2f6;color:#67727a;border-radius:10px;padding:1px 7px;font-weight:700">'+myTasks.length+'</span>')
     +'</div>';
   if(myTasks.length){
     myTasks.slice(0,8).forEach(function(t){
