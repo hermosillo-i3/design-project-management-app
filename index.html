@@ -396,6 +396,10 @@ body.qas-env{padding-top:32px}
 
 <!-- DOCUMENTOS -->
 <div id="p-documentos" class="panel">
+  <div style="display:flex;gap:0;border-bottom:.5px solid #bfd1e5;margin-bottom:14px">
+    <button id="docstab-btn-concurso" onclick="setDocsSubTab('concurso')" style="padding:9px 20px;font-size:12px;font-weight:700;font-family:Arial;border:none;cursor:pointer;background:transparent;color:#254467;border-bottom:3px solid #254467;margin-bottom:-2px;transition:all .2s">🏆 Concurso</button>
+    <button id="docstab-btn-ejecutivo" onclick="setDocsSubTab('ejecutivo')" style="padding:9px 20px;font-size:12px;font-weight:700;font-family:Arial;border:none;cursor:pointer;background:transparent;color:#a8a8a8;border-bottom:3px solid transparent;margin-bottom:-2px;transition:all .2s">⚙ Ejecutivo</button>
+  </div>
   <div id="docs-dashboard"></div>
 </div>
 
@@ -2248,10 +2252,31 @@ function desarchivar(id){
 }
 
 // ── DOCS ─────────────────────────────────────────────────────
+function getDocsSubTab(){return ld('gh_docs_subtab','concurso');}
+function setDocsSubTab(tab){
+  sv('gh_docs_subtab',tab);
+  ['concurso','ejecutivo'].forEach(function(t){
+    var btn=document.getElementById('docstab-btn-'+t);
+    if(btn){btn.style.color=t===tab?'#254467':'#a8a8a8';btn.style.borderBottom=t===tab?'3px solid #254467':'3px solid transparent';}
+  });
+  renderDocs();
+}
+
 function renderDocs(){
   const el=document.getElementById('docs-dashboard');
   if(!el) return;
-  const allPs=[...activeProjs()].sort((a,b)=>a.nombre.localeCompare(b.nombre));
+  const tab=getDocsSubTab();
+  // Sync tab button styles
+  ['concurso','ejecutivo'].forEach(function(t){
+    var btn=document.getElementById('docstab-btn-'+t);
+    if(btn){btn.style.color=t===tab?'#254467':'#a8a8a8';btn.style.borderBottom=t===tab?'3px solid #254467':'3px solid transparent';}
+  });
+  const allActive=[...activeProjs()];
+  // Concurso = PRECON  |  Ejecutivo = EJECUTIVO + REVISIONES
+  const allPs=(tab==='concurso'
+    ? allActive.filter(p=>p.etapa==='PRECON')
+    : allActive.filter(p=>p.etapa==='EJECUTIVO'||p.etapa==='REVISIONES')
+  ).sort((a,b)=>a.nombre.localeCompare(b.nombre));
 
   const DOCS=[
     {key:'ckRev',label:'CK Revisión',icon:'✅'},
@@ -2271,11 +2296,12 @@ function renderDocs(){
   const total=allPs.length;
   const fullyDone=allPs.filter(p=>DOCS.every(d=>(p.docs&&p.docs[d.key])==='✅'||(p.docs&&p.docs[d.key])==='N/A')).length;
 
+  const tabLabel=tab==='concurso'?'🏆 Concurso — Entregables documentales':'⚙ Ejecutivo — Entregables documentales';
   let html='<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;padding:10px 14px;background:#f8fafc;border-radius:8px;border:.5px solid #bfd1e5">'
-    +'<div style="font-size:13px;font-weight:700;color:#254467">Entregables documentales</div>'
+    +'<div style="font-size:13px;font-weight:700;color:#254467">'+tabLabel+'</div>'
     +'<div style="font-size:11px;color:#67727a;margin-left:auto">'+fullyDone+' / '+total+' proyectos completos</div>'
     +'<div style="width:120px;height:6px;background:#bfd1e5;border-radius:3px;overflow:hidden">'
-    +'<div style="height:100%;background:#639922;border-radius:3px;width:'+Math.round(fullyDone/total*100)+'%;transition:width .3s"></div>'
+    +'<div style="height:100%;background:#639922;border-radius:3px;width:'+(total?Math.round(fullyDone/total*100):0)+'%;transition:width .3s"></div>'
     +'</div></div>';
 
   // Cards grid
