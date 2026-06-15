@@ -4306,17 +4306,19 @@ function openDescuentoModal(cotId){
   window.__descCtx={cotId:cotId,esps:esps,indSecs:indSecs,total:mOrig.grandTotalSinDesc};
   var espRows=esps.map(function(e,i){
     var asignado=parseFloat(rep[e.nombre])||0;
+    var pctVal=(asignado>0&&e.mxn>0)?Math.max(0,Math.round((e.ind-asignado/e.mxn*100)*100)/100):e.ind;
     return '<tr style="border-bottom:.5px solid #eef2f6">'
       +'<td style="padding:5px 8px;font-size:11px;font-weight:600;color:#254467">'+e.nombre+'<div style="font-size:8px;color:#a8a8a8;font-weight:400;text-transform:uppercase">'+e.sec+'</div></td>'
       +'<td style="padding:5px 8px;text-align:right;font-size:11px;color:#67727a" title="Costo directo (pago al asesor)">'+descFmt(e.mxn)+'</td>'
-      +'<td style="padding:5px 8px;text-align:right;font-size:11px;color:#3B6D11" title="Indirecto = utilidad de la partida">'+descFmt(e.indir)+(e.ind?' <span style="color:#a8a8a8;font-size:9px">('+e.ind+'%)</span>':'')+'</td>'
-      +'<td style="padding:5px 8px;text-align:right"><input type="number" id="desc-abs-'+i+'" value="'+(asignado||'')+'" min="0" oninput="descRecalc()" placeholder="0" style="width:100px;font-size:11px;padding:4px 6px;border:.5px solid #bfd1e5;border-radius:5px;font-family:Arial;text-align:right"></td>'
+      +'<td style="padding:5px 8px;text-align:right;font-size:11px;color:#3B6D11" title="Indirecto = utilidad de la partida (con su % original)">'+descFmt(e.indir)+(e.ind?' <span style="color:#a8a8a8;font-size:9px">orig '+e.ind+'%</span>':'')+'</td>'
+      +'<td style="padding:5px 8px;text-align:right;white-space:nowrap"><input type="number" id="desc-pct-'+i+'" value="'+pctVal+'" min="0" step="0.5" oninput="descPctSync('+i+')" title="Baja el % de indirecto de esta partida" style="width:60px;font-size:11px;padding:4px 6px;border:.5px solid #bfd1e5;border-radius:5px;font-family:Arial;text-align:right"><span style="font-size:9px;color:#a8a8a8">%</span></td>'
+      +'<td style="padding:5px 8px;text-align:right"><input type="number" id="desc-abs-'+i+'" value="'+(asignado||'')+'" min="0" oninput="descAbsSync('+i+')" placeholder="0" style="width:100px;font-size:11px;padding:4px 6px;border:.5px solid #bfd1e5;border-radius:5px;font-family:Arial;text-align:right"></td>'
       +'<td style="padding:5px 8px;font-size:9px" id="desc-warn-'+i+'"></td>'
       +'</tr>';
   }).join('');
   var indGrpRows='';
   if(indSecs.length){
-    indGrpRows='<tr style="background:#e0eaf2"><td colspan="5" style="padding:5px 8px;font-size:9px;font-weight:800;color:#254467;text-transform:uppercase;letter-spacing:.5px">Indirectos generales</td></tr>';
+    indGrpRows='<tr style="background:#e0eaf2"><td colspan="6" style="padding:5px 8px;font-size:9px;font-weight:800;color:#254467;text-transform:uppercase;letter-spacing:.5px">Indirectos generales</td></tr>';
     indGrpRows+=indSecs.map(function(s,j){
       var asignado=parseFloat(rep[s.key])||0;
       var nameTxt=s.nombre+(s.pct?' <span style="color:#a8a8a8;font-size:9px">('+s.pct+'% sobre indirectos)</span>':'');
@@ -4324,6 +4326,7 @@ function openDescuentoModal(cotId){
         +'<td style="padding:5px 8px;font-size:11px;font-weight:600;color:#254467">'+nameTxt+'</td>'
         +'<td style="padding:5px 8px;text-align:right;font-size:11px;color:#a8a8a8">—</td>'
         +'<td style="padding:5px 8px;text-align:right;font-size:11px;color:#3B6D11" title="Monto disponible">'+descFmt(s.total)+'</td>'
+        +'<td style="padding:5px 8px;text-align:right;font-size:11px;color:#a8a8a8">—</td>'
         +'<td style="padding:5px 8px;text-align:right"><input type="number" id="desc-ind-'+j+'" value="'+(asignado||'')+'" min="0" oninput="descRecalc()" placeholder="0" style="width:100px;font-size:11px;padding:4px 6px;border:.5px solid #bfd1e5;border-radius:5px;font-family:Arial;text-align:right"></td>'
         +'<td style="padding:5px 8px;font-size:9px" id="desc-indwarn-'+j+'"></td>'
         +'</tr>';
@@ -4344,12 +4347,13 @@ function openDescuentoModal(cotId){
     +'<button type="button" onclick="descAutoRepartir()" style="margin-left:auto;font-size:10px;padding:5px 10px;border:.5px solid #6990ab;border-radius:6px;background:#fff;color:#6990ab;cursor:pointer;font-family:Arial">⇄ Repartir proporcional</button>'
     +'</div></div>'
     +'<div style="font-size:11px;font-weight:700;color:#254467;margin-bottom:3px">Paso 2 — ¿De dónde se absorbe?</div>'
-    +'<div style="font-size:9px;color:#a8a8a8;margin-bottom:6px">El indirecto es la utilidad de la partida. Si absorbes más que el indirecto, empiezas a bajarle al costo directo (el pago al asesor) y te avisaré.</div>'
-    +'<div style="overflow-x:auto;max-height:300px;overflow-y:auto"><table style="width:100%;border-collapse:collapse;min-width:540px">'
+    +'<div style="font-size:9px;color:#a8a8a8;margin-bottom:6px">Puedes bajar el <strong>% de indirecto</strong> de cada partida (se calcula solo el monto) o escribir el monto a absorber. El indirecto es la utilidad; si absorbes más, le bajas al costo directo (pago al asesor) y te avisaré.</div>'
+    +'<div style="overflow-x:auto;max-height:300px;overflow-y:auto"><table style="width:100%;border-collapse:collapse;min-width:620px">'
     +'<thead><tr style="background:#f0f5fa">'
     +'<th style="text-align:left;padding:5px 8px;font-size:9px;font-weight:700;color:#67727a">Partida</th>'
     +'<th style="text-align:right;padding:5px 8px;font-size:9px;font-weight:700;color:#67727a" title="Pago al asesor">Costo directo</th>'
     +'<th style="text-align:right;padding:5px 8px;font-size:9px;font-weight:700;color:#3B6D11" title="Utilidad / monto disponible">Indirecto (util.)</th>'
+    +'<th style="text-align:right;padding:5px 8px;font-size:9px;font-weight:700;color:#3B6D11" title="Baja el % de indirecto de la partida">% ind.</th>'
     +'<th style="text-align:right;padding:5px 8px;font-size:9px;font-weight:700;color:#3B6D11">Absorber $</th>'
     +'<th style="padding:5px 8px"></th>'
     +'</tr></thead><tbody>'+espRows+indGrpRows+'</tbody></table></div>'
@@ -4367,6 +4371,27 @@ function descObjetivo(){
   var tipo=document.getElementById('desc-tipo').value;
   var valor=parseFloat(document.getElementById('desc-valor').value)||0;
   return tipo==='pct'?Math.round(ctx.total*(valor/100)):Math.round(valor);
+}
+// Al cambiar el % de la partida → calcula cuánto se absorbe
+function descPctSync(i){
+  var ctx=window.__descCtx;if(!ctx)return;var e=ctx.esps[i];if(!e)return;
+  var pctInp=document.getElementById('desc-pct-'+i);var absInp=document.getElementById('desc-abs-'+i);
+  if(!pctInp||!absInp)return;
+  var newPct=parseFloat(pctInp.value);
+  if(isNaN(newPct)){descRecalc();return;}
+  var drop=e.ind-newPct;if(drop<0)drop=0;
+  var amt=Math.round(drop/100*e.mxn);
+  absInp.value=amt>0?amt:'';
+  descRecalc();
+}
+// Al cambiar el monto a absorber → recalcula el % resultante de la partida
+function descAbsSync(i){
+  var ctx=window.__descCtx;if(!ctx)return;var e=ctx.esps[i];if(!e)return;
+  var pctInp=document.getElementById('desc-pct-'+i);var absInp=document.getElementById('desc-abs-'+i);
+  if(!pctInp||!absInp)return;
+  var amt=parseFloat(absInp.value)||0;
+  if(e.mxn>0){var newPct=e.ind-(amt/e.mxn*100);if(newPct<0)newPct=0;pctInp.value=Math.round(newPct*100)/100;}
+  descRecalc();
 }
 function descRecalc(){
   var ctx=window.__descCtx;if(!ctx)return;
@@ -4420,6 +4445,8 @@ function descAutoRepartir(){
     if(i===ctx.esps.length-1){amt=objetivo-acum;}
     else{amt=Math.round(objetivo*e.withInd/sumW);acum+=amt;}
     inp.value=amt>0?amt:'';
+    var pctInp=document.getElementById('desc-pct-'+i);
+    if(pctInp){if(e.mxn>0){var np=e.ind-(amt/e.mxn*100);if(np<0)np=0;pctInp.value=Math.round(np*100)/100;}else{pctInp.value=e.ind;}}
   });
   // limpiar indirectos al auto-repartir
   (ctx.indSecs||[]).forEach(function(s,j){var inp=document.getElementById('desc-ind-'+j);if(inp)inp.value='';});
