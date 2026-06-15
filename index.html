@@ -4256,11 +4256,10 @@ function calcCotMetrics(cot){
     bySection[k].withInd=(bySection[k].esps||[]).reduce(function(s,e){return s+e.withInd;},0);
     bySection[k].indPct=bySection[k].direct?(bySection[k].indir/bySection[k].direct*100):0;
   });
-  // indirectos generales: claves "ind:<seccion>"
+  // indirectos generales: cualquier clave "ind:..." (secciones o indirecto adicional)
   var _indDesc=0;
-  Object.keys(indBySec).forEach(function(sec){
-    var _a=parseFloat(_rep['ind:'+sec])||0;
-    if(_a>0){indBySec[sec].descAbsorbido=_a;_indDesc+=_a;}
+  Object.keys(_rep).forEach(function(_key){
+    if(_key.indexOf('ind:')===0){_indDesc+=parseFloat(_rep[_key])||0;}
   });
   var grandTotalSinDesc=grandWithInd+indFinal;
   grandWithInd=Object.keys(bySection).reduce(function(s,k){return s+bySection[k].withInd;},0);
@@ -4286,7 +4285,7 @@ function openDescuentoModal(cotId){
   var esps=[];
   Object.keys(mOrig.bySection).forEach(function(k){
     (mOrig.bySection[k].esps||[]).forEach(function(e){
-      esps.push({nombre:e.nombre,sec:k,mxn:e.mxn||0,indir:e.indir||0,withInd:e.withInd});
+      esps.push({nombre:e.nombre,sec:k,mxn:e.mxn||0,indir:e.indir||0,ind:e.ind||0,withInd:e.withInd});
     });
   });
   // indirectos generales por sección
@@ -4295,15 +4294,22 @@ function openDescuentoModal(cotId){
   var indSecs=[];
   IND_SECCIONS.forEach(function(sec){
     var t=indRows.filter(function(r){return r.seccion===sec;}).reduce(function(s,r){return s+(parseFloat(r.qty)||0)*(parseFloat(r.precio)||0);},0);
-    if(t>0)indSecs.push({nombre:sec,total:t});
+    if(t>0)indSecs.push({nombre:sec,total:t,key:'ind:'+sec});
   });
+  // indirecto adicional (% sobre indirectos) si está aplicado
+  var _indBaseTot=indRows.reduce(function(s,r){return s+(parseFloat(r.qty)||0)*(parseFloat(r.precio)||0);},0);
+  var _indPct=parseFloat(cot.indIndirecto)||0;
+  if(cot.indAplicar&&_indPct>0){
+    var _indExtra=Math.round(_indBaseTot*(_indPct/100));
+    if(_indExtra>0)indSecs.push({nombre:'Indirecto adicional',total:_indExtra,key:'ind:__extra__',pct:_indPct});
+  }
   window.__descCtx={cotId:cotId,esps:esps,indSecs:indSecs,total:mOrig.grandTotalSinDesc};
   var espRows=esps.map(function(e,i){
     var asignado=parseFloat(rep[e.nombre])||0;
     return '<tr style="border-bottom:.5px solid #eef2f6">'
       +'<td style="padding:5px 8px;font-size:11px;font-weight:600;color:#254467">'+e.nombre+'<div style="font-size:8px;color:#a8a8a8;font-weight:400;text-transform:uppercase">'+e.sec+'</div></td>'
       +'<td style="padding:5px 8px;text-align:right;font-size:11px;color:#67727a" title="Costo directo (pago al asesor)">'+descFmt(e.mxn)+'</td>'
-      +'<td style="padding:5px 8px;text-align:right;font-size:11px;color:#3B6D11" title="Indirecto = utilidad de la partida">'+descFmt(e.indir)+'</td>'
+      +'<td style="padding:5px 8px;text-align:right;font-size:11px;color:#3B6D11" title="Indirecto = utilidad de la partida">'+descFmt(e.indir)+(e.ind?' <span style="color:#a8a8a8;font-size:9px">('+e.ind+'%)</span>':'')+'</td>'
       +'<td style="padding:5px 8px;text-align:right"><input type="number" id="desc-abs-'+i+'" value="'+(asignado||'')+'" min="0" oninput="descRecalc()" placeholder="0" style="width:100px;font-size:11px;padding:4px 6px;border:.5px solid #bfd1e5;border-radius:5px;font-family:Arial;text-align:right"></td>'
       +'<td style="padding:5px 8px;font-size:9px" id="desc-warn-'+i+'"></td>'
       +'</tr>';
@@ -4312,11 +4318,12 @@ function openDescuentoModal(cotId){
   if(indSecs.length){
     indGrpRows='<tr style="background:#e0eaf2"><td colspan="5" style="padding:5px 8px;font-size:9px;font-weight:800;color:#254467;text-transform:uppercase;letter-spacing:.5px">Indirectos generales</td></tr>';
     indGrpRows+=indSecs.map(function(s,j){
-      var asignado=parseFloat(rep['ind:'+s.nombre])||0;
-      return '<tr style="border-bottom:.5px solid #eef2f6">'
-        +'<td style="padding:5px 8px;font-size:11px;font-weight:600;color:#254467">'+s.nombre+'</td>'
+      var asignado=parseFloat(rep[s.key])||0;
+      var nameTxt=s.nombre+(s.pct?' <span style="color:#a8a8a8;font-size:9px">('+s.pct+'% sobre indirectos)</span>':'');
+      return '<tr style="border-bottom:.5px solid #eef2f6'+(s.pct?';background:#fafcff':'')+'">'
+        +'<td style="padding:5px 8px;font-size:11px;font-weight:600;color:#254467">'+nameTxt+'</td>'
         +'<td style="padding:5px 8px;text-align:right;font-size:11px;color:#a8a8a8">—</td>'
-        +'<td style="padding:5px 8px;text-align:right;font-size:11px;color:#3B6D11" title="Monto disponible de la sección">'+descFmt(s.total)+'</td>'
+        +'<td style="padding:5px 8px;text-align:right;font-size:11px;color:#3B6D11" title="Monto disponible">'+descFmt(s.total)+'</td>'
         +'<td style="padding:5px 8px;text-align:right"><input type="number" id="desc-ind-'+j+'" value="'+(asignado||'')+'" min="0" oninput="descRecalc()" placeholder="0" style="width:100px;font-size:11px;padding:4px 6px;border:.5px solid #bfd1e5;border-radius:5px;font-family:Arial;text-align:right"></td>'
         +'<td style="padding:5px 8px;font-size:9px" id="desc-indwarn-'+j+'"></td>'
         +'</tr>';
@@ -4431,7 +4438,7 @@ function saveDescuento(cotId){
     (ctx.indSecs||[]).forEach(function(s,j){
       var inp=document.getElementById('desc-ind-'+j);if(!inp)return;
       var v=parseFloat(inp.value)||0;
-      if(v>0){reparto['ind:'+s.nombre]=v;any=true;}
+      if(v>0){reparto[s.key]=v;any=true;}
     });
   }
   if(any){
