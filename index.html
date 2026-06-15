@@ -4313,12 +4313,13 @@ function openDescuentoModal(cotId){
       +'<td style="padding:5px 8px;text-align:right;font-size:11px;color:#3B6D11" title="Indirecto = utilidad de la partida (con su % original)">'+descFmt(e.indir)+(e.ind?' <span style="color:#a8a8a8;font-size:9px">orig '+e.ind+'%</span>':'')+'</td>'
       +'<td style="padding:5px 8px;text-align:right;white-space:nowrap"><input type="number" id="desc-pct-'+i+'" value="'+pctVal+'" min="0" step="0.5" oninput="descPctSync('+i+')" title="Baja el % de indirecto de esta partida" style="width:60px;font-size:11px;padding:4px 6px;border:.5px solid #bfd1e5;border-radius:5px;font-family:Arial;text-align:right"><span style="font-size:9px;color:#a8a8a8">%</span></td>'
       +'<td style="padding:5px 8px;text-align:right"><input type="number" id="desc-abs-'+i+'" value="'+(asignado||'')+'" min="0" oninput="descAbsSync('+i+')" placeholder="0" style="width:100px;font-size:11px;padding:4px 6px;border:.5px solid #bfd1e5;border-radius:5px;font-family:Arial;text-align:right"></td>'
+      +'<td style="padding:5px 8px;text-align:right;font-size:11px;font-weight:700;color:#254467" id="desc-final-'+i+'"></td>'
       +'<td style="padding:5px 8px;font-size:9px" id="desc-warn-'+i+'"></td>'
       +'</tr>';
   }).join('');
   var indGrpRows='';
   if(indSecs.length){
-    indGrpRows='<tr style="background:#e0eaf2"><td colspan="6" style="padding:5px 8px;font-size:9px;font-weight:800;color:#254467;text-transform:uppercase;letter-spacing:.5px">Indirectos generales</td></tr>';
+    indGrpRows='<tr style="background:#e0eaf2"><td colspan="7" style="padding:5px 8px;font-size:9px;font-weight:800;color:#254467;text-transform:uppercase;letter-spacing:.5px">Indirectos generales</td></tr>';
     indGrpRows+=indSecs.map(function(s,j){
       var asignado=parseFloat(rep[s.key])||0;
       var nameTxt=s.nombre+(s.pct?' <span style="color:#a8a8a8;font-size:9px">('+s.pct+'% sobre indirectos)</span>':'');
@@ -4328,6 +4329,7 @@ function openDescuentoModal(cotId){
         +'<td style="padding:5px 8px;text-align:right;font-size:11px;color:#3B6D11" title="Monto disponible">'+descFmt(s.total)+'</td>'
         +'<td style="padding:5px 8px;text-align:right;font-size:11px;color:#a8a8a8">—</td>'
         +'<td style="padding:5px 8px;text-align:right"><input type="number" id="desc-ind-'+j+'" value="'+(asignado||'')+'" min="0" oninput="descRecalc()" placeholder="0" style="width:100px;font-size:11px;padding:4px 6px;border:.5px solid #bfd1e5;border-radius:5px;font-family:Arial;text-align:right"></td>'
+        +'<td style="padding:5px 8px;text-align:right;font-size:11px;font-weight:700;color:#254467" id="desc-indfinal-'+j+'"></td>'
         +'<td style="padding:5px 8px;font-size:9px" id="desc-indwarn-'+j+'"></td>'
         +'</tr>';
     }).join('');
@@ -4348,13 +4350,14 @@ function openDescuentoModal(cotId){
     +'</div></div>'
     +'<div style="font-size:11px;font-weight:700;color:#254467;margin-bottom:3px">Paso 2 — ¿De dónde se absorbe?</div>'
     +'<div style="font-size:9px;color:#a8a8a8;margin-bottom:6px">Puedes bajar el <strong>% de indirecto</strong> de cada partida (se calcula solo el monto) o escribir el monto a absorber. El indirecto es la utilidad; si absorbes más, le bajas al costo directo (pago al asesor) y te avisaré.</div>'
-    +'<div style="overflow-x:auto;max-height:300px;overflow-y:auto"><table style="width:100%;border-collapse:collapse;min-width:620px">'
+    +'<div style="overflow-x:auto;max-height:300px;overflow-y:auto"><table style="width:100%;border-collapse:collapse;min-width:720px">'
     +'<thead><tr style="background:#f0f5fa">'
     +'<th style="text-align:left;padding:5px 8px;font-size:9px;font-weight:700;color:#67727a">Partida</th>'
     +'<th style="text-align:right;padding:5px 8px;font-size:9px;font-weight:700;color:#67727a" title="Pago al asesor">Costo directo</th>'
     +'<th style="text-align:right;padding:5px 8px;font-size:9px;font-weight:700;color:#3B6D11" title="Utilidad / monto disponible">Indirecto (util.)</th>'
     +'<th style="text-align:right;padding:5px 8px;font-size:9px;font-weight:700;color:#3B6D11" title="Baja el % de indirecto de la partida">% ind.</th>'
     +'<th style="text-align:right;padding:5px 8px;font-size:9px;font-weight:700;color:#3B6D11">Absorber $</th>'
+    +'<th style="text-align:right;padding:5px 8px;font-size:9px;font-weight:700;color:#254467" title="Costo directo + indirecto ya con el descuento">Final c/desc.</th>'
     +'<th style="padding:5px 8px"></th>'
     +'</tr></thead><tbody>'+espRows+indGrpRows+'</tbody></table></div>'
     +'<div id="desc-counter" style="font-size:12px;background:#f0f5fa;border-radius:8px;padding:10px 12px;margin-top:10px;color:#254467"></div>'
@@ -4409,6 +4412,13 @@ function descRecalc(){
       else if(v<=e.indir+e.mxn){warn.innerHTML='<span style="color:#e6a817">⚠ usa '+descFmt(v-e.indir)+' del costo directo</span>';}
       else{warn.innerHTML='<span style="color:#e65a27">⚠ excede el total de la partida</span>';}
     }
+    var finEl=document.getElementById('desc-final-'+i);
+    if(finEl){
+      var fInd=Math.max(0,e.indir-v);
+      var fDir=e.mxn-Math.max(0,v-e.indir);if(fDir<0)fDir=0;
+      var fTot=fDir+fInd;
+      finEl.innerHTML=descFmt(fTot)+'<div style="font-size:8px;color:#a8a8a8;font-weight:400">dir '+descFmt(fDir)+' · ind '+descFmt(fInd)+'</div>';
+    }
   });
   (ctx.indSecs||[]).forEach(function(s,j){
     var inp=document.getElementById('desc-ind-'+j);if(!inp)return;
@@ -4419,6 +4429,8 @@ function descRecalc(){
       else if(v<=s.total){warn.innerHTML='<span style="color:#3B6D11">✓ dentro de la sección'+(s.total-v>0?' (queda '+descFmt(s.total-v)+')':'')+'</span>';}
       else{warn.innerHTML='<span style="color:#e6a817">⚠ excede el monto de la sección</span>';}
     }
+    var indFinEl=document.getElementById('desc-indfinal-'+j);
+    if(indFinEl){var ft=s.total-v;if(ft<0)ft=0;indFinEl.innerHTML=descFmt(ft);}
   });
   var cEl=document.getElementById('desc-counter');if(!cEl)return;
   var totalFinal=ctx.total-asignado;
