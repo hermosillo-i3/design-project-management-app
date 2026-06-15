@@ -3535,7 +3535,7 @@ function renderCotTabla(el,cots,allProjs,filterProj,catCot){
         +'<div style="text-align:right"><div style="font-size:9px;color:#6990ab">MXN cotizado</div><div style="font-size:13px;font-weight:700;color:#fff">'+(grandTotMXN?'$'+grandTotMXN.toLocaleString('es-MX',{maximumFractionDigits:0}):'-')+'</div></div>'
         +(m2?'<div style="text-align:right"><div style="font-size:9px;color:#6990ab">MXN/m²</div><div style="font-size:13px;font-weight:700;color:#fff">'+(grandTotMXN?'$'+(grandTotMXN/m2).toFixed(2):'-')+'</div></div>':'')
         +'<div style="text-align:right"><div style="font-size:9px;color:#6990ab">MXN+indirecto'+(descAmt>0?' (subtotal)':'')+'</div><div style="font-size:13px;font-weight:700;color:'+(descAmt>0?'#9fb4c9':'#FCD34D')+';'+(descAmt>0?'text-decoration:line-through':'')+'">'+(grandTotConInd?'$'+grandTotConInd.toLocaleString('es-MX',{maximumFractionDigits:0}):'-')+'</div></div>'
-        +(descAmt>0?'<div style="text-align:right"><div style="font-size:9px;color:#9be7a0">Descuento ('+descAplicaLabel(cot)+')</div><div style="font-size:13px;font-weight:700;color:#9be7a0">−$'+descAmt.toLocaleString('es-MX',{maximumFractionDigits:0})+'</div></div>':'')
+        +(descAmt>0?'<div style="text-align:right"><div style="font-size:9px;color:#9be7a0">Descuento</div><div style="font-size:13px;font-weight:700;color:#9be7a0">−$'+descAmt.toLocaleString('es-MX',{maximumFractionDigits:0})+'</div></div>':'')
         +(descAmt>0?'<div style="text-align:right"><div style="font-size:9px;color:#FCD34D">TOTAL con desc.</div><div style="font-size:14px;font-weight:700;color:#FCD34D">$'+totalFinal.toLocaleString('es-MX',{maximumFractionDigits:0})+'</div></div>':'')
         +(grandTotCob?'<div style="text-align:right"><div style="font-size:9px;color:#6990ab">Cobrado</div><div style="font-size:13px;font-weight:700;color:'+(grandTotCob>grandTotConInd?'#f5b89b':'#6EE7B7')+'">'+'$'+grandTotCob.toLocaleString('es-MX',{maximumFractionDigits:0})+'</div></div>':'')
         +'</div></div>';
@@ -4048,9 +4048,8 @@ function imprimirCotizacion(cotId){
 
   var grandMXN=rows.reduce(function(s,g){return s+g.catTotal;},0)+indTotal;
   var grandConInd=rows.reduce(function(s,g){return s+g.catTotalConInd;},0)+indTotalConInd;
-  var _secTp={};var _espTp={};rows.forEach(function(g){_secTp[g.cat]=g.catTotalConInd;g.espRows.forEach(function(r){_espTp[r.esp]=r.conInd;});});
-  var _dp=computeDescuento(cot,{grandTotal:grandConInd,bySectionTotals:_secTp,espTotals:_espTp});
-  var grandFinal=grandConInd-_dp.amount;if(grandFinal<0)grandFinal=0;
+  var _descTot=descTotal(cot);
+  var grandFinal=grandConInd-_descTot;if(grandFinal<0)grandFinal=0;
 
   var fmt=function(n){return n?'$'+Math.round(n).toLocaleString('es-MX'):'—';};
   var fmt2=function(n){return n?'$'+n.toFixed(2):'—';};
@@ -4160,7 +4159,7 @@ function imprimirCotizacion(cotId){
         <td class="r">MXN cotizado: ${fmt(grandMXN)}</td>
         <td class="r">MXN+indirecto: ${fmt(grandConInd)}</td>
       </tr>
-      ${_dp.amount>0?`<tr style="background:#eaf3de"><td style="color:#3B6D11;font-weight:700">DESCUENTO (${_dp.label})</td><td class="r"></td><td class="r" style="color:#3B6D11;font-weight:700">−${fmt(_dp.amount)}</td></tr>
+      ${_descTot>0?`<tr style="background:#eaf3de"><td style="color:#3B6D11;font-weight:700">DESCUENTO</td><td class="r"></td><td class="r" style="color:#3B6D11;font-weight:700">−${fmt(_descTot)}</td></tr>
       <tr class="grand" style="background:#3B6D11"><td>TOTAL CON DESCUENTO</td><td class="r"></td><td class="r">${fmt(grandFinal)}</td></tr>`:''}
     </tbody>
   </table>
@@ -4246,95 +4245,156 @@ function calcCotMetrics(cot){
     var t=rows.reduce(function(s,r){return s+(parseFloat(r.qty)||0)*(parseFloat(r.precio)||0);},0);
     indBySec[sec]={total:t,rows:rows};
   });
+  // ── DESCUENTO con reparto por especialidad ──
+  var _rep=(cot.descuento&&cot.descuento.reparto)||{};
+  var _descAmount=0;
+  Object.keys(bySection).forEach(function(k){
+    (bySection[k].esps||[]).forEach(function(e){
+      var _amt=parseFloat(_rep[e.nombre])||0;
+      if(_amt>0){e.descAbsorbido=_amt;e.withInd=e.withInd-_amt;_descAmount+=_amt;}
+    });
+    bySection[k].withInd=(bySection[k].esps||[]).reduce(function(s,e){return s+e.withInd;},0);
+    bySection[k].indPct=bySection[k].direct?(bySection[k].indir/bySection[k].direct*100):0;
+  });
+  var grandTotalSinDesc=grandWithInd+indFinal;
+  grandWithInd=Object.keys(bySection).reduce(function(s,k){return s+bySection[k].withInd;},0);
   var grandTotal=grandWithInd+indFinal;
-  var _secTtl={};var _espTtl={};Object.keys(bySection).forEach(function(k){_secTtl[k]=bySection[k].withInd;(bySection[k].esps||[]).forEach(function(e){_espTtl[e.nombre]=e.withInd;});});
-  var _descCalc=computeDescuento(cot,{grandTotal:grandTotal,bySectionTotals:_secTtl,espTotals:_espTtl});
-  var grandTotalSinDesc=grandTotal;grandTotal=grandTotal-_descCalc.amount;
   // Suma todos los indirectos reales: markup de cada sección directa + bloque de indirectos
   var grandIndir=Object.values(bySection).reduce(function(s,sec){return s+sec.indir;},0)+indFinal;
-  return{m2:m2,tc:tc,grandTotal:grandTotal,grandDirect:grandDirect,grandWithInd:grandWithInd,bySection:bySection,indTotal:indFinal,grandIndir:grandIndir,indBySec:indBySec,mxnM2:m2?grandTotal/m2:0,usdM2:m2&&tc?grandTotal/m2/tc:0,indPctTotal:grandTotal?(grandIndir/grandTotal*100):0,cotIndPct:indPct,cotIndAplicar:indAplicar,descAmount:_descCalc.amount,grandTotalSinDesc:grandTotalSinDesc,descObj:cot.descuento||null};
+  return{m2:m2,tc:tc,grandTotal:grandTotal,grandDirect:grandDirect,grandWithInd:grandWithInd,bySection:bySection,indTotal:indFinal,grandIndir:grandIndir,indBySec:indBySec,mxnM2:m2?grandTotal/m2:0,usdM2:m2&&tc?grandTotal/m2/tc:0,indPctTotal:grandTotal?(grandIndir/grandTotal*100):0,cotIndPct:indPct,cotIndAplicar:indAplicar,descAmount:_descAmount,grandTotalSinDesc:grandTotalSinDesc,descObj:cot.descuento||null};
 }
 
-// ─── DESCUENTOS ──────────────────────────────────────────────
-function descAplicaLabel(cot){
-  var d=cot&&cot.descuento;if(!d)return '';
-  if(d.aplicaA==='total')return 'al total';
-  if(d.aplicaA&&d.aplicaA.indexOf('sec:')===0)return d.aplicaA.slice(4);
-  if(d.aplicaA&&d.aplicaA.indexOf('esp:')===0)return d.aplicaA.slice(4);
-  return '';
-}
-function computeDescuento(cot,opts){
-  var d=cot&&cot.descuento;if(!d||!(parseFloat(d.valor)>0))return {amount:0,base:0,label:''};
-  var gt=opts.grandTotal||0;var base=0;
-  if(d.aplicaA==='total')base=gt;
-  else if(d.aplicaA&&d.aplicaA.indexOf('sec:')===0)base=(opts.bySectionTotals&&opts.bySectionTotals[d.aplicaA.slice(4)])||0;
-  else if(d.aplicaA&&d.aplicaA.indexOf('esp:')===0)base=(opts.espTotals&&opts.espTotals[d.aplicaA.slice(4)])||0;
-  var amount=d.tipo==='pct'?Math.round(base*(parseFloat(d.valor)/100)):Math.round(parseFloat(d.valor));
-  if(amount<0)amount=0;if(amount>gt)amount=gt;
-  return {amount:amount,base:base,label:descAplicaLabel(cot)};
-}
+// ─── DESCUENTOS (con reparto por especialidad) ───────────────
+function descReparto(cot){var d=cot&&cot.descuento;return (d&&d.reparto)||{};}
+function descTotal(cot){var r=descReparto(cot);return Object.keys(r).reduce(function(s,k){return s+(parseFloat(r[k])||0);},0);}
+function descFmt(n){return '$'+Math.round(n||0).toLocaleString('es-MX');}
 function openDescuentoModal(cotId){
   var cots=getCots();var cot=cots.find(function(c){return String(c.id)===String(cotId);});if(!cot)return;
-  var m=calcCotMetrics(cot);
-  var d=cot.descuento||{aplicaA:'total',tipo:'pct',valor:''};
-  var secOpts=Object.keys(m.bySection).map(function(k){
-    return '<option value="sec:'+k+'"'+(d.aplicaA==='sec:'+k?' selected':'')+'>'+k+'</option>';
+  // métricas SIN descuento para conocer el ppto bruto de cada especialidad
+  var clon=JSON.parse(JSON.stringify(cot));delete clon.descuento;
+  var mOrig=calcCotMetrics(clon);
+  var rep=descReparto(cot);
+  var d=cot.descuento||{};
+  // construir lista de especialidades con ppto y margen
+  var esps=[];
+  Object.keys(mOrig.bySection).forEach(function(k){
+    (mOrig.bySection[k].esps||[]).forEach(function(e){
+      var espDef=(cot.especialidades||[]).find(function(x){return x.nombre===e.nombre;});
+      var eleg=espDef&&(espDef.asesores||[]).find(function(a){return a.elegido;});
+      var cobrado=eleg?parseFloat(eleg.cobradoMXN)||0:0;
+      var margen=cobrado>0?(cobrado-e.withInd):null;
+      esps.push({nombre:e.nombre,sec:k,withInd:e.withInd,cobrado:cobrado,margen:margen});
+    });
+  });
+  window.__descCtx={cotId:cotId,esps:esps,total:mOrig.grandTotalSinDesc};
+  var rows=esps.map(function(e,i){
+    var asignado=parseFloat(rep[e.nombre])||0;
+    var margenTxt=e.margen===null?'<span style="color:#a8a8a8">n/d</span>':'<span style="color:'+(e.margen>0?'#3B6D11':'#e65a27')+'">'+descFmt(e.margen)+'</span>';
+    return '<tr style="border-bottom:.5px solid #eef2f6">'
+      +'<td style="padding:5px 8px;font-size:11px;font-weight:600;color:#254467">'+e.nombre+'<div style="font-size:8px;color:#a8a8a8;font-weight:400;text-transform:uppercase">'+e.sec+'</div></td>'
+      +'<td style="padding:5px 8px;text-align:right;font-size:11px;color:#67727a">'+descFmt(e.withInd)+'</td>'
+      +'<td style="padding:5px 8px;text-align:right;font-size:11px" title="Margen = Cobrado − Ppto">'+margenTxt+'</td>'
+      +'<td style="padding:5px 8px;text-align:right"><input type="number" id="desc-abs-'+i+'" value="'+(asignado||'')+'" min="0" oninput="descRecalc()" placeholder="0" style="width:110px;font-size:11px;padding:4px 6px;border:.5px solid #bfd1e5;border-radius:5px;font-family:Arial;text-align:right"></td>'
+      +'<td style="padding:5px 8px;font-size:9px" id="desc-warn-'+i+'"></td>'
+      +'</tr>';
   }).join('');
-  var espNames=[];Object.keys(m.bySection).forEach(function(k){(m.bySection[k].esps||[]).forEach(function(e){if(espNames.indexOf(e.nombre)<0)espNames.push(e.nombre);});});
-  var espOpts=espNames.map(function(n){return '<option value="esp:'+n+'"'+(d.aplicaA==='esp:'+n?' selected':'')+'>'+n+'</option>';}).join('');
-  var fmt=function(n){return '$'+Math.round(n||0).toLocaleString('es-MX');};
   document.getElementById('modal-body').innerHTML=
-    '<h3 style="margin-bottom:4px">💸 Aplicar descuento</h3>'
-    +'<div style="font-size:11px;color:#67727a;margin-bottom:14px">'+cot.nombre+' · Total actual sin descuento: <strong>'+fmt(m.grandTotalSinDesc)+'</strong></div>'
-    +'<div style="display:flex;flex-direction:column;gap:12px">'
-    +'<div><div style="font-size:11px;font-weight:700;color:#254467;margin-bottom:5px">¿De dónde se descuenta?</div>'
-    +'<select id="desc-aplica" onchange="descPreview(\''+cotId+'\')" style="width:100%;font-size:12px;padding:7px 8px;border:.5px solid #bfd1e5;border-radius:6px;font-family:Arial">'
-    +'<option value="total"'+(d.aplicaA==='total'||!d.aplicaA?' selected':'')+'>Total general (precio final al cliente)</option>'
-    +(secOpts?'<optgroup label="Por sección / categoría">'+secOpts+'</optgroup>':'')
-    +(espOpts?'<optgroup label="Por especialidad">'+espOpts+'</optgroup>':'')
-    +'</select></div>'
-    +'<div style="display:flex;gap:10px">'
-    +'<div style="flex:1"><div style="font-size:11px;font-weight:700;color:#254467;margin-bottom:5px">Tipo</div>'
-    +'<select id="desc-tipo" onchange="descPreview(\''+cotId+'\')" style="width:100%;font-size:12px;padding:7px 8px;border:.5px solid #bfd1e5;border-radius:6px;font-family:Arial">'
-    +'<option value="pct"'+(d.tipo!=='monto'?' selected':'')+'>Porcentaje (%)</option>'
-    +'<option value="monto"'+(d.tipo==='monto'?' selected':'')+'>Monto fijo ($)</option>'
-    +'</select></div>'
-    +'<div style="flex:1"><div style="font-size:11px;font-weight:700;color:#254467;margin-bottom:5px">Valor</div>'
-    +'<input type="number" id="desc-valor" value="'+(d.valor||'')+'" min="0" oninput="descPreview(\''+cotId+'\')" onchange="descPreview(\''+cotId+'\')" style="width:100%;font-size:12px;padding:7px 8px;border:.5px solid #bfd1e5;border-radius:6px;font-family:Arial;text-align:right" placeholder="0"></div>'
-    +'</div>'
-    +'<div id="desc-preview" style="font-size:12px;background:#f0f5fa;border-radius:8px;padding:10px 12px;color:#254467"></div>'
-    +'</div>'
+    '<h3 style="margin-bottom:4px">💸 Descuento — repartir</h3>'
+    +'<div style="font-size:11px;color:#67727a;margin-bottom:14px">'+cot.nombre+' · Total cotizado: <strong>'+descFmt(mOrig.grandTotalSinDesc)+'</strong></div>'
+    +'<div style="background:#f8fafc;border:.5px solid #bfd1e5;border-radius:8px;padding:10px 12px;margin-bottom:12px">'
+    +'<div style="font-size:11px;font-weight:700;color:#254467;margin-bottom:6px">Paso 1 — Monto del descuento</div>'
+    +'<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'
+    +'<select id="desc-tipo" onchange="descRecalc()" style="font-size:12px;padding:6px 8px;border:.5px solid #bfd1e5;border-radius:6px;font-family:Arial">'
+    +'<option value="pct"'+(d.objetivoTipo!=='monto'?' selected':'')+'>% del total</option>'
+    +'<option value="monto"'+(d.objetivoTipo==='monto'?' selected':'')+'>Monto fijo ($)</option>'
+    +'</select>'
+    +'<input type="number" id="desc-valor" value="'+(d.objetivoValor||'')+'" min="0" oninput="descRecalc()" placeholder="0" style="width:120px;font-size:12px;padding:6px 8px;border:.5px solid #bfd1e5;border-radius:6px;font-family:Arial;text-align:right">'
+    +'<span id="desc-objetivo" style="font-size:12px;color:#254467;font-weight:700"></span>'
+    +'<button type="button" onclick="descAutoRepartir()" style="margin-left:auto;font-size:10px;padding:5px 10px;border:.5px solid #6990ab;border-radius:6px;background:#fff;color:#6990ab;cursor:pointer;font-family:Arial">⇄ Repartir proporcional</button>'
+    +'</div></div>'
+    +'<div style="font-size:11px;font-weight:700;color:#254467;margin-bottom:6px">Paso 2 — ¿De qué especialidades se absorbe?</div>'
+    +'<div style="overflow-x:auto;max-height:300px;overflow-y:auto"><table style="width:100%;border-collapse:collapse;min-width:520px">'
+    +'<thead><tr style="background:#f0f5fa">'
+    +'<th style="text-align:left;padding:5px 8px;font-size:9px;font-weight:700;color:#67727a">Especialidad</th>'
+    +'<th style="text-align:right;padding:5px 8px;font-size:9px;font-weight:700;color:#67727a">Ppto.</th>'
+    +'<th style="text-align:right;padding:5px 8px;font-size:9px;font-weight:700;color:#67727a" title="Cobrado − Ppto">Margen disp.</th>'
+    +'<th style="text-align:right;padding:5px 8px;font-size:9px;font-weight:700;color:#3B6D11">Absorber $</th>'
+    +'<th style="padding:5px 8px"></th>'
+    +'</tr></thead><tbody>'+rows+'</tbody></table></div>'
+    +'<div id="desc-counter" style="font-size:12px;background:#f0f5fa;border-radius:8px;padding:10px 12px;margin-top:10px;color:#254467"></div>'
     +'<div class="btn-row" style="margin-top:14px">'
     +'<button class="btn" onclick="closeModal()">Cancelar</button>'
     +(cot.descuento?'<button class="btn" style="border-color:#FECACA;color:#e65a27" onclick="quitarDescuento(\''+cotId+'\')">Quitar descuento</button>':'')
     +'<button class="btn btn-primary" onclick="saveDescuento(\''+cotId+'\')">Guardar</button>'
     +'</div>';
   openModal();
-  descPreview(cotId);
+  descRecalc();
 }
-function descPreview(cotId){
-  var cots=getCots();var cot=cots.find(function(c){return String(c.id)===String(cotId);});if(!cot)return;
-  var m=calcCotMetrics(cot);
-  var _secT={};var _espT={};Object.keys(m.bySection).forEach(function(k){_secT[k]=m.bySection[k].withInd;(m.bySection[k].esps||[]).forEach(function(e){_espT[e.nombre]=e.withInd;});});
-  var aplicaA=document.getElementById('desc-aplica').value;
+function descObjetivo(){
+  var ctx=window.__descCtx;if(!ctx)return 0;
   var tipo=document.getElementById('desc-tipo').value;
   var valor=parseFloat(document.getElementById('desc-valor').value)||0;
-  var tmp={descuento:{aplicaA:aplicaA,tipo:tipo,valor:valor}};
-  var dc=computeDescuento(tmp,{grandTotal:m.grandTotalSinDesc,bySectionTotals:_secT,espTotals:_espT});
-  var fmt=function(n){return '$'+Math.round(n||0).toLocaleString('es-MX');};
-  var el=document.getElementById('desc-preview');if(!el)return;
-  if(dc.amount<=0){el.innerHTML='<span style="color:#a8a8a8">Captura un valor para ver el resultado.</span>';return;}
-  var baseLbl=aplicaA==='total'?'total':descAplicaLabel(tmp);
-  el.innerHTML='<div style="display:flex;justify-content:space-between"><span>Base ('+baseLbl+')</span><strong>'+fmt(dc.base)+'</strong></div>'
-    +'<div style="display:flex;justify-content:space-between;color:#3B6D11"><span>Descuento'+(tipo==='pct'?' ('+valor+'%)':'')+'</span><strong>−'+fmt(dc.amount)+'</strong></div>'
-    +'<div style="display:flex;justify-content:space-between;border-top:.5px solid #bfd1e5;margin-top:6px;padding-top:6px;font-size:13px"><span style="font-weight:700">Nuevo total general</span><strong style="color:#254467">'+fmt(m.grandTotalSinDesc-dc.amount)+'</strong></div>';
+  return tipo==='pct'?Math.round(ctx.total*(valor/100)):Math.round(valor);
+}
+function descRecalc(){
+  var ctx=window.__descCtx;if(!ctx)return;
+  var objetivo=descObjetivo();
+  var oEl=document.getElementById('desc-objetivo');
+  if(oEl)oEl.textContent=objetivo>0?'= '+descFmt(objetivo):'';
+  var asignado=0;
+  ctx.esps.forEach(function(e,i){
+    var inp=document.getElementById('desc-abs-'+i);if(!inp)return;
+    var v=parseFloat(inp.value)||0;asignado+=v;
+    var warn=document.getElementById('desc-warn-'+i);
+    if(warn){
+      if(v<=0){warn.innerHTML='';}
+      else if(e.margen===null){warn.innerHTML='<span style="color:#e6a817">⚠ sin cobrado capturado</span>';}
+      else if(v>e.margen){warn.innerHTML='<span style="color:#e6a817">⚠ rebasa el margen por '+descFmt(v-e.margen)+'</span>';}
+      else{warn.innerHTML='<span style="color:#3B6D11">✓ dentro del margen</span>';}
+    }
+  });
+  var cEl=document.getElementById('desc-counter');if(!cEl)return;
+  var totalFinal=ctx.total-asignado;
+  var difTxt='';
+  if(objetivo>0){
+    var dif=objetivo-asignado;
+    if(Math.abs(dif)<1)difTxt='<span style="color:#3B6D11"> · objetivo cubierto ✓</span>';
+    else if(dif>0)difTxt='<span style="color:#e6a817"> · faltan '+descFmt(dif)+' por asignar</span>';
+    else difTxt='<span style="color:#e6a817"> · asignaste '+descFmt(-dif)+' de más</span>';
+  }
+  cEl.innerHTML='<div style="display:flex;justify-content:space-between"><span>Descuento asignado'+(objetivo>0?' (objetivo '+descFmt(objetivo)+')':'')+'</span><strong style="color:#3B6D11">−'+descFmt(asignado)+'</strong></div>'+(difTxt?'<div style="font-size:10px;margin-top:2px">'+difTxt+'</div>':'')
+    +'<div style="display:flex;justify-content:space-between;border-top:.5px solid #bfd1e5;margin-top:6px;padding-top:6px;font-size:13px"><span style="font-weight:700">Nuevo total general</span><strong style="color:'+(totalFinal<0?'#e65a27':'#254467')+'">'+descFmt(totalFinal)+'</strong></div>';
+}
+function descAutoRepartir(){
+  var ctx=window.__descCtx;if(!ctx)return;
+  var objetivo=descObjetivo();
+  if(objetivo<=0){alert('Primero captura el monto o porcentaje del descuento en el Paso 1.');return;}
+  var sumW=ctx.esps.reduce(function(s,e){return s+e.withInd;},0);
+  if(sumW<=0)return;
+  var acum=0;
+  ctx.esps.forEach(function(e,i){
+    var inp=document.getElementById('desc-abs-'+i);if(!inp)return;
+    var amt;
+    if(i===ctx.esps.length-1){amt=objetivo-acum;}
+    else{amt=Math.round(objetivo*e.withInd/sumW);acum+=amt;}
+    inp.value=amt>0?amt:'';
+  });
+  descRecalc();
 }
 function saveDescuento(cotId){
-  var aplicaA=document.getElementById('desc-aplica').value;
-  var tipo=document.getElementById('desc-tipo').value;
-  var valor=parseFloat(document.getElementById('desc-valor').value)||0;
+  var ctx=window.__descCtx;
   var cots=getCots();var cot=cots.find(function(c){return String(c.id)===String(cotId);});if(!cot)return;
-  if(valor>0){cot.descuento={aplicaA:aplicaA,tipo:tipo,valor:valor};}else{delete cot.descuento;}
+  var reparto={};var any=false;
+  if(ctx){ctx.esps.forEach(function(e,i){
+    var inp=document.getElementById('desc-abs-'+i);if(!inp)return;
+    var v=parseFloat(inp.value)||0;
+    if(v>0){reparto[e.nombre]=v;any=true;}
+  });}
+  if(any){
+    var tipo=document.getElementById('desc-tipo').value;
+    var valor=parseFloat(document.getElementById('desc-valor').value)||0;
+    cot.descuento={objetivoTipo:tipo,objetivoValor:valor,reparto:reparto};
+  }else{delete cot.descuento;}
   sv(K.cot,cots);closeModal();renderCotizaciones();
 }
 function quitarDescuento(cotId){
