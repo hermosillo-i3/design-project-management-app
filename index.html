@@ -2573,6 +2573,14 @@ function savePersonTask(nombre){
 function toggleTask(id,val){
   const t=tasks.find(x=>x.id===id);if(t){t.done=val;sv(K.tasks,tasks);}renderSeg();renderPendientes();
 }
+function toggleTaskUrgente(id){
+  var t=tasks.find(function(x){return x.id===id;});if(!t)return;
+  t.urgente=!t.urgente;
+  sv(K.tasks,tasks);
+  if(typeof renderConsultores==='function')renderConsultores();
+  if(typeof renderEquipo==='function')renderEquipo();
+  if(typeof renderPendientes==='function')renderPendientes();
+}
 function openAddComment(){
   const pid=parseInt(document.getElementById('seg-sel').value);
   document.getElementById('modal-body').innerHTML=`<h3>Agregar comentario</h3>
@@ -6423,6 +6431,7 @@ function renderConsultores(){
 
     const myTasks=tasks.filter(function(t){return t.asignado===nombre&&!t.done&&!t.archivado;})
       .sort(function(a,b){
+        var ua=a.urgente?0:1,ub=b.urgente?0:1;if(ua!==ub)return ua-ub;
         const oa=a.fechaCompromiso&&a.fechaCompromiso<todayStr?0:1;
         const ob=b.fechaCompromiso&&b.fechaCompromiso<todayStr?0:1;
         if(oa!==ob) return oa-ob;
@@ -6572,11 +6581,12 @@ function renderConsultores(){
         +' style="'+st+'">'
         +'<div style="display:flex;align-items:flex-start;gap:6px;margin-bottom:3px">'
         +'<input type="checkbox" onchange="toggleTask('+t.id+',this.checked)" style="margin-top:2px;flex-shrink:0;cursor:pointer">'
-        +'<div style="font-size:11px;color:#1A1A2E;line-height:1.4;flex:1">'+t.texto.substring(0,65)+(t.texto.length>65?'…':'')+'</div>'
+        +'<div style="font-size:11px;color:#1A1A2E;line-height:1.4;flex:1">'+(t.urgente?'<span style="background:#fdecea;color:#e65a27;border-radius:4px;padding:0 5px;font-size:8px;font-weight:700;margin-right:4px">🔥 URGENTE</span>':'')+t.texto.substring(0,65)+(t.texto.length>65?'…':'')+'</div>'
         +'</div>'
         +'<div style="display:flex;gap:5px;align-items:center;font-size:10px;flex-wrap:wrap;margin-left:18px">'
         +(proj?'<span style="color:'+(proj.archivado?'#a8a8a8':'#254467')+';font-weight:700;font-size:9px">'+proj.nombre.substring(0,22)+(proj.archivado?' <span style="font-weight:400;border:.5px solid #ccc;border-radius:3px;padding:0 3px">arch</span>':'')+'</span>':'')
         +(t.fechaCompromiso?'<span style="color:'+dc+';font-weight:700">'+fmtD(t.fechaCompromiso)+(ov?' VENC':soon?' ⚠':'')+'</span>':'')
+        +'<button onclick="toggleTaskUrgente('+t.id+')" style="font-size:9px;padding:1px 6px;border:.5px solid '+(t.urgente?'#e65a27':'#bfd1e5')+';border-radius:4px;background:'+(t.urgente?'#fdecea':'#fff')+';cursor:pointer;font-family:Arial;color:'+(t.urgente?'#e65a27':'#a8a8a8')+';font-weight:700" title="Marcar urgente">🔥</button>'
         +'<button onclick="addTaskNote('+t.id+')" style="font-size:9px;padding:1px 6px;border:.5px solid #bfd1e5;border-radius:4px;background:#fff;cursor:pointer;font-family:Arial;color:#67727a">+ Nota</button>'
         +'<button onclick="openEditTask('+t.id+')" style="font-size:9px;padding:1px 6px;border:.5px solid #6990ab;border-radius:4px;background:#fff;cursor:pointer;font-family:Arial;color:#6990ab">✏</button>'
         +'<button onclick="archiveTask('+t.id+')" style="font-size:9px;padding:1px 6px;border:.5px solid #bfd1e5;border-radius:4px;background:#fff;cursor:pointer;font-family:Arial;color:#a8a8a8" title="Archivar — visible en Seguimiento > Ver archivados">Arch.</button>'
@@ -8457,6 +8467,7 @@ function renderEquipoDetalle(allProjs){
 
     var myTasks=tasks.filter(function(t){return t.asignado===nombre&&!t.done&&!t.archivado;})
       .sort(function(a,b){
+        var ua=a.urgente?0:1,ub=b.urgente?0:1;if(ua!==ub)return ua-ub;
         var pa=a.eqTaskPrio!=null?a.eqTaskPrio:999;
         var pb=b.eqTaskPrio!=null?b.eqTaskPrio:999;
         if(pa!==pb) return pa-pb;
@@ -8576,11 +8587,12 @@ function renderEquipoDetalle(allProjs){
         +(function(){var st='padding:7px 12px;border-bottom:.5px solid #e8eef4;background:'+(ov?'#fff8f6':'#fff')+';cursor:grab'+(tIdx>=10?';display:none':'');return' style="'+st+'">';})()
         +'<div style="display:flex;align-items:flex-start;gap:6px;margin-bottom:3px">'
         +'<input type="checkbox" onchange="toggleTask('+t.id+',this.checked)" style="margin-top:2px;flex-shrink:0;cursor:pointer">'
-        +'<div style="font-size:11px;color:#1A1A2E;line-height:1.4;flex:1">'+t.texto+'</div>'
+        +'<div style="font-size:11px;color:#1A1A2E;line-height:1.4;flex:1">'+(t.urgente?'<span style="background:#fdecea;color:#e65a27;border-radius:4px;padding:0 5px;font-size:8px;font-weight:700;margin-right:4px">🔥 URGENTE</span>':'')+t.texto+'</div>'
         +'</div>'
         +'<div style="display:flex;gap:5px;align-items:center;font-size:10px;flex-wrap:wrap;margin-left:18px">'
         +(proj?'<span style="color:'+(proj.archivado?'#a8a8a8':'#254467')+';font-weight:700;font-size:9px">'+proj.nombre.substring(0,22)+(proj.archivado?' <span style="font-weight:400;border:.5px solid #ccc;border-radius:3px;padding:0 3px">arch</span>':'')+'</span>':'')
         +(t.fechaCompromiso?'<span style="color:'+dc+';font-weight:700">'+fmtD(t.fechaCompromiso)+(ov?' VENC':soon?' ⚠':'')+'</span>':'')
+        +'<button onclick="toggleTaskUrgente('+t.id+')" style="font-size:9px;padding:1px 6px;border:.5px solid '+(t.urgente?'#e65a27':'#bfd1e5')+';border-radius:4px;background:'+(t.urgente?'#fdecea':'#fff')+';cursor:pointer;font-family:Arial;color:'+(t.urgente?'#e65a27':'#a8a8a8')+';font-weight:700" title="Marcar urgente">🔥</button>'
         +'<button onclick="addTaskNote('+t.id+')" style="font-size:9px;padding:1px 6px;border:.5px solid #bfd1e5;border-radius:4px;background:#fff;cursor:pointer;font-family:Arial;color:#67727a">+ Nota</button>'
         +'<button onclick="openEditTask('+t.id+')" style="font-size:9px;padding:1px 6px;border:.5px solid #6990ab;border-radius:4px;background:#fff;cursor:pointer;font-family:Arial;color:#6990ab">✏</button>'
         +'<button onclick="archiveTask('+t.id+')" style="font-size:9px;padding:1px 6px;border:.5px solid #bfd1e5;border-radius:4px;background:#fff;cursor:pointer;font-family:Arial;color:#a8a8a8" title="Archivar — visible en Seguimiento > Ver archivados">Arch.</button>'
