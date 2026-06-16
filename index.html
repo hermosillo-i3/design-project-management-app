@@ -3244,6 +3244,7 @@ function exportRetro(nombre){
   // Tareas ordenadas por prioridad
   let myTasks=tasks.filter(t=>t.asignado===nombre&&!t.done&&!t.archivado);
   myTasks.sort(function(a,b){
+    var ua=a.urgente?0:1,ub=b.urgente?0:1;if(ua!==ub)return ua-ub;
     if(a.eqTaskPrio!=null&&b.eqTaskPrio!=null) return a.eqTaskPrio-b.eqTaskPrio;
     if(a.eqTaskPrio!=null) return -1;
     if(b.eqTaskPrio!=null) return 1;
@@ -3333,7 +3334,7 @@ function exportRetro(nombre){
     return`<div style="display:flex;align-items:flex-start;gap:8px;padding:9px 10px;border-bottom:.5px solid #eef2f6">
       <div style="font-size:11px;font-weight:700;color:#a8a8a8;min-width:18px;padding-top:1px">${i+1}.</div>
       <div style="flex:1">
-        <div style="font-size:12px;color:#1A1A2E;line-height:1.4;margin-bottom:4px">${t.texto}</div>
+        <div style="font-size:12px;color:#1A1A2E;line-height:1.4;margin-bottom:4px">${t.urgente?`<span style="background:#fdecea;color:#e65a27;border-radius:4px;padding:0 5px;font-size:9px;font-weight:700;margin-right:4px">🔥 URGENTE</span>`:''}${t.texto}</div>
         <div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap">
           ${proj?`<span style="font-size:9px;font-weight:700;color:#254467;background:#e0eaf2;border-radius:4px;padding:1px 6px">${proj.nombre}</span>`:''}
           ${proj?`<span style="font-size:9px;font-weight:700;color:${semColor(s.cls)}">${semLabel(s.cls)}</span>`:''}
@@ -6257,6 +6258,7 @@ function exportRetroConsultor(nombre){
   // Tasks assigned to this consultant
   let myTasks=tasks.filter(t=>t.asignado===nombre&&!t.done&&!t.archivado);
   myTasks.sort(function(a,b){
+    var ua=a.urgente?0:1,ub=b.urgente?0:1;if(ua!==ub)return ua-ub;
     if(a.eqTaskPrio!=null&&b.eqTaskPrio!=null) return a.eqTaskPrio-b.eqTaskPrio;
     if(a.eqTaskPrio!=null) return -1;
     if(b.eqTaskPrio!=null) return 1;
@@ -6309,7 +6311,7 @@ function exportRetroConsultor(nombre){
     return`<div style="display:flex;align-items:flex-start;gap:8px;padding:9px 10px;border-bottom:.5px solid #eef2f6">
       <div style="font-size:11px;font-weight:700;color:#a8a8a8;min-width:18px;padding-top:1px">${i+1}.</div>
       <div style="flex:1">
-        <div style="font-size:12px;color:#1A1A2E;line-height:1.4;margin-bottom:4px">${t.texto}</div>
+        <div style="font-size:12px;color:#1A1A2E;line-height:1.4;margin-bottom:4px">${t.urgente?`<span style="background:#fdecea;color:#e65a27;border-radius:4px;padding:0 5px;font-size:9px;font-weight:700;margin-right:4px">🔥 URGENTE</span>`:''}${t.texto}</div>
         <div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap">
           ${proj?`<span style="font-size:9px;font-weight:700;color:#254467;background:#e0eaf2;border-radius:4px;padding:1px 6px">${proj.nombre}</span>`:''}
           ${proj?`<span style="font-size:9px;font-weight:700;color:${semColor(s.cls)}">${semLbl(s.cls)}</span>`:''}
