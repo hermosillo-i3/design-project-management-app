@@ -1395,7 +1395,7 @@ function renderProyectos(){
       return`<tr>
         <td style="color:#a8a8a8">${idx+1}</td>
         <td style="color:#bfd1e5;font-size:10px">${histNum(p)}</td>
-        <td style="font-weight:700;max-width:150px">${p.nombre}</td>
+        <td style="font-weight:700;max-width:150px">${p.nombre}${p.areaM2?`<div style="font-size:9px;color:#67727a;font-weight:400">${Number(p.areaM2).toLocaleString()} m²</div>`:''}</td>
         <td>${etapaBadge(p.etapa,p.interno)}</td>
         <td style="font-size:9px;max-width:110px;color:#475569">${p.tipo||'—'}</td>
         <td style="font-size:10px;max-width:90px">${p.cliente||'—'}</td>
@@ -2015,6 +2015,7 @@ function openProyecto(id,isInterno){
     <div id="ptab-content-general">
     <div class="frow"><div class="fg"><label>Nombre</label><input id="pn" value="${p.nombre}"></div><div class="fg"><label>Cliente</label><input id="pc" value="${p.cliente||''}"></div></div>
     <div class="frow"><div class="fg"><label>Área / Zona</label><input id="parea" value="${p.areaProyecto||''}" placeholder="Ej: Monterrey, Zona Norte..."></div><div class="fg"><label>Ubicación</label><input id="pubicacion" value="${p.ubicacion||''}" placeholder="Ej: Av. Constitución 123"></div></div>
+    <div class="frow"><div class="fg"><label>m² de construcción</label><input id="parea_m2" type="number" value="${p.areaM2||''}" placeholder="ej: 20000"><div style="font-size:9px;color:#a8a8a8;margin-top:3px">Se liga a las cotizaciones de este proyecto (se edita solo aquí).</div></div><div class="fg"></div></div>
     ${!isInt?`<div class="frow"><div class="fg"><label>Etapa</label><select id="pet">${['PRECON','EJECUTIVO','REVISIONES'].map(e=>`<option ${p.etapa===e?'selected':''}>${e}</option>`).join('')}</select></div><div class="fg"><label>Jefe de proyecto</label><select id="pjefe"><option value="">— Sin jefe —</option>${jefes.map(j=>`<option value="${j}" ${(p.jefe||"")===j?"selected":""}>${j}</option>`).join("")}</select></div><div class="fg"><label>Coordinador</label><select id="pco"><option value="">—</option>${coordOpts}</select></div></div>`:''}
     <div class="fg"><label>Equipo (personas involucradas)</label>
       <select onchange="addTag(this,'peq-tags','peq-data','person-pill')" style="font-size:11px;padding:5px 8px;border-radius:6px;border:.5px solid #bfd1e5;font-family:Arial"><option value="">+ Agregar persona...</option>${personOpts}</select>
@@ -2218,6 +2219,7 @@ function saveProyecto(id,isInt){
     razon:document.getElementById('prazon')?document.getElementById('prazon').value:'',
     bloqueadoPor:document.getElementById('pbl')?document.getElementById('pbl').value:'',
     areaProyecto:document.getElementById('parea')?document.getElementById('parea').value:'',
+    areaM2:document.getElementById('parea_m2')?document.getElementById('parea_m2').value.trim():(id?(projects.find(x=>x.id===id).areaM2||''):''),
     ubicacion:document.getElementById('pubicacion')?document.getElementById('pubicacion').value:'',
     estatusProy:document.getElementById('pep')?document.getElementById('pep').value:'',
     docs:{
@@ -2267,7 +2269,14 @@ function saveProyecto(id,isInt){
     }else{projects.push(dat);}
   }
   else projects.push(dat);
-  sv(K.proj,projects);closeModal();renderAll();
+  sv(K.proj,projects);
+  // Ligar el m² del proyecto a sus cotizaciones (se edita solo en el proyecto)
+  if(dat.areaM2!==''&&dat.areaM2!=null){
+    var _cots=getCots();var _ch=false;
+    _cots.forEach(function(c){if(String(c.projId)===String(dat.id)&&String(c.areaM2||'')!==String(dat.areaM2)){c.areaM2=dat.areaM2;_ch=true;}});
+    if(_ch)sv(K.cot,_cots);
+  }
+  closeModal();renderAll();
 }
 
 function archivar(id,fromModal){
@@ -5982,19 +5991,25 @@ function buildCotModal(cot,preselProjId,allProjs,isVersion){
     espSection+='</div>';
   });
 
+  var _projM2Map={};allProjs.forEach(function(pp){_projM2Map[pp.id]=pp.areaM2||'';});
+  window.__projM2Map=_projM2Map;
+  var _selProjId=preselProjId||(cot?cot.projId:'');
+  var _projM2=_projM2Map[_selProjId];
+  var _m2Locked=!!(_projM2!==undefined&&_projM2!==''&&_projM2!=null);
+  var _m2Val=_m2Locked?_projM2:(cot?cot.areaM2:'');
   return '<input type="hidden" id="cot-base-id" value="'+(cot&&cot._baseId?cot._baseId:'')+'">'
     +'<input type="hidden" id="cot-clone-id" value="'+(isVersion&&cot?cot.id:'')+'">'
     +'<h3 style="margin-bottom:4px">'+(isVersion?'Nueva versión':cot&&!isVersion?'Editar':'Nueva')+' cotización</h3>'
     +(isVersion?'<div style="font-size:11px;color:#6990ab;background:#f0f5fa;border-radius:6px;padding:6px 10px;margin-bottom:12px">Heredando de la versión anterior. Modifica lo que cambió.</div>':'<div style="margin-bottom:12px"></div>')
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">'
     +'<div class="fg"><label>Proyecto</label>'
-    +'<select id="cot-proj" '+(isVersion?'disabled':'')+' style="width:100%;font-family:Arial;font-size:12px;padding:6px 8px;border:.5px solid #bfd1e5;border-radius:6px">'
+    +'<select id="cot-proj" onchange="cotProjChange()" '+(isVersion?'disabled':'')+' style="width:100%;font-family:Arial;font-size:12px;padding:6px 8px;border:.5px solid #bfd1e5;border-radius:6px">'
     +'<option value="">— Selecciona —</option>'
     +allProjs.map(function(p){return '<option value="'+p.id+'"'+(String(p.id)===String(preselProjId||'')?' selected':'')+'>'+p.nombre+'</option>';}).join('')
     +'</select></div>'
     +'<div class="fg"><label>Nombre / versión</label><input id="cot-nombre" type="text" value="'+(cot?cot.nombre:'Cotización V1')+'" style="width:100%;font-family:Arial;font-size:12px;padding:6px 8px;border:.5px solid #bfd1e5;border-radius:6px"></div>'
     +'<div class="fg"><label>Fecha</label><input id="cot-fecha" type="date" value="'+(cot?cot.fecha:todayStr)+'" style="width:100%;font-family:Arial;font-size:12px;padding:6px 8px;border:.5px solid #bfd1e5;border-radius:6px"></div>'
-    +'<div class="fg"><label>Área m² construcción</label><input id="cot-area" type="number" value="'+(cot?cot.areaM2:'')+'" placeholder="ej: 51000" style="width:100%;font-family:Arial;font-size:12px;padding:6px 8px;border:.5px solid #bfd1e5;border-radius:6px"></div>'
+    +'<div class="fg"><label>Área m² construcción</label><input id="cot-area" type="number" value="'+(_m2Val||'')+'"'+(_m2Locked?' readonly':'')+' placeholder="ej: 51000" style="width:100%;font-family:Arial;font-size:12px;padding:6px 8px;border:.5px solid #bfd1e5;border-radius:6px'+(_m2Locked?';background:#f0f5fa':'')+'"><div id="cot-area-note" style="font-size:9px;color:#6990ab;margin-top:3px;display:'+(_m2Locked?'block':'none')+'">Ligado al m² del proyecto (edítalo en Proyectos).</div></div>'
     +'<div class="fg"><label>Tipo de cambio MXN/USD</label><input id="cot-tc" type="number" value="'+(cot?cot.tipoCambio:'18')+'" style="width:100%;font-family:Arial;font-size:12px;padding:6px 8px;border:.5px solid #bfd1e5;border-radius:6px"></div>'
     +'<div class="fg"><label>Indirecto base Est. Prel. %</label><input id="cot-ind-est" type="number" value="'+(cot?cot.indEst:'')+'" placeholder="ej: 15" style="width:100%;font-family:Arial;font-size:12px;padding:6px 8px;border:.5px solid #bfd1e5;border-radius:6px"></div>'
     +'<div class="fg"><label>Indirecto base Diseño %</label><input id="cot-ind-dis" type="number" value="'+(cot?cot.indDis:'')+'" placeholder="ej: 15" style="width:100%;font-family:Arial;font-size:12px;padding:6px 8px;border:.5px solid #bfd1e5;border-radius:6px"></div>'
@@ -6008,6 +6023,18 @@ function buildCotModal(cot,preselProjId,allProjs,isVersion){
     +'</div>';
 }
 
+function cotProjChange(){
+  var sel=document.getElementById('cot-proj');var area=document.getElementById('cot-area');var note=document.getElementById('cot-area-note');
+  if(!sel||!area)return;
+  var m2=(window.__projM2Map||{})[sel.value];
+  if(m2!==undefined&&m2!==''&&m2!=null){
+    area.value=m2;area.readOnly=true;area.style.background='#f0f5fa';
+    if(note)note.style.display='block';
+  }else{
+    area.readOnly=false;area.style.background='';
+    if(note)note.style.display='none';
+  }
+}
 function addProjOnlyEsp(grp){
   var key='new-proj-esp-'+grp.replace(/[^a-z0-9]/gi,'_');
   var input=document.getElementById(key);
