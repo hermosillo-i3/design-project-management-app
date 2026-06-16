@@ -1931,18 +1931,49 @@ function openAsesorEdit(projId,espIdx){
   if(espKey===undefined)return;
   var p=projects.find(function(x){return x.id===projId;});if(!p)return;
   var espData=((p.costosEjec||{})[espKey])||{};
-  var consulOpts=cat.consultores.map(function(c){return '<option value="'+c.nombre+'"'+(c.nombre===espData.asesor?' selected':'')+'>'+c.nombre+'</option>';}).join('');
+  // Asesores cotizados para esta especialidad (de la cotización de presupuesto de control)
+  var ctrlCot=getCots().find(function(c){return String(c.id)===String(p.presupuestoControlCotId);});
+  var espDef=ctrlCot?(ctrlCot.especialidades||[]).find(function(e){return e.nombre===espKey;}):null;
+  var asesores=espDef?(espDef.asesores||[]):[];
+  window.__aeAsesores=asesores;
+  var savedAsesor=espData.asesor||'';
+  var matchIdx=asesores.findIndex(function(a){return a.empresa===savedAsesor;});
+  var elegidoIdx=asesores.findIndex(function(a){return a.elegido;});
+  var selIdx=savedAsesor?matchIdx:elegidoIdx;
+  var esOtro=!!(savedAsesor&&matchIdx<0);
+  var initContacto=espData.contacto||((selIdx>=0&&asesores[selIdx])?(asesores[selIdx].contacto||''):'');
+  var esc=function(s){return (s||'').replace(/"/g,'&quot;');};
+  var opts='<option value="">— Sin asignar —</option>';
+  opts+=asesores.map(function(a,i){
+    var lbl=a.empresa+(a.elegido?' ★ pre-asignado':'')+(a.costoMXN?' · cotizó $'+Number(a.costoMXN).toLocaleString('es-MX'):'');
+    return '<option value="cot:'+i+'"'+(i===selIdx?' selected':'')+'>'+lbl+'</option>';
+  }).join('');
+  opts+='<option value="otro"'+(esOtro?' selected':'')+'>➕ Otro (escribir nuevo)</option>';
   document.getElementById('modal-body').innerHTML=
     '<h3 style="color:#254467">Asesor — '+espKey+'</h3>'
+    +(asesores.length?'<div style="font-size:10px;color:#67727a;margin-bottom:8px">Elige entre los asesores con los que cotizaste esta especialidad (★ = pre-asignado), o agrega uno nuevo.</div>':'<div style="font-size:10px;color:#e6a817;margin-bottom:8px">Esta especialidad no tiene asesores cotizados; escribe uno nuevo abajo.</div>')
     +'<div class="fg"><label>Asesor / Consultor</label>'
-    +'<select id="ae-asesor" style="font-size:11px;padding:6px 8px;border-radius:6px;border:.5px solid #bfd1e5;font-family:Arial;width:100%">'
-    +'<option value="">— Sin asesor —</option>'+consulOpts+'</select></div>'
+    +'<select id="ae-asesor" onchange="aeAsesorChange()" style="font-size:11px;padding:6px 8px;border-radius:6px;border:.5px solid #bfd1e5;font-family:Arial;width:100%">'
+    +opts+'</select></div>'
+    +'<div class="fg" id="ae-nuevo-wrap" style="display:'+((esOtro||asesores.length===0)?'block':'none')+'"><label>Nombre del asesor / empresa (nuevo)</label>'
+    +'<input type="text" id="ae-nuevo" value="'+(esOtro?esc(savedAsesor):'')+'" placeholder="Empresa o nombre del asesor"></div>'
     +'<div class="fg"><label>Contacto (teléfono / correo)</label>'
-    +'<input type="text" id="ae-contacto" value="'+(espData.contacto||'')+'" placeholder="Ej: +52 55 1234 5678 / nombre@correo.com"></div>'
+    +'<input type="text" id="ae-contacto" value="'+esc(initContacto)+'" placeholder="Ej: +52 55 1234 5678 / nombre@correo.com"></div>'
     +'<div class="btn-row">'
     +'<button class="btn" onclick="closeModal()">Cancelar</button>'
     +'<button class="btn btn-primary" onclick="saveAsesorEdit('+projId+','+espIdx+')">Guardar</button></div>';
   openModal();
+  if(asesores.length===0){var s=document.getElementById('ae-asesor');if(s)s.value='otro';}
+}
+function aeAsesorChange(){
+  var sel=document.getElementById('ae-asesor').value;
+  var wrap=document.getElementById('ae-nuevo-wrap');
+  var contacto=document.getElementById('ae-contacto');
+  if(sel==='otro'){if(wrap)wrap.style.display='block';}
+  else{
+    if(wrap)wrap.style.display='none';
+    if(sel.indexOf('cot:')===0){var i=parseInt(sel.slice(4));var a=(window.__aeAsesores||[])[i];if(a&&contacto)contacto.value=a.contacto||'';}
+  }
 }
 
 function saveAsesorEdit(projId,espIdx){
@@ -1951,7 +1982,11 @@ function saveAsesorEdit(projId,espIdx){
   var p=projects.find(function(x){return x.id===projId;});if(!p)return;
   if(!p.costosEjec)p.costosEjec={};
   if(!p.costosEjec[espKey])p.costosEjec[espKey]={cobros:[],pagos:[]};
-  p.costosEjec[espKey].asesor=document.getElementById('ae-asesor').value;
+  var sel=document.getElementById('ae-asesor').value;
+  var asesorName='';
+  if(sel==='otro'){asesorName=(document.getElementById('ae-nuevo').value||'').trim();}
+  else if(sel.indexOf('cot:')===0){var i=parseInt(sel.slice(4));var a=(window.__aeAsesores||[])[i];asesorName=a?a.empresa:'';}
+  p.costosEjec[espKey].asesor=asesorName;
   p.costosEjec[espKey].contacto=document.getElementById('ae-contacto').value.trim();
   p.ultimaActualizacion=todayStr;
   sv(K.proj,projects);
