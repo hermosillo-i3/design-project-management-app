@@ -2911,7 +2911,7 @@ function personChips(p){
     chips.push('<span style="font-size:9px;background:#eef2f6;color:#254467;border-radius:10px;padding:1px 7px;font-weight:700">'+p.contrato.tipo+'</span>');
     if(p.contrato.vigencia){
       var dias=Math.round((new Date(p.contrato.vigencia)-today)/86400000);
-      if(dias<=30) chips.push('<span style="font-size:9px;background:'+(dias<0?'#fdecea':'#fff4e5')+';color:'+(dias<0?'#e65a27':'#b8860b')+';border-radius:10px;padding:1px 7px;font-weight:700">⚠ '+(dias<0?'contrato vencido':'vence en '+dias+'d')+'</span>');
+      if(dias<=45) chips.push('<span style="font-size:9px;background:'+(dias<0?'#fdecea':'#fff4e5')+';color:'+(dias<0?'#e65a27':'#b8860b')+';border-radius:10px;padding:1px 7px;font-weight:700">⚠ '+(dias<0?'contrato vencido':'vence en '+dias+'d')+'</span>');
     }
   }
   if(p.capacitaciones&&p.capacitaciones.length) chips.push('<span style="font-size:9px;background:#eef6ee;color:#3B6D11;border-radius:10px;padding:1px 7px;font-weight:700">🎓 '+p.capacitaciones.length+'</span>');
@@ -3052,41 +3052,53 @@ function renderEquipo(){
     return(tb/mb)-(ta/ma);
   });}
   else if(sortBy==='area') personas.sort((a,b)=>(a.area||'').localeCompare(b.area||''));
-  document.getElementById('equipo-list').innerHTML=personas.map(persona=>{
+  // Panel de avisos: contratos por vencer (o vencidos) en 45 días
+  var _alerts=[];
+  personas.forEach(function(p){
+    if(p.contrato&&p.contrato.vigencia){
+      var dias=Math.round((new Date(p.contrato.vigencia)-today)/86400000);
+      if(dias<=45)_alerts.push({nombre:p.nombre,tipo:p.contrato.tipo||'Contrato',dias:dias});
+    }
+  });
+  _alerts.sort(function(a,b){return a.dias-b.dias;});
+  var _banner='';
+  if(_alerts.length){
+    _banner='<div style="background:#fff4e5;border:.5px solid #f0c98a;border-radius:10px;padding:10px 14px;margin-bottom:12px">'
+      +'<div style="font-size:11px;font-weight:700;color:#854f0b;margin-bottom:6px">⚠ Contratos por vencer ('+_alerts.length+')</div>'
+      +'<div style="display:flex;flex-wrap:wrap;gap:6px">'
+      +_alerts.map(function(a){var venc=a.dias<0;return '<span style="font-size:10px;background:'+(venc?'#fdecea':'#fff')+';border:.5px solid '+(venc?'#e6a6a0':'#f0c98a')+';color:'+(venc?'#e65a27':'#854f0b')+';border-radius:20px;padding:2px 9px">'+a.nombre+' — '+a.tipo+' · '+(venc?'VENCIDO hace '+(-a.dias)+'d':'vence en '+a.dias+'d')+'</span>';}).join('')
+      +'</div></div>';
+  }
+  var _cards=personas.map(persona=>{
     const myProjs=allProjs.filter(p=>(p.equipo||[]).includes(persona.nombre)||(p.consultores||[]).some(c=>c.nombre===persona.nombre));
-    const clienteProjs=myProjs.filter(p=>!p.interno);
-    const internosProjs=myProjs.filter(p=>p.interno);
     const total=myProjs.length;
     const maxP=persona.capacidad||3;
-    const sat=total>=maxP?'sat-sat':total>=(maxP*0.7)?'sat-alt':'sat-ok';
+    const satColor=total>=maxP?'#e65a27':total>=(maxP*0.7)?'#b8860b':'#3B6D11';
+    const satBg=total>=maxP?'#fdecea':total>=(maxP*0.7)?'#fff4e5':'#eaf3de';
     const satLbl=total>=maxP?'Saturado':total>=(maxP*0.7)?'Carga alta':'OK';
-    return`<div class="person-card">
-      <div class="person-header">
-        <div class="avatar">${persona.nombre.charAt(0)}</div>
-        <div style="flex:1">
-          <div style="display:flex;align-items:center;gap:6px">
-            <div class="person-name">${persona.nombre}</div>
-            <span class="sat-badge ${sat}">${satLbl}</span>
-          </div>
-          <div class="person-role">${persona.rol} · Coord: ${persona.coord||'—'}</div>
+    var chips=personChips(persona);if(!chips)chips='<div style="font-size:10px;color:#a8a8a8;margin:0 0 8px 0">Sin datos administrativos aún</div>';
+    var ult1=(persona.seguimiento&&persona.seguimiento.length)?persona.seguimiento[persona.seguimiento.length-1].fecha:'';
+    return`<div style="background:#fff;border:.5px solid #bfd1e5;border-radius:10px;padding:12px 14px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <div style="width:34px;height:34px;border-radius:50%;background:#254467;color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0">${persona.nombre.charAt(0)}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:700;color:#254467">${persona.nombre}</div>
+          <div style="font-size:10px;color:#67727a">${persona.rol} · Coord: ${persona.coord||'—'}</div>
         </div>
-        <button class="btn btn-sm no-print" onclick="openPersonDetail('${persona.nombre}','${persona.rol}')">Ver detalle</button>
-        <button class="btn btn-sm no-print" onclick="openEditPersona(${persona.id})">Editar</button>
-        <button class="btn btn-sm no-print" style="background:#6990ab;color:#fff;border-color:#6990ab" onclick="exportRetro(\`${persona.nombre}\`)">📋 Retro</button>
+        <span style="font-size:9px;background:${satBg};color:${satColor};border-radius:20px;padding:2px 9px;font-weight:700;white-space:nowrap">${satLbl} · ${total} proy.</span>
       </div>
-      ${personChips(persona)}
-      ${total?`
-      <div style="font-size:10px;color:#67727a;margin-bottom:4px">
-        <strong>${clienteProjs.length}</strong> proyecto(s) cliente · <strong style="color:#6990ab">${internosProjs.length}</strong> interno(s)
+      ${chips}
+      <div style="display:flex;justify-content:space-between;align-items:center;border-top:.5px solid #eef2f6;padding-top:8px;margin-top:4px">
+        <span style="font-size:10px;color:#a8a8a8">${ult1?'💬 Último 1:1: '+fmtD(ult1):'💬 Sin 1:1'}</span>
+        <div style="display:flex;gap:5px">
+          <button class="btn btn-sm no-print" onclick="openPersonDetail('${persona.nombre}','${persona.rol}')">Ver detalle</button>
+          <button class="btn btn-sm no-print" onclick="openEditPersona(${persona.id})">Editar</button>
+          <button class="btn btn-sm no-print" style="background:#6990ab;color:#fff;border-color:#6990ab" title="Retro" onclick="exportRetro(\`${persona.nombre}\`)">📋</button>
+        </div>
       </div>
-      ${myProjs.map(p=>{const s=sem(p);return`<div class="proj-row">
-        ${etapaBadge(p.etapa,p.interno)}
-        <span style="font-weight:600;flex:1">${p.nombre}</span>
-        <span class="sem ${s.cls}" style="font-size:9px">${s.label}</span>
-        <div class="pbar"><div class="pfill ${p.interno?'purple':''}" style="width:${p.avance}%"></div></div>
-      </div>`}).join('')}`:'<div style="font-size:10px;color:#a8a8a8">Sin proyectos asignados.</div>'}
     </div>`;
   }).join('');
+  document.getElementById('equipo-list').innerHTML=_banner+'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px">'+_cards+'</div>';
 }
 function openAddPersona(){
   const coordOpts=cat.coordinadores.map(c=>`<option value="${c}">${c}</option>`).join('');
