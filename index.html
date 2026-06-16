@@ -1824,13 +1824,13 @@ function renderCostos(){
       var margen=cobTotal-pagTotal;
       var cobrosLog=cobros.map(function(c,i){
         return '<div style="display:flex;align-items:center;gap:4px;font-size:9px;color:#67727a;padding:2px 0;border-bottom:.5px solid #f0f4f8">'
-          +'<span style="flex:1">'+fmtD(c.fecha)+(c.concepto?' · '+c.concepto:'')+'</span>'
+          +'<span style="flex:1">'+fmtD(c.fecha)+(c.concepto?' · '+c.concepto:'')+(c.comentario?' 💬 '+c.comentario:'')+'</span>'
           +'<span style="font-weight:700;color:#3B6D11;white-space:nowrap">$'+fmt(c.monto)+'</span>'
           +'<button onclick="deleteCobPag('+selProj.id+','+myIdx+',\'cobro\','+i+')" style="background:none;border:none;cursor:pointer;color:#e65a27;font-size:9px;padding:0 2px" title="Eliminar">✕</button></div>';
       }).join('');
       var pagosLog=pagos.map(function(pg,i){
         return '<div style="display:flex;align-items:center;gap:4px;font-size:9px;color:#67727a;padding:2px 0;border-bottom:.5px solid #f0f4f8">'
-          +'<span style="flex:1">'+fmtD(pg.fecha)+(pg.concepto?' · '+pg.concepto:'')+'</span>'
+          +'<span style="flex:1">'+fmtD(pg.fecha)+(pg.concepto?' · '+pg.concepto:'')+(pg.comentario?' 💬 '+pg.comentario:'')+'</span>'
           +'<span style="font-weight:700;color:#e65a27;white-space:nowrap">$'+fmt(pg.monto)+'</span>'
           +'<button onclick="deleteCobPag('+selProj.id+','+myIdx+',\'pago\','+i+')" style="background:none;border:none;cursor:pointer;color:#e65a27;font-size:9px;padding:0 2px" title="Eliminar">✕</button></div>';
       }).join('');
@@ -1908,7 +1908,7 @@ function openCobPagModal(projId,espIdx,tipo){
     +'<div style="font-size:10px;font-weight:700;color:#67727a;margin-bottom:5px;font-family:Arial">'+(tipo==='cobro'?'Cobros registrados:':'Pagos registrados:')+'</div>'
     +entries.map(function(e,i){return '<div style="display:flex;gap:8px;align-items:center;padding:6px 8px;background:#f7faff;border-radius:5px;margin-bottom:3px;font-size:10px;font-family:Arial">'
       +'<span style="color:#67727a;white-space:nowrap">'+fmtD(e.fecha)+'</span>'
-      +'<span style="flex:1">'+(e.concepto||'—')+'</span>'
+      +'<span style="flex:1">'+(e.concepto||'—')+(e.comentario?'<div style="font-size:9px;color:#a8a8a8;font-weight:400">💬 '+e.comentario+'</div>':'')+'</span>'
       +'<span style="font-weight:800;color:'+colorAcc+';white-space:nowrap">$'+fmt(e.monto)+'</span>'
       +'<button onclick="deleteCobPag('+projId+','+espIdx+',\''+tipo+'\','+i+')" style="background:none;border:none;cursor:pointer;color:#e65a27;font-size:12px;padding:0 3px">✕</button></div>';}).join('')
     +'</div>'
@@ -1920,7 +1920,8 @@ function openCobPagModal(projId,espIdx,tipo){
     +'<div style="font-size:10px;font-weight:700;color:#254467;margin-bottom:8px;font-family:Arial">Agregar nuevo registro</div>'
     +'<div class="frow"><div class="fg"><label>Fecha</label><input type="date" id="cp-fecha" value="'+todayStr+'"></div>'
     +'<div class="fg"><label>Monto (MXN)</label><input type="number" id="cp-monto" placeholder="0" min="0" step="100"></div></div>'
-    +'<div class="fg"><label>Concepto / Descripción</label><input type="text" id="cp-concepto" placeholder="'+(tipo==='cobro'?'Ej: Anticipo, Parcialidad 1...':'Ej: Anticipo, Finiquito...')+'"></div>'
+    +'<div class="fg"><label>Concepto</label><input type="text" id="cp-concepto" placeholder="'+(tipo==='cobro'?'Ej: Anticipo, Parcialidad 1...':'Ej: Anticipo, Finiquito...')+'"></div>'
+    +'<div class="fg"><label>Comentario (opcional)</label><textarea id="cp-comentario" rows="2" placeholder="Nota u observación..." style="width:100%;font-family:Arial;font-size:11px;padding:6px 8px;border:.5px solid #bfd1e5;border-radius:6px;resize:vertical"></textarea></div>'
     +'</div>'
     +'<div class="btn-row" style="margin-top:12px">'
     +'<button class="btn" onclick="closeModal()">Cancelar</button>'
@@ -1936,6 +1937,7 @@ function saveCobPag(projId,espIdx,tipo){
   var fecha=document.getElementById('cp-fecha').value;
   var monto=parseFloat(document.getElementById('cp-monto').value);
   var concepto=document.getElementById('cp-concepto').value.trim();
+  var comentario=document.getElementById('cp-comentario')?document.getElementById('cp-comentario').value.trim():'';
   if(!fecha){alert('La fecha es obligatoria.');return;}
   if(!monto||monto<=0){alert('Ingresa un monto válido.');return;}
   if(!p.costosEjec)p.costosEjec={};
@@ -1943,9 +1945,10 @@ function saveCobPag(projId,espIdx,tipo){
   if(!p.costosEjec[espKey].cobros)p.costosEjec[espKey].cobros=[];
   if(!p.costosEjec[espKey].pagos)p.costosEjec[espKey].pagos=[];
   var target=tipo==='cobro'?p.costosEjec[espKey].cobros:p.costosEjec[espKey].pagos;
-  target.push({id:Date.now(),fecha:fecha,monto:monto,concepto:concepto});
+  target.push({id:Date.now(),fecha:fecha,monto:monto,concepto:concepto,comentario:comentario});
   p.ultimaActualizacion=todayStr;
   sv(K.proj,projects);
+  renderCostos();
   openCobPagModal(projId,espIdx,tipo);
 }
 
@@ -1960,8 +1963,9 @@ function deleteCobPag(projId,espIdx,tipo,idx){
   if(arr)arr.splice(idx,1);
   p.ultimaActualizacion=todayStr;
   sv(K.proj,projects);
+  renderCostos();
   var modalOpen=document.getElementById('modal-bg')&&document.getElementById('modal-bg').style.display==='flex';
-  if(modalOpen){openCobPagModal(projId,espIdx,tipo);}else{renderCostos();}
+  if(modalOpen){openCobPagModal(projId,espIdx,tipo);}
 }
 
 function costoBareEsp(key){if(typeof key==='string'&&key.indexOf('adic:')===0){return key.split(':').slice(2).join(':');}return key;}
