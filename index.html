@@ -2483,7 +2483,24 @@ function archiveTask(taskId){
   if(t){t.archivado=true;sv(K.tasks,tasks);renderEquipo();renderConsultores();renderPendientes();renderGerencia();}
 }
 
+function personEnProj(p,nombre){
+  if(!p)return false;
+  if(p.jefe===nombre||p.coord===nombre)return true;
+  if(Array.isArray(p.equipo)&&p.equipo.indexOf(nombre)>=0)return true;
+  if(Array.isArray(p.consultores)&&p.consultores.some(function(c){return (c&&c.nombre)===nombre;}))return true;
+  return false;
+}
 function addPersonTask(nombre){
+  var _byN=function(a,b){return a.nombre.localeCompare(b.nombre);};
+  var _activos=[...activeProjs(),...internos()];
+  var _sus=_activos.filter(function(p){return personEnProj(p,nombre);}).sort(_byN);
+  var _otros=_activos.filter(function(p){return !personEnProj(p,nombre);}).sort(_byN);
+  var _arch=projects.filter(function(p){return p.archivado;}).sort(_byN);
+  var _opt=function(p){return '<option value="'+p.id+'">'+p.nombre+'</option>';};
+  var _projOpts='';
+  if(_sus.length)_projOpts+='<optgroup label="── Sus proyectos ──">'+_sus.map(_opt).join('')+'</optgroup>';
+  if(_otros.length)_projOpts+='<optgroup label="── Otros proyectos activos ──">'+_otros.map(_opt).join('')+'</optgroup>';
+  if(_arch.length)_projOpts+='<optgroup label="── Archivados ──">'+_arch.map(_opt).join('')+'</optgroup>';
   document.getElementById('modal-body').innerHTML=
     '<h3 style="margin-bottom:10px">Nueva tarea para '+nombre+'</h3>'
     +'<div class="fg"><label>Tarea</label><textarea id="pt-texto" rows="3" style="width:100%;font-family:Arial;font-size:12px;padding:7px;border:.5px solid #bfd1e5;border-radius:6px;resize:vertical" placeholder="Describe la tarea..."></textarea></div>'
@@ -2491,7 +2508,7 @@ function addPersonTask(nombre){
     +'<div class="fg"><label>Fecha compromiso</label><input type="date" id="pt-fecha" style="width:100%;font-size:11px;padding:5px 8px;border:.5px solid #bfd1e5;border-radius:6px"></div>'
     +'<div class="fg"><label>Proyecto (opcional)</label><select id="pt-proj" style="width:100%;font-size:11px;padding:5px 8px;border:.5px solid #bfd1e5;border-radius:6px;font-family:Arial">'
     +'<option value="">Sin proyecto</option>'
-    +[...activeProjs(),...internos()].sort(function(a,b){return a.nombre.localeCompare(b.nombre);}).map(function(p){return '<option value="'+p.id+'">'+p.nombre+'</option>';}).join('')
+    +_projOpts
     +'</select></div>'
     +'</div>'
     +'<div class="btn-row"><button class="btn" onclick="closeModal()">Cancelar</button>'
