@@ -1714,6 +1714,8 @@ function saveExtraordinario(projId){
 function deleteExtraordinario(projId,idx){
   const p=projects.find(x=>x.id===projId);if(!p)return;
   if(!confirm('¿Eliminar este extraordinario?'))return;
+  var _adic=p.extraordinarios[idx];
+  if(_adic&&_adic.id&&p.costosEjec){var _pref='adic:'+_adic.id+':';Object.keys(p.costosEjec).forEach(function(k){if(k.indexOf(_pref)===0)delete p.costosEjec[k];});}
   p.extraordinarios.splice(idx,1);
   p.ultimaActualizacion=todayStr;
   sv(K.proj,projects);
@@ -1758,13 +1760,21 @@ function renderCostos(){
   var metrics=calcCotMetrics(ctrlCot);
   var costosData=selProj.costosEjec||{};
   window.__costosEspKeys=[];
+  window.__costosEspCot=[];
+  // Bloques de presupuesto: control + adicionales ligados a una cotización
+  var blocks=[{title:'',metrics:metrics,cotId:ctrlCot.id,keyPrefix:''}];
+  (selProj.extraordinarios||[]).forEach(function(a){
+    if(!a.cotId)return;
+    var ac=allCots.find(function(c){return String(c.id)===String(a.cotId);});
+    if(ac)blocks.push({title:'Adicional — '+(ac.nombre||a.descripcion||''),metrics:calcCotMetrics(ac),cotId:ac.id,keyPrefix:'adic:'+a.id+':'});
+  });
   var totalCobrado=0;var totalPagado=0;
   Object.values(costosData).forEach(function(esp){
     totalCobrado+=(esp.cobros||[]).reduce(function(s,c){return s+(parseFloat(c.monto)||0);},0);
     totalPagado+=(esp.pagos||[]).reduce(function(s,pg){return s+(parseFloat(pg.monto)||0);},0);
   });
   var totalMargen=totalCobrado-totalPagado;
-  var totalPpto=metrics.grandTotal;
+  var totalPpto=blocks.reduce(function(s,b){return s+b.metrics.grandTotal;},0);
   // Summary chips
   html+='<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:1.25rem">'
     +'<div style="background:#EEF2FF;border-radius:8px;padding:10px 16px;min-width:120px">'
@@ -1793,14 +1803,20 @@ function renderCostos(){
     +'<th style="min-width:100px;text-align:right">Margen</th>'
     +'</tr></thead><tbody>';
   var espIdx=0;
-  Object.entries(metrics.bySection).forEach(function(secEntry){
+  blocks.forEach(function(block){
+    if(block.title){
+      html+='<tr style="background:#fff3e0"><td colspan="6" style="padding:6px 10px;font-size:10px;font-weight:800;color:#e65a27;font-family:Arial">➕ '+block.title+' · Ppto $'+fmt(block.metrics.grandTotal)+'</td></tr>';
+    }
+    Object.entries(block.metrics.bySection).forEach(function(secEntry){
     var secName=secEntry[0];var secData=secEntry[1];
     html+='<tr style="background:#f7faff"><td colspan="6" style="padding:5px 10px;font-size:9px;font-weight:800;color:#3a6080;text-transform:uppercase;letter-spacing:.5px;font-family:Arial">'+secName+'</td></tr>';
     secData.esps.forEach(function(esp){
       var myIdx=espIdx;
-      window.__costosEspKeys[myIdx]=esp.nombre;
+      var espKey=block.keyPrefix+esp.nombre;
+      window.__costosEspKeys[myIdx]=espKey;
+      window.__costosEspCot[myIdx]=block.cotId;
       espIdx++;
-      var espData=(costosData[esp.nombre])||{};
+      var espData=(costosData[espKey])||{};
       var cobros=espData.cobros||[];
       var pagos=espData.pagos||[];
       var cobTotal=cobros.reduce(function(s,c){return s+(parseFloat(c.monto)||0);},0);
@@ -1847,6 +1863,7 @@ function renderCostos(){
         +'</td></tr>';
     });
   });
+  });
   // Totals row
   html+='<tr style="background:#EEF2FF;border-top:2px solid #bfd1e5">'
     +'<td colspan="2" style="padding:9px 10px;font-size:11px;font-weight:800;color:#254467;font-family:Arial">TOTAL PROYECTO</td>'
@@ -1855,12 +1872,12 @@ function renderCostos(){
     +'<td style="padding:9px 10px;font-weight:800;font-size:12px;color:#e65a27;font-family:Arial;white-space:nowrap">$'+fmt(totalPagado)+'</td>'
     +'<td style="padding:9px 10px;text-align:right;font-weight:800;font-size:12px;font-family:Arial;color:'+(totalMargen>=0?'#3B6D11':'#e65a27')+';white-space:nowrap">$'+fmt(totalMargen)+'</td></tr>';
   html+='</tbody></table></div>';
-  // Extraordinarios section
-  var extras=selProj.extraordinarios||[];
+  // Extraordinarios manuales (sin cotización ligada; los ligados ya salen desglosados arriba)
+  var extras=(selProj.extraordinarios||[]).filter(function(e){return !e.cotId;});
   if(extras.length>0){
     var totalExtras=extras.reduce(function(s,e){return s+(parseFloat(e.monto)||0);},0);
     html+='<div style="margin-top:1.5rem">'
-      +'<div style="font-size:11px;font-weight:800;color:#e65a27;margin-bottom:8px;font-family:Arial">➕ Adicionales / Extraordinarios</div>'
+      +'<div style="font-size:11px;font-weight:800;color:#e65a27;margin-bottom:8px;font-family:Arial">➕ Otros adicionales (monto manual)</div>'
       +'<div class="tbl-wrap"><table>'
       +'<thead><tr style="background:#fff3e0"><th>Fecha</th><th>Descripción</th><th style="text-align:right">Monto</th><th>Responsable</th></tr></thead><tbody>'
       +extras.map(function(e){return '<tr>'
@@ -1897,7 +1914,7 @@ function openCobPagModal(projId,espIdx,tipo){
     +'</div>'
     :'<div style="color:#a8a8a8;font-size:10px;margin-bottom:12px;font-family:Arial">Sin registros aún.</div>';
   document.getElementById('modal-body').innerHTML=
-    '<h3 style="color:'+colorAcc+'">'+tipoCap+': '+espKey+'</h3>'
+    '<h3 style="color:'+colorAcc+'">'+tipoCap+': '+costoBareEsp(espKey)+'</h3>'
     +listHtml
     +'<div style="background:#f7faff;border-radius:8px;padding:12px;border:.5px solid #bfd1e5">'
     +'<div style="font-size:10px;font-weight:700;color:#254467;margin-bottom:8px;font-family:Arial">Agregar nuevo registro</div>'
@@ -1947,14 +1964,17 @@ function deleteCobPag(projId,espIdx,tipo,idx){
   if(modalOpen){openCobPagModal(projId,espIdx,tipo);}else{renderCostos();}
 }
 
+function costoBareEsp(key){if(typeof key==='string'&&key.indexOf('adic:')===0){return key.split(':').slice(2).join(':');}return key;}
 function openAsesorEdit(projId,espIdx){
   var espKey=window.__costosEspKeys[espIdx];
   if(espKey===undefined)return;
+  var bareEsp=costoBareEsp(espKey);
   var p=projects.find(function(x){return x.id===projId;});if(!p)return;
   var espData=((p.costosEjec||{})[espKey])||{};
-  // Asesores cotizados para esta especialidad (de la cotización de presupuesto de control)
-  var ctrlCot=getCots().find(function(c){return String(c.id)===String(p.presupuestoControlCotId);});
-  var espDef=ctrlCot?(ctrlCot.especialidades||[]).find(function(e){return e.nombre===espKey;}):null;
+  // Asesores cotizados para esta especialidad (de la cotización de este bloque: control o adicional)
+  var _cotId=(window.__costosEspCot&&window.__costosEspCot[espIdx]!=null)?window.__costosEspCot[espIdx]:p.presupuestoControlCotId;
+  var ctrlCot=getCots().find(function(c){return String(c.id)===String(_cotId);});
+  var espDef=ctrlCot?(ctrlCot.especialidades||[]).find(function(e){return e.nombre===bareEsp;}):null;
   var asesores=espDef?(espDef.asesores||[]):[];
   window.__aeAsesores=asesores;
   var savedAsesor=espData.asesor||'';
@@ -1971,7 +1991,7 @@ function openAsesorEdit(projId,espIdx){
   }).join('');
   opts+='<option value="otro"'+(esOtro?' selected':'')+'>➕ Otro (escribir nuevo)</option>';
   document.getElementById('modal-body').innerHTML=
-    '<h3 style="color:#254467">Asesor — '+espKey+'</h3>'
+    '<h3 style="color:#254467">Asesor — '+bareEsp+'</h3>'
     +(asesores.length?'<div style="font-size:10px;color:#67727a;margin-bottom:8px">Elige entre los asesores con los que cotizaste esta especialidad (★ = pre-asignado), o agrega uno nuevo.</div>':'<div style="font-size:10px;color:#e6a817;margin-bottom:8px">Esta especialidad no tiene asesores cotizados; escribe uno nuevo abajo.</div>')
     +'<div class="fg"><label>Asesor / Consultor</label>'
     +'<select id="ae-asesor" onchange="aeAsesorChange()" style="font-size:11px;padding:6px 8px;border-radius:6px;border:.5px solid #bfd1e5;font-family:Arial;width:100%">'
