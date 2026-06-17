@@ -1846,18 +1846,15 @@ function renderCostos(){
       var cobTotal=cobros.reduce(function(s,c){return s+(parseFloat(c.monto)||0);},0);
       var pagTotal=pagos.reduce(function(s,pg){return s+(parseFloat(pg.monto)||0);},0);
       var margen=cobTotal-pagTotal;
-      var cobrosLog=cobros.map(function(c,i){
-        return '<div style="display:flex;align-items:center;gap:4px;font-size:9px;color:#67727a;padding:2px 0;border-bottom:.5px solid #f0f4f8">'
-          +'<span style="flex:1">'+fmtD(c.fecha)+(c.concepto?' · '+c.concepto:'')+(c.comentario?' 💬 '+c.comentario:'')+'</span>'
-          +'<span style="font-weight:700;color:#3B6D11;white-space:nowrap">$'+fmt(c.monto)+'</span>'
-          +'<button onclick="deleteCobPag('+selProj.id+','+myIdx+',\'cobro\','+i+')" style="background:none;border:none;cursor:pointer;color:#e65a27;font-size:9px;padding:0 2px" title="Eliminar">✕</button></div>';
-      }).join('');
-      var pagosLog=pagos.map(function(pg,i){
-        return '<div style="display:flex;align-items:center;gap:4px;font-size:9px;color:#67727a;padding:2px 0;border-bottom:.5px solid #f0f4f8">'
-          +'<span style="flex:1">'+fmtD(pg.fecha)+(pg.concepto?' · '+pg.concepto:'')+(pg.comentario?' 💬 '+pg.comentario:'')+'</span>'
-          +'<span style="font-weight:700;color:#e65a27;white-space:nowrap">$'+fmt(pg.monto)+'</span>'
-          +'<button onclick="deleteCobPag('+selProj.id+','+myIdx+',\'pago\','+i+')" style="background:none;border:none;cursor:pointer;color:#e65a27;font-size:9px;padding:0 2px" title="Eliminar">✕</button></div>';
-      }).join('');
+      var logRow=function(e,i,tipo,col){
+        var sub=fmtD(e.fecha)+(e.concepto?' · '+e.concepto:'');
+        return '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;padding:3px 7px;background:#f8fafc;border-radius:5px;margin-top:3px"'+(e.comentario?' title="'+String(e.comentario).replace(/"/g,'&quot;')+'"':'')+'>'
+          +'<div style="min-width:0"><div style="font-size:10px;font-weight:700;color:'+col+';font-family:Arial">$'+fmt(e.monto)+'</div>'
+          +'<div style="font-size:8px;color:#a8a8a8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px">'+sub+(e.comentario?' 💬':'')+'</div></div>'
+          +'<button onclick="deleteCobPag('+selProj.id+','+myIdx+',\''+tipo+'\','+i+')" style="background:none;border:none;cursor:pointer;color:#cbd5e1;font-size:11px;padding:0 2px;flex-shrink:0" title="Eliminar">✕</button></div>';
+      };
+      var cobrosLog=cobros.map(function(c,i){return logRow(c,i,'cobro','#3B6D11');}).join('');
+      var pagosLog=pagos.map(function(pg,i){return logRow(pg,i,'pago','#e65a27');}).join('');
       html+='<tr style="border-bottom:.5px solid #eef2f6;vertical-align:top">'
         +'<td style="padding:8px 10px;font-size:11px;font-weight:600;color:#1a2a3a;font-family:Arial">'+esp.nombre+'</td>'
         +'<td style="padding:8px 10px">'
@@ -1869,20 +1866,20 @@ function renderCostos(){
         +'<td style="padding:8px 10px;text-align:right;font-size:11px;color:#3a6080;font-family:Arial">'+((esp.ind||0)>0?(esp.ind+'%'):'—')+'</td>'
         +'<td style="padding:8px 10px;text-align:right;font-size:12px;font-weight:700;color:#254467;font-family:Arial;white-space:nowrap">$'+fmt(esp.withInd)+'</td>'
         +'<td style="padding:8px 10px">'
-        +'<div style="display:flex;justify-content:space-between;align-items:center;gap:6px">'
-        +'<span style="font-size:12px;font-weight:700;color:'+(cobTotal>0?'#254467':'#a8a8a8')+';font-family:Arial;white-space:nowrap">$'+fmt(cobTotal)+'</span>'
-        +(cobTotal>0?'<span style="font-size:9px;color:'+(cobTotal>=esp.withInd?'#3B6D11':'#e65a27')+'">'+( cobTotal>=esp.withInd?'✓ Completo':'Falta $'+fmt(esp.withInd-cobTotal))+'</span>':'')
+        +'<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'
+        +'<span style="font-size:13px;font-weight:700;color:'+(cobTotal>0?'#254467':'#cbd5e1')+';font-family:Arial;white-space:nowrap">$'+fmt(cobTotal)+'</span>'
+        +(cobTotal>0?'<span style="font-size:8px;font-weight:700;padding:1px 7px;border-radius:10px;background:'+(cobTotal>=esp.withInd?'#eaf3de':'#fdecea')+';color:'+(cobTotal>=esp.withInd?'#3B6D11':'#e65a27')+'">'+(cobTotal>=esp.withInd?'✓ Completo':'Falta $'+fmt(esp.withInd-cobTotal))+'</span>':'')
         +'</div>'
         +cobrosLog
-        +'<button onclick="openCobPagModal('+selProj.id+','+myIdx+',\'cobro\')" style="margin-top:5px;background:#EEF2FF;border:none;border-radius:4px;cursor:pointer;font-size:9px;color:#254467;padding:3px 9px;font-family:Arial;font-weight:700">+ Cobro</button>'
+        +'<button onclick="openCobPagModal('+selProj.id+','+myIdx+',\'cobro\')" style="margin-top:6px;background:none;border:.5px solid #c3d9ec;border-radius:5px;cursor:pointer;font-size:9px;color:#185FA5;padding:3px 10px;font-family:Arial;font-weight:700">+ Cobro</button>'
         +'</td>'
         +'<td style="padding:8px 10px">'
-        +'<div style="display:flex;justify-content:space-between;align-items:center;gap:6px">'
-        +'<span style="font-size:12px;font-weight:700;color:'+(pagTotal>0?'#254467':'#a8a8a8')+';font-family:Arial;white-space:nowrap">$'+fmt(pagTotal)+'</span>'
-        +(pagTotal>esp.mxn&&pagTotal>0?'<span style="font-size:9px;color:#e65a27">⚠ Sobre ppto.</span>':'')
+        +'<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'
+        +'<span style="font-size:13px;font-weight:700;color:'+(pagTotal>0?'#254467':'#cbd5e1')+';font-family:Arial;white-space:nowrap">$'+fmt(pagTotal)+'</span>'
+        +(pagTotal>esp.mxn&&pagTotal>0?'<span style="font-size:8px;font-weight:700;padding:1px 7px;border-radius:10px;background:#fdecea;color:#e65a27">⚠ Sobre ppto.</span>':'')
         +'</div>'
         +pagosLog
-        +'<button onclick="openCobPagModal('+selProj.id+','+myIdx+',\'pago\')" style="margin-top:5px;background:#fff3e0;border:none;border-radius:4px;cursor:pointer;font-size:9px;color:#e65a27;padding:3px 9px;font-family:Arial;font-weight:700">+ Pago</button>'
+        +'<button onclick="openCobPagModal('+selProj.id+','+myIdx+',\'pago\')" style="margin-top:6px;background:none;border:.5px solid #f3cba5;border-radius:5px;cursor:pointer;font-size:9px;color:#e65a27;padding:3px 10px;font-family:Arial;font-weight:700">+ Pago</button>'
         +'</td>'
         +'<td style="padding:8px 10px;text-align:right;font-weight:700;font-size:12px;font-family:Arial;color:'+(cobTotal>0||pagTotal>0?(margen>=0?'#3B6D11':'#e65a27'):'#a8a8a8')+'">'
         +(cobTotal>0||pagTotal>0?'$'+fmt(margen):'—')
