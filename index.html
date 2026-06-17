@@ -1813,27 +1813,25 @@ function renderCostos(){
     +'</div>';
   // Table
   html+='<div class="tbl-wrap"><table>'
-    +'<thead><tr style="background:#EEF2FF">'
-    +'<th style="min-width:160px">Especialidad</th>'
-    +'<th style="min-width:140px">Asesor / Contacto</th>'
-    +'<th style="min-width:100px;text-align:right">Costo directo</th>'
-    +'<th style="min-width:55px;text-align:right">% ind.</th>'
-    +'<th style="min-width:120px;text-align:right">Ppto. Control<div style="font-size:8px;font-weight:400;color:#67727a">(con indirecto)</div></th>'
-    +'<th style="min-width:170px">Cobrado al cliente</th>'
-    +'<th style="min-width:170px">Pagado al asesor</th>'
-    +'<th style="min-width:100px;text-align:right">Margen</th>'
+    +'<thead><tr style="background:#f4f7fb">'
+    +'<th style="min-width:170px;padding:10px 12px;text-align:left;font-size:10px;font-weight:700;color:#67727a;text-transform:uppercase;letter-spacing:.04em">Especialidad</th>'
+    +'<th style="min-width:150px;padding:10px 12px;text-align:left;font-size:10px;font-weight:700;color:#67727a;text-transform:uppercase;letter-spacing:.04em">Asesor / Contacto</th>'
+    +'<th style="min-width:130px;padding:10px 12px;text-align:right;font-size:10px;font-weight:700;color:#67727a;text-transform:uppercase;letter-spacing:.04em">Presupuesto</th>'
+    +'<th style="min-width:170px;padding:10px 12px;text-align:left;font-size:10px;font-weight:700;color:#67727a;text-transform:uppercase;letter-spacing:.04em">Cobrado al cliente</th>'
+    +'<th style="min-width:170px;padding:10px 12px;text-align:left;font-size:10px;font-weight:700;color:#67727a;text-transform:uppercase;letter-spacing:.04em">Pagado al asesor</th>'
+    +'<th style="min-width:100px;padding:10px 12px;text-align:right;font-size:10px;font-weight:700;color:#67727a;text-transform:uppercase;letter-spacing:.04em">Margen</th>'
     +'</tr></thead><tbody>';
   var espIdx=0;
   blocks.forEach(function(block){
     if(block.title){
-      html+='<tr style="background:#fff3e0"><td colspan="8" style="padding:6px 10px;font-size:10px;font-weight:800;color:#e65a27;font-family:Arial">➕ '+block.title+' · Ppto $'+fmt(block.metrics.grandTotal)+'</td></tr>';
+      html+='<tr><td colspan="6" style="padding:9px 12px;font-size:10px;font-weight:800;color:#e65a27;font-family:Arial;background:#fff7ef;border-top:1px solid #f3d6b8">➕ '+block.title+' · Ppto $'+fmt(block.metrics.grandTotal)+'</td></tr>';
     }
     var _sections=Object.entries(block.metrics.bySection);
     var _indEsps=costoIndEsps(block.metrics);
     if(_indEsps.length){_sections=_sections.concat([['INDIRECTOS',{esps:_indEsps}]]);}
     _sections.forEach(function(secEntry){
     var secName=secEntry[0];var secData=secEntry[1];
-    html+='<tr style="background:#f7faff"><td colspan="8" style="padding:5px 10px;font-size:9px;font-weight:800;color:#3a6080;text-transform:uppercase;letter-spacing:.5px;font-family:Arial">'+secName+'</td></tr>';
+    html+='<tr><td colspan="6" style="padding:7px 12px;font-size:9px;font-weight:700;color:#8a98a8;text-transform:uppercase;letter-spacing:.08em;font-family:Arial;background:#fafbfc">'+secName+'</td></tr>';
     secData.esps.forEach(function(esp){
       var myIdx=espIdx;
       var espKey=block.keyPrefix+esp.nombre;
@@ -1856,16 +1854,17 @@ function renderCostos(){
       var cobrosLog=cobros.map(function(c,i){return logRow(c,i,'cobro','#3B6D11');}).join('');
       var pagosLog=pagos.map(function(pg,i){return logRow(pg,i,'pago','#e65a27');}).join('');
       html+='<tr style="border-bottom:.5px solid #eef2f6;vertical-align:top">'
-        +'<td style="padding:8px 10px;font-size:11px;font-weight:600;color:#1a2a3a;font-family:Arial">'+esp.nombre+'</td>'
-        +'<td style="padding:8px 10px">'
+        +'<td style="padding:12px;font-size:12px;font-weight:600;color:#1a2a3a;font-family:Arial">'+esp.nombre+'</td>'
+        +'<td style="padding:12px">'
         +'<div style="font-size:11px;font-weight:600;color:#254467;font-family:Arial">'+(espData.asesor||'<span style="color:#a8a8a8;font-weight:400">— Sin asignar —</span>')+'</div>'
         +(espData.contacto?'<div style="font-size:9px;color:#67727a;font-family:Arial">'+espData.contacto+'</div>':'')
-        +'<button onclick="openAsesorEdit('+selProj.id+','+myIdx+')" style="margin-top:4px;background:none;border:.5px solid #bfd1e5;border-radius:4px;cursor:pointer;font-size:9px;color:#3a6080;padding:2px 8px;font-family:Arial">✏ Editar</button>'
+        +'<button onclick="openAsesorEdit('+selProj.id+','+myIdx+')" style="margin-top:5px;background:none;border:.5px solid #bfd1e5;border-radius:5px;cursor:pointer;font-size:9px;color:#3a6080;padding:2px 8px;font-family:Arial">✏ Editar</button>'
         +'</td>'
-        +'<td style="padding:8px 10px;text-align:right;font-size:11px;color:#67727a;font-family:Arial;white-space:nowrap">$'+fmt(esp.mxn||0)+'</td>'
-        +'<td style="padding:8px 10px;text-align:right;font-size:11px;color:#3a6080;font-family:Arial">'+((esp.ind||0)>0?(esp.ind+'%'):'—')+'</td>'
-        +'<td style="padding:8px 10px;text-align:right;font-size:12px;font-weight:700;color:#254467;font-family:Arial;white-space:nowrap">$'+fmt(esp.withInd)+'</td>'
-        +'<td style="padding:8px 10px">'
+        +'<td style="padding:12px;text-align:right;white-space:nowrap;vertical-align:top">'
+        +'<div style="font-size:13px;font-weight:700;color:#254467;font-family:Arial">$'+fmt(esp.withInd)+'</div>'
+        +(((esp.mxn||0)!==esp.withInd||(esp.ind||0)>0)?'<div style="font-size:9px;color:#a8a8a8;font-weight:400;font-family:Arial">dir $'+fmt(esp.mxn||0)+((esp.ind||0)>0?' · ind '+esp.ind+'%':'')+'</div>':'')
+        +'</td>'
+        +'<td style="padding:12px">'
         +'<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'
         +'<span style="font-size:13px;font-weight:700;color:'+(cobTotal>0?'#254467':'#cbd5e1')+';font-family:Arial;white-space:nowrap">$'+fmt(cobTotal)+'</span>'
         +(cobTotal>0?'<span style="font-size:8px;font-weight:700;padding:1px 7px;border-radius:10px;background:'+(cobTotal>=esp.withInd?'#eaf3de':'#fdecea')+';color:'+(cobTotal>=esp.withInd?'#3B6D11':'#e65a27')+'">'+(cobTotal>=esp.withInd?'✓ Completo':'Falta $'+fmt(esp.withInd-cobTotal))+'</span>':'')
@@ -1873,7 +1872,7 @@ function renderCostos(){
         +cobrosLog
         +'<button onclick="openCobPagModal('+selProj.id+','+myIdx+',\'cobro\')" style="margin-top:6px;background:none;border:.5px solid #c3d9ec;border-radius:5px;cursor:pointer;font-size:9px;color:#185FA5;padding:3px 10px;font-family:Arial;font-weight:700">+ Cobro</button>'
         +'</td>'
-        +'<td style="padding:8px 10px">'
+        +'<td style="padding:12px">'
         +'<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'
         +'<span style="font-size:13px;font-weight:700;color:'+(pagTotal>0?'#254467':'#cbd5e1')+';font-family:Arial;white-space:nowrap">$'+fmt(pagTotal)+'</span>'
         +(pagTotal>esp.mxn&&pagTotal>0?'<span style="font-size:8px;font-weight:700;padding:1px 7px;border-radius:10px;background:#fdecea;color:#e65a27">⚠ Sobre ppto.</span>':'')
@@ -1881,15 +1880,15 @@ function renderCostos(){
         +pagosLog
         +'<button onclick="openCobPagModal('+selProj.id+','+myIdx+',\'pago\')" style="margin-top:6px;background:none;border:.5px solid #f3cba5;border-radius:5px;cursor:pointer;font-size:9px;color:#e65a27;padding:3px 10px;font-family:Arial;font-weight:700">+ Pago</button>'
         +'</td>'
-        +'<td style="padding:8px 10px;text-align:right;font-weight:700;font-size:12px;font-family:Arial;color:'+(cobTotal>0||pagTotal>0?(margen>=0?'#3B6D11':'#e65a27'):'#a8a8a8')+'">'
+        +'<td style="padding:12px;text-align:right;font-weight:700;font-size:13px;font-family:Arial;vertical-align:top;color:'+(cobTotal>0||pagTotal>0?(margen>=0?'#3B6D11':'#e65a27'):'#cbd5e1')+'">'
         +(cobTotal>0||pagTotal>0?'$'+fmt(margen):'—')
         +'</td></tr>';
     });
   });
   });
   // Totals row
-  html+='<tr style="background:#EEF2FF;border-top:2px solid #bfd1e5">'
-    +'<td colspan="4" style="padding:9px 10px;font-size:11px;font-weight:800;color:#254467;font-family:Arial">TOTAL PROYECTO</td>'
+  html+='<tr style="background:#eef2f6;border-top:2px solid #d6dee8">'
+    +'<td colspan="2" style="padding:11px 12px;font-size:11px;font-weight:800;color:#254467;font-family:Arial;text-transform:uppercase;letter-spacing:.04em">Total proyecto</td>'
     +'<td style="padding:9px 10px;text-align:right;font-weight:800;font-size:12px;color:#254467;font-family:Arial;white-space:nowrap">$'+fmt(totalPpto)+'</td>'
     +'<td style="padding:9px 10px;font-weight:800;font-size:12px;color:#3B6D11;font-family:Arial;white-space:nowrap">$'+fmt(totalCobrado)+'</td>'
     +'<td style="padding:9px 10px;font-weight:800;font-size:12px;color:#e65a27;font-family:Arial;white-space:nowrap">$'+fmt(totalPagado)+'</td>'
