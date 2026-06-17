@@ -1725,6 +1725,18 @@ function deleteExtraordinario(projId,idx){
 // ── COSTOS DE EJECUCIÓN ──────────────────────────────────────
 window.__costosEspKeys=[];
 
+// Desglosa los indirectos de una cotización en sus conceptos (secciones)
+function costoIndEsps(metrics){
+  var arr=[];var sum=0;
+  IND_SECCIONS.forEach(function(sec){
+    var s=metrics.indBySec&&metrics.indBySec[sec];
+    if(s&&s.total>0){arr.push({nombre:sec,withInd:s.total,mxn:s.total,ind:0,indir:0});sum+=s.total;}
+  });
+  var rem=Math.round((metrics.indTotal||0)-sum);
+  if(Math.abs(rem)>=1)arr.push({nombre:'Indirecto adicional',withInd:rem,mxn:rem,ind:0,indir:0});
+  return arr;
+}
+
 function renderCostos(){
   var container=document.getElementById('costos-container');
   if(!container)return;
@@ -1768,7 +1780,7 @@ function renderCostos(){
   (selProj.extraordinarios||[]).forEach(function(a){
     if(!a.cotId)return;
     var ac=allCots.find(function(c){return String(c.id)===String(a.cotId);});
-    if(ac){_adicN++;blocks.push({title:'Adicional '+_adicN+' — '+(ac.nombre||a.descripcion||''),label:'Adicional '+_adicN,metrics:calcCotMetrics(ac),cotId:ac.id,keyPrefix:'adic:'+a.id+':'});}
+    if(ac){_adicN++;blocks.push({title:'Adicional '+_adicN+' — '+(ac.nombre||a.descripcion||''),label:'Adicional '+_adicN,cotNombre:(ac.nombre||a.descripcion||''),metrics:calcCotMetrics(ac),cotId:ac.id,keyPrefix:'adic:'+a.id+':'});}
   });
   var totalCobrado=0;var totalPagado=0;
   Object.values(costosData).forEach(function(esp){
@@ -1785,6 +1797,7 @@ function renderCostos(){
     +'<div style="font-weight:800;color:#254467;font-size:15px;font-family:Arial">$'+fmt(pptoControl)+'</div></div>'
     +blocks.slice(1).map(function(b){return '<div style="background:#fff8f0;border-radius:8px;padding:10px 16px;min-width:110px;border:.5px solid #f5d6b8">'
       +'<div style="font-size:9px;color:#67727a;text-transform:uppercase;letter-spacing:.5px;font-family:Arial">'+b.label+'</div>'
+      +(b.cotNombre?'<div style="font-size:9px;color:#a8a8a8;font-family:Arial;max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+b.cotNombre+'</div>':'')
       +'<div style="font-weight:800;color:#e65a27;font-size:15px;font-family:Arial">$'+fmt(b.metrics.grandTotal)+'</div></div>';}).join('')
     +'<div style="background:#f0f8ec;border-radius:8px;padding:10px 16px;min-width:120px">'
     +'<div style="font-size:9px;color:#67727a;text-transform:uppercase;letter-spacing:.5px;font-family:Arial">Cobrado</div>'
@@ -1814,7 +1827,8 @@ function renderCostos(){
       html+='<tr style="background:#fff3e0"><td colspan="6" style="padding:6px 10px;font-size:10px;font-weight:800;color:#e65a27;font-family:Arial">➕ '+block.title+' · Ppto $'+fmt(block.metrics.grandTotal)+'</td></tr>';
     }
     var _sections=Object.entries(block.metrics.bySection);
-    if((block.metrics.indTotal||0)>0){_sections=_sections.concat([['INDIRECTOS',{esps:[{nombre:'Indirectos',withInd:block.metrics.indTotal,mxn:block.metrics.indTotal,indir:0}]}]]);}
+    var _indEsps=costoIndEsps(block.metrics);
+    if(_indEsps.length){_sections=_sections.concat([['INDIRECTOS',{esps:_indEsps}]]);}
     _sections.forEach(function(secEntry){
     var secName=secEntry[0];var secData=secEntry[1];
     html+='<tr style="background:#f7faff"><td colspan="6" style="padding:5px 10px;font-size:9px;font-weight:800;color:#3a6080;text-transform:uppercase;letter-spacing:.5px;font-family:Arial">'+secName+'</td></tr>';
@@ -1849,7 +1863,7 @@ function renderCostos(){
         +(espData.contacto?'<div style="font-size:9px;color:#67727a;font-family:Arial">'+espData.contacto+'</div>':'')
         +'<button onclick="openAsesorEdit('+selProj.id+','+myIdx+')" style="margin-top:4px;background:none;border:.5px solid #bfd1e5;border-radius:4px;cursor:pointer;font-size:9px;color:#3a6080;padding:2px 8px;font-family:Arial">✏ Editar</button>'
         +'</td>'
-        +'<td style="padding:8px 10px;text-align:right;font-size:12px;font-weight:700;color:#254467;font-family:Arial;white-space:nowrap">$'+fmt(esp.withInd)+'</td>'
+        +'<td style="padding:8px 10px;text-align:right;font-size:12px;font-weight:700;color:#254467;font-family:Arial;white-space:nowrap">$'+fmt(esp.withInd)+((esp.indir||0)>0?'<div style="font-size:8px;color:#a8a8a8;font-weight:400">dir $'+fmt(esp.mxn||0)+' · ind '+(esp.ind||0)+'%</div>':'')+'</td>'
         +'<td style="padding:8px 10px">'
         +'<div style="display:flex;justify-content:space-between;align-items:center;gap:6px">'
         +'<span style="font-size:12px;font-weight:700;color:'+(cobTotal>0?'#254467':'#a8a8a8')+';font-family:Arial;white-space:nowrap">$'+fmt(cobTotal)+'</span>'
@@ -1899,7 +1913,7 @@ function renderCostos(){
         +'<td style="font-size:10px;color:#67727a">'+(e.fecha?fmtD(e.fecha):'—')+'</td>'
         +'<td style="text-align:right;font-size:10px;color:#67727a">'+e.n+'</td>'
         +'<td style="text-align:right;font-weight:700;color:#3B6D11;white-space:nowrap">$'+fmt(e.total)+'</td>'
-        +'<td style="white-space:nowrap"><button data-est="'+String(n).replace(/"/g,'&quot;')+'" onclick="openEstimacionModal('+selProj.id+',this.dataset.est)" style="background:none;border:none;cursor:pointer;color:#6990ab;font-size:12px;margin-right:4px" title="Editar estimación">✏</button><button data-est="'+String(n).replace(/"/g,'&quot;')+'" onclick="deleteEstimacion('+selProj.id+',this.dataset.est)" style="background:none;border:none;cursor:pointer;color:#e65a27;font-size:12px" title="Eliminar estimación">✕</button></td>'
+        +'<td style="white-space:nowrap;text-align:right"><button data-est="'+String(n).replace(/"/g,'&quot;')+'" onclick="openEstimacionModal('+selProj.id+',this.dataset.est)" style="background:#fff;border:.5px solid #6990ab;border-radius:5px;cursor:pointer;color:#6990ab;font-size:10px;padding:2px 8px;font-family:Arial;margin-right:5px">✏ Editar</button><button data-est="'+String(n).replace(/"/g,'&quot;')+'" onclick="deleteEstimacion('+selProj.id+',this.dataset.est)" style="background:#fff;border:.5px solid #FECACA;border-radius:5px;cursor:pointer;color:#e65a27;font-size:10px;padding:2px 8px;font-family:Arial" title="Eliminar estimación">✕</button></td>'
         +'</tr>';}).join('')
       +'</tbody></table></div></div>';
   }
@@ -1947,7 +1961,8 @@ function openEstimacionModal(projId,editNombre){
   blocks.forEach(function(b){
     if(b.title)rows+='<tr style="background:#fff3e0"><td colspan="4" style="padding:5px 8px;font-size:9px;font-weight:800;color:#e65a27">➕ '+b.title+'</td></tr>';
     var _secs=Object.keys(b.metrics.bySection).map(function(s){return [s,b.metrics.bySection[s]];});
-    if((b.metrics.indTotal||0)>0)_secs.push(['INDIRECTOS',{esps:[{nombre:'Indirectos',withInd:b.metrics.indTotal}]}]);
+    var _ie=costoIndEsps(b.metrics);
+    if(_ie.length)_secs.push(['INDIRECTOS',{esps:_ie}]);
     _secs.forEach(function(se){
       var sec=se[0];var secData=se[1];
       rows+='<tr style="background:#f7faff"><td colspan="4" style="padding:4px 8px;font-size:9px;font-weight:700;color:#3a6080;text-transform:uppercase;letter-spacing:.5px">'+sec+'</td></tr>';
