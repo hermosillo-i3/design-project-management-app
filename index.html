@@ -1812,14 +1812,14 @@ function renderCostos(){
     +'<div style="font-size:9px;color:#67727a;font-family:Arial">'+(totalCobrado?Math.round(totalMargen/totalCobrado*100):0)+'% del cobrado</div></div>'
     +'</div>';
   // Table
-  html+='<div class="tbl-wrap"><table>'
-    +'<thead><tr style="background:#f4f7fb">'
-    +'<th style="min-width:170px;padding:10px 12px;text-align:left;font-size:10px;font-weight:700;color:#67727a;text-transform:uppercase;letter-spacing:.04em">Especialidad</th>'
-    +'<th style="min-width:150px;padding:10px 12px;text-align:left;font-size:10px;font-weight:700;color:#67727a;text-transform:uppercase;letter-spacing:.04em">Asesor / Contacto</th>'
-    +'<th style="min-width:130px;padding:10px 12px;text-align:right;font-size:10px;font-weight:700;color:#67727a;text-transform:uppercase;letter-spacing:.04em">Presupuesto</th>'
-    +'<th style="min-width:170px;padding:10px 12px;text-align:left;font-size:10px;font-weight:700;color:#67727a;text-transform:uppercase;letter-spacing:.04em">Cobrado al cliente</th>'
-    +'<th style="min-width:170px;padding:10px 12px;text-align:left;font-size:10px;font-weight:700;color:#67727a;text-transform:uppercase;letter-spacing:.04em">Pagado al asesor</th>'
-    +'<th style="min-width:100px;padding:10px 12px;text-align:right;font-size:10px;font-weight:700;color:#67727a;text-transform:uppercase;letter-spacing:.04em">Margen</th>'
+  html+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:11px;min-width:820px;background:#fff;border-radius:10px">'
+    +'<thead><tr style="background:#f8fafc">'
+    +'<th style="min-width:160px;padding:6px 10px;text-align:left;font-size:9px;font-weight:700;color:#67727a;border-bottom:.5px solid #bfd1e5">Especialidad</th>'
+    +'<th style="min-width:140px;padding:6px 10px;text-align:left;font-size:9px;font-weight:700;color:#67727a;border-bottom:.5px solid #bfd1e5">Asesor / Contacto</th>'
+    +'<th style="min-width:110px;padding:6px 10px;text-align:right;font-size:9px;font-weight:700;color:#67727a;border-bottom:.5px solid #bfd1e5">Presupuesto</th>'
+    +'<th style="min-width:110px;padding:6px 10px;text-align:right;font-size:9px;font-weight:700;color:#67727a;border-bottom:.5px solid #bfd1e5">Cobrado</th>'
+    +'<th style="min-width:110px;padding:6px 10px;text-align:right;font-size:9px;font-weight:700;color:#67727a;border-bottom:.5px solid #bfd1e5">Pagado</th>'
+    +'<th style="min-width:90px;padding:6px 10px;text-align:right;font-size:9px;font-weight:700;color:#67727a;border-bottom:.5px solid #bfd1e5">Margen</th>'
     +'</tr></thead><tbody>';
   var espIdx=0;
   blocks.forEach(function(block){
@@ -1844,45 +1844,20 @@ function renderCostos(){
       var cobTotal=cobros.reduce(function(s,c){return s+(parseFloat(c.monto)||0);},0);
       var pagTotal=pagos.reduce(function(s,pg){return s+(parseFloat(pg.monto)||0);},0);
       var margen=cobTotal-pagTotal;
-      var logRow=function(e,i,tipo,col){
-        var sub=fmtD(e.fecha)+(e.concepto?' · '+e.concepto:'');
-        return '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;padding:3px 7px;background:#f8fafc;border-radius:5px;margin-top:3px"'+(e.comentario?' title="'+String(e.comentario).replace(/"/g,'&quot;')+'"':'')+'>'
-          +'<div style="min-width:0"><div style="font-size:10px;font-weight:700;color:'+col+';font-family:Arial">$'+fmt(e.monto)+'</div>'
-          +'<div style="font-size:8px;color:#a8a8a8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px">'+sub+(e.comentario?' 💬':'')+'</div></div>'
-          +'<button onclick="deleteCobPag('+selProj.id+','+myIdx+',\''+tipo+'\','+i+')" style="background:none;border:none;cursor:pointer;color:#cbd5e1;font-size:11px;padding:0 2px;flex-shrink:0" title="Eliminar">✕</button></div>';
-      };
-      var cobrosLog=cobros.map(function(c,i){return logRow(c,i,'cobro','#3B6D11');}).join('');
-      var pagosLog=pagos.map(function(pg,i){return logRow(pg,i,'pago','#e65a27');}).join('');
-      html+='<tr style="border-bottom:.5px solid #eef2f6;vertical-align:top">'
-        +'<td style="padding:12px;font-size:12px;font-weight:600;color:#1a2a3a;font-family:Arial">'+esp.nombre+'</td>'
-        +'<td style="padding:12px">'
-        +'<div style="font-size:11px;font-weight:600;color:#254467;font-family:Arial">'+(espData.asesor||'<span style="color:#a8a8a8;font-weight:400">— Sin asignar —</span>')+'</div>'
-        +(espData.contacto?'<div style="font-size:9px;color:#67727a;font-family:Arial">'+espData.contacto+'</div>':'')
-        +'<button onclick="openAsesorEdit('+selProj.id+','+myIdx+')" style="margin-top:5px;background:none;border:.5px solid #bfd1e5;border-radius:5px;cursor:pointer;font-size:9px;color:#3a6080;padding:2px 8px;font-family:Arial">✏ Editar</button>'
+      html+='<tr style="border-bottom:.5px solid #eef2f6">'
+        +'<td style="padding:7px 10px;font-size:11px;font-weight:600;color:#1a2a3a;font-family:Arial;vertical-align:top">'+esp.nombre+'</td>'
+        +'<td style="padding:7px 10px;font-size:10px;color:#67727a;font-family:Arial;vertical-align:top">'+(espData.asesor||'<span style="color:#a8a8a8">— Sin asignar —</span>')+(espData.contacto?'<br><span style="font-size:9px">'+espData.contacto+'</span>':'')+' <button onclick="openAsesorEdit('+selProj.id+','+myIdx+')" style="background:none;border:none;cursor:pointer;color:#6990ab;font-size:9px;padding:0;font-family:Arial;text-decoration:underline">editar</button></td>'
+        +'<td style="padding:7px 10px;text-align:right;white-space:nowrap;vertical-align:top"><div style="font-size:11px;font-weight:700;color:#254467;font-family:Arial">$'+fmt(esp.withInd)+'</div>'+(((esp.mxn||0)!==esp.withInd||(esp.ind||0)>0)?'<div style="font-size:8px;color:#a8a8a8;font-family:Arial">dir $'+fmt(esp.mxn||0)+((esp.ind||0)>0?' · '+esp.ind+'%':'')+'</div>':'')+'</td>'
+        +'<td onclick="openCobPagModal('+selProj.id+','+myIdx+',\'cobro\')" title="Clic para ver / registrar cobros" style="padding:7px 10px;text-align:right;white-space:nowrap;vertical-align:top;cursor:pointer">'
+          +'<div style="font-size:11px;font-weight:700;color:'+(cobTotal>0?'#3B6D11':'#cbd5e1')+';font-family:Arial">$'+fmt(cobTotal)+'</div>'
+          +(cobTotal>0?'<div style="font-size:8px;color:'+(cobTotal>=esp.withInd?'#639922':'#e6a817')+';font-family:Arial">'+(cobTotal>=esp.withInd?'✓ completo':'falta $'+fmt(esp.withInd-cobTotal))+(cobros.length?' · '+cobros.length+' reg.':'')+'</div>':'<div style="font-size:8px;color:#185FA5;font-family:Arial">+ registrar</div>')
         +'</td>'
-        +'<td style="padding:12px;text-align:right;white-space:nowrap;vertical-align:top">'
-        +'<div style="font-size:13px;font-weight:700;color:#254467;font-family:Arial">$'+fmt(esp.withInd)+'</div>'
-        +(((esp.mxn||0)!==esp.withInd||(esp.ind||0)>0)?'<div style="font-size:9px;color:#a8a8a8;font-weight:400;font-family:Arial">dir $'+fmt(esp.mxn||0)+((esp.ind||0)>0?' · ind '+esp.ind+'%':'')+'</div>':'')
+        +'<td onclick="openCobPagModal('+selProj.id+','+myIdx+',\'pago\')" title="Clic para ver / registrar pagos" style="padding:7px 10px;text-align:right;white-space:nowrap;vertical-align:top;cursor:pointer">'
+          +'<div style="font-size:11px;font-weight:700;color:'+(pagTotal>0?'#e65a27':'#cbd5e1')+';font-family:Arial">$'+fmt(pagTotal)+'</div>'
+          +(pagTotal>0?'<div style="font-size:8px;color:'+(pagTotal>esp.mxn?'#e65a27':'#a8a8a8')+';font-family:Arial">'+(pagTotal>esp.mxn?'⚠ sobre ppto':pagos.length+' reg.')+'</div>':'<div style="font-size:8px;color:#185FA5;font-family:Arial">+ registrar</div>')
         +'</td>'
-        +'<td style="padding:12px">'
-        +'<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'
-        +'<span style="font-size:13px;font-weight:700;color:'+(cobTotal>0?'#254467':'#cbd5e1')+';font-family:Arial;white-space:nowrap">$'+fmt(cobTotal)+'</span>'
-        +(cobTotal>0?'<span style="font-size:8px;font-weight:700;padding:1px 7px;border-radius:10px;background:'+(cobTotal>=esp.withInd?'#eaf3de':'#fdecea')+';color:'+(cobTotal>=esp.withInd?'#3B6D11':'#e65a27')+'">'+(cobTotal>=esp.withInd?'✓ Completo':'Falta $'+fmt(esp.withInd-cobTotal))+'</span>':'')
-        +'</div>'
-        +cobrosLog
-        +'<button onclick="openCobPagModal('+selProj.id+','+myIdx+',\'cobro\')" style="margin-top:6px;background:none;border:.5px solid #c3d9ec;border-radius:5px;cursor:pointer;font-size:9px;color:#185FA5;padding:3px 10px;font-family:Arial;font-weight:700">+ Cobro</button>'
-        +'</td>'
-        +'<td style="padding:12px">'
-        +'<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'
-        +'<span style="font-size:13px;font-weight:700;color:'+(pagTotal>0?'#254467':'#cbd5e1')+';font-family:Arial;white-space:nowrap">$'+fmt(pagTotal)+'</span>'
-        +(pagTotal>esp.mxn&&pagTotal>0?'<span style="font-size:8px;font-weight:700;padding:1px 7px;border-radius:10px;background:#fdecea;color:#e65a27">⚠ Sobre ppto.</span>':'')
-        +'</div>'
-        +pagosLog
-        +'<button onclick="openCobPagModal('+selProj.id+','+myIdx+',\'pago\')" style="margin-top:6px;background:none;border:.5px solid #f3cba5;border-radius:5px;cursor:pointer;font-size:9px;color:#e65a27;padding:3px 10px;font-family:Arial;font-weight:700">+ Pago</button>'
-        +'</td>'
-        +'<td style="padding:12px;text-align:right;font-weight:700;font-size:13px;font-family:Arial;vertical-align:top;color:'+(cobTotal>0||pagTotal>0?(margen>=0?'#3B6D11':'#e65a27'):'#cbd5e1')+'">'
-        +(cobTotal>0||pagTotal>0?'$'+fmt(margen):'—')
-        +'</td></tr>';
+        +'<td style="padding:7px 10px;text-align:right;font-weight:700;font-size:11px;font-family:Arial;vertical-align:top;color:'+(cobTotal>0||pagTotal>0?(margen>=0?'#3B6D11':'#e65a27'):'#cbd5e1')+'">'+(cobTotal>0||pagTotal>0?'$'+fmt(margen):'—')+'</td>'
+        +'</tr>';
     });
   });
   });
