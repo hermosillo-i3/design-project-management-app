@@ -1200,6 +1200,27 @@ function renderDashboard(){
   if(sinResp.length){
     alertItems.push({cls:'red',title:'Consultores sin respuesta >14 días',items:sinResp.slice(0,5)});
   }
+  // Por cobrar: proyectos con presupuesto de control donde el cobrado < presupuesto (incluye adicionales)
+  var _cotsPC=getCots();
+  function _pptoTotalPC(p){
+    var t=0;var ctrl=p.presupuestoControlCotId?_cotsPC.find(function(c){return String(c.id)===String(p.presupuestoControlCotId);}):null;
+    if(ctrl)t+=calcCotMetrics(ctrl).grandTotal;
+    (p.extraordinarios||[]).forEach(function(a){if(a.cotId){var ac=_cotsPC.find(function(c){return String(c.id)===String(a.cotId);});if(ac)t+=calcCotMetrics(ac).grandTotal;}});
+    return t;
+  }
+  function _cobradoEjecPC(p){var ce=p.costosEjec||{};var t=0;Object.keys(ce).forEach(function(k){(ce[k].cobros||[]).forEach(function(c){t+=parseFloat(c.monto)||0;});});return t;}
+  var porCobrarFin=[],porCobrarProc=[];
+  ld(K.proj,[]).forEach(function(p){
+    if(p.interno||p.etapa==='PRECON'||!p.presupuestoControlCotId)return;
+    var ppto=_pptoTotalPC(p);if(ppto<=0)return;
+    var saldo=Math.round(ppto-_cobradoEjecPC(p));if(saldo<=0)return;
+    var lastEnt=p.entregaV4||p.entregaV3||p.entregaV2||p.entregaV1||p.entrega||'';
+    var terminado=p.archivado||p.etapa==='REVISIONES'||p.estatus==='Completado'||(parseFloat(p.avance)||0)>=100||(lastEnt&&lastEnt<todayStr);
+    var txt=p.nombre+(p.archivado?' (archivado)':'')+' · falta $'+saldo.toLocaleString('es-MX');
+    if(terminado)porCobrarFin.push(txt);else porCobrarProc.push(txt);
+  });
+  if(porCobrarFin.length)alertItems.unshift({cls:'red',title:'💰 Terminados con saldo por cobrar ('+porCobrarFin.length+')',items:porCobrarFin.slice(0,8)});
+  if(porCobrarProc.length)alertItems.push({cls:'yellow',title:'💰 Saldo por cobrar — en proceso ('+porCobrarProc.length+')',items:porCobrarProc.slice(0,8)});
   document.getElementById('alert-list').innerHTML=alertItems.length?alertItems.map(a=>`
     <div class="alert-box ${a.cls}" style="flex-direction:column;align-items:flex-start">
       <div class="alert-name" style="margin-bottom:5px">${a.title}</div>
