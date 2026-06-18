@@ -1209,10 +1209,18 @@ function renderDashboard(){
     return t;
   }
   function _cobradoEjecPC(p){var ce=p.costosEjec||{};var t=0;Object.keys(ce).forEach(function(k){(ce[k].cobros||[]).forEach(function(c){t+=parseFloat(c.monto)||0;});});return t;}
+  function _canceladoMontoPC(p){
+    var ce=p.costosEjec||{};var c=0;var bl=[];
+    var ctrl=p.presupuestoControlCotId?_cotsPC.find(function(x){return String(x.id)===String(p.presupuestoControlCotId);}):null;
+    if(ctrl)bl.push({m:calcCotMetrics(ctrl),pre:''});
+    (p.extraordinarios||[]).forEach(function(a){if(a.cotId){var ac=_cotsPC.find(function(x){return String(x.id)===String(a.cotId);});if(ac)bl.push({m:calcCotMetrics(ac),pre:'adic:'+a.id+':'});}});
+    bl.forEach(function(b){Object.keys(b.m.bySection).forEach(function(sec){b.m.bySection[sec].esps.forEach(function(e){if((ce[b.pre+e.nombre]||{}).cancelado)c+=e.withInd;});});costoIndEsps(b.m).forEach(function(e){if((ce[b.pre+e.nombre]||{}).cancelado)c+=e.withInd;});});
+    return c;
+  }
   var porCobrarFin=[],porCobrarProc=[];
   ld(K.proj,[]).forEach(function(p){
     if(p.interno||p.etapa==='PRECON'||!p.presupuestoControlCotId)return;
-    var ppto=_pptoTotalPC(p);if(ppto<=0)return;
+    var ppto=_pptoTotalPC(p)-_canceladoMontoPC(p);if(ppto<=0)return;
     var saldo=Math.round(ppto-_cobradoEjecPC(p));if(saldo<=0)return;
     var lastEnt=p.entregaV4||p.entregaV3||p.entregaV2||p.entregaV1||p.entrega||'';
     var terminado=p.archivado||p.etapa==='REVISIONES'||p.estatus==='Completado'||(parseFloat(p.avance)||0)>=100||(lastEnt&&lastEnt<todayStr);
@@ -1757,6 +1765,17 @@ function costoIndEsps(metrics){
   if(Math.abs(rem)>=1)arr.push({nombre:'Indirecto adicional',withInd:rem,mxn:rem,ind:0,indir:0});
   return arr;
 }
+function toggleAlcanceCancelado(projId,espIdx){
+  var espKey=window.__costosEspKeys[espIdx];if(espKey===undefined)return;
+  var p=projects.find(function(x){return x.id===projId;});if(!p)return;
+  if(!p.costosEjec)p.costosEjec={};
+  if(!p.costosEjec[espKey])p.costosEjec[espKey]={cobros:[],pagos:[]};
+  var willCancel=!p.costosEjec[espKey].cancelado;
+  if(willCancel&&!confirm('¿Cancelar el alcance de "'+costoBareEsp(espKey)+'"?\n\nSe excluye su presupuesto del total y de lo "por cobrar". Los cobros/pagos ya registrados se conservan.'))return;
+  p.costosEjec[espKey].cancelado=willCancel;
+  p.ultimaActualizacion=todayStr;
+  sv(K.proj,projects);renderCostos();
+}
 
 function renderCostos(){
   var container=document.getElementById('costos-container');
@@ -1809,17 +1828,25 @@ function renderCostos(){
     totalPagado+=(esp.pagos||[]).reduce(function(s,pg){return s+(parseFloat(pg.monto)||0);},0);
   });
   var totalMargen=totalCobrado-totalPagado;
-  var pptoControl=blocks[0].metrics.grandTotal;
-  var totalPpto=blocks.reduce(function(s,b){return s+b.metrics.grandTotal;},0);
+  // Alcances cancelados: descontar su presupuesto por bloque
+  var _canceladoBloque=blocks.map(function(b){
+    var c=0;
+    Object.keys(b.metrics.bySection).forEach(function(sec){b.metrics.bySection[sec].esps.forEach(function(e){if((costosData[b.keyPrefix+e.nombre]||{}).cancelado)c+=e.withInd;});});
+    costoIndEsps(b.metrics).forEach(function(e){if((costosData[b.keyPrefix+e.nombre]||{}).cancelado)c+=e.withInd;});
+    return c;
+  });
+  var _canceladoTot=_canceladoBloque.reduce(function(s,x){return s+x;},0);
+  var pptoControl=blocks[0].metrics.grandTotal-_canceladoBloque[0];
+  var totalPpto=blocks.reduce(function(s,b){return s+b.metrics.grandTotal;},0)-_canceladoTot;
   // Summary chips
   html+='<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:1.25rem">'
     +'<div style="background:#EEF2FF;border-radius:8px;padding:10px 16px;min-width:120px">'
     +'<div style="font-size:9px;color:#67727a;text-transform:uppercase;letter-spacing:.5px;font-family:Arial">Ppto. Control</div>'
     +'<div style="font-weight:800;color:#254467;font-size:15px;font-family:Arial">$'+fmt(pptoControl)+'</div></div>'
-    +blocks.slice(1).map(function(b){return '<div style="background:#fff8f0;border-radius:8px;padding:10px 16px;min-width:110px;border:.5px solid #f5d6b8">'
+    +blocks.slice(1).map(function(b,bi){return '<div style="background:#fff8f0;border-radius:8px;padding:10px 16px;min-width:110px;border:.5px solid #f5d6b8">'
       +'<div style="font-size:9px;color:#67727a;text-transform:uppercase;letter-spacing:.5px;font-family:Arial">'+b.label+'</div>'
       +(b.cotNombre?'<div style="font-size:9px;color:#a8a8a8;font-family:Arial;max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+b.cotNombre+'</div>':'')
-      +'<div style="font-weight:800;color:#e65a27;font-size:15px;font-family:Arial">$'+fmt(b.metrics.grandTotal)+'</div></div>';}).join('')
+      +'<div style="font-weight:800;color:#e65a27;font-size:15px;font-family:Arial">$'+fmt(b.metrics.grandTotal-_canceladoBloque[bi+1])+'</div></div>';}).join('')
     +'<div style="background:#f0f8ec;border-radius:8px;padding:10px 16px;min-width:120px">'
     +'<div style="font-size:9px;color:#67727a;text-transform:uppercase;letter-spacing:.5px;font-family:Arial">Cobrado</div>'
     +'<div style="font-weight:800;color:#3B6D11;font-size:15px;font-family:Arial">$'+fmt(totalCobrado)+'</div>'
@@ -1867,19 +1894,22 @@ function renderCostos(){
       var cobTotal=cobros.reduce(function(s,c){return s+(parseFloat(c.monto)||0);},0);
       var pagTotal=pagos.reduce(function(s,pg){return s+(parseFloat(pg.monto)||0);},0);
       var margen=cobTotal-pagTotal;
-      html+='<tr style="border-bottom:.5px solid #eef2f6">'
-        +'<td style="padding:7px 10px;font-size:11px;font-weight:600;color:#1a2a3a;font-family:Arial;vertical-align:top">'+esp.nombre+'</td>'
+      var canc=!!espData.cancelado;
+      var nameHtml=canc?'<span style="text-decoration:line-through;color:#a8a8a8">'+esp.nombre+'</span> <span style="font-size:8px;font-weight:700;background:#fdecea;color:#e65a27;border-radius:4px;padding:1px 6px">CANCELADO</span>':esp.nombre;
+      var togBtn='<div style="margin-top:3px"><button onclick="toggleAlcanceCancelado('+selProj.id+','+myIdx+')" style="background:none;border:none;cursor:pointer;color:'+(canc?'#3B6D11':'#c0392b')+';font-size:9px;padding:0;font-family:Arial;text-decoration:underline">'+(canc?'↺ reactivar':'⊘ cancelar alcance')+'</button></div>';
+      html+='<tr style="border-bottom:.5px solid #eef2f6'+(canc?';background:#fafafa':'')+'">'
+        +'<td style="padding:7px 10px;font-size:11px;font-weight:600;color:#1a2a3a;font-family:Arial;vertical-align:top">'+nameHtml+togBtn+'</td>'
         +'<td style="padding:7px 10px;font-size:10px;color:#67727a;font-family:Arial;vertical-align:top">'+(espData.asesor||'<span style="color:#a8a8a8">— Sin asignar —</span>')+(espData.contacto?'<br><span style="font-size:9px">'+espData.contacto+'</span>':'')+' <button onclick="openAsesorEdit('+selProj.id+','+myIdx+')" style="background:none;border:none;cursor:pointer;color:#6990ab;font-size:9px;padding:0;font-family:Arial;text-decoration:underline">editar</button></td>'
-        +'<td style="padding:7px 10px;text-align:right;font-size:11px;color:#67727a;font-family:Arial;vertical-align:top;white-space:nowrap">$'+fmt(esp.mxn||0)+'</td>'
-        +'<td style="padding:7px 10px;text-align:right;font-size:11px;color:#3a6080;font-family:Arial;vertical-align:top">'+((esp.ind||0)>0?esp.ind+'%':'—')+'</td>'
-        +'<td style="padding:7px 10px;text-align:right;font-size:11px;font-weight:700;color:#254467;font-family:Arial;vertical-align:top;white-space:nowrap">$'+fmt(esp.withInd)+'</td>'
+        +'<td style="padding:7px 10px;text-align:right;font-size:11px;color:'+(canc?'#cbd5e1':'#67727a')+';font-family:Arial;vertical-align:top;white-space:nowrap'+(canc?';text-decoration:line-through':'')+'">$'+fmt(esp.mxn||0)+'</td>'
+        +'<td style="padding:7px 10px;text-align:right;font-size:11px;color:'+(canc?'#cbd5e1':'#3a6080')+';font-family:Arial;vertical-align:top">'+((esp.ind||0)>0?esp.ind+'%':'—')+'</td>'
+        +'<td style="padding:7px 10px;text-align:right;font-size:11px;font-weight:700;color:'+(canc?'#cbd5e1':'#254467')+';font-family:Arial;vertical-align:top;white-space:nowrap'+(canc?';text-decoration:line-through':'')+'">$'+fmt(esp.withInd)+'</td>'
         +'<td onclick="openCobPagModal('+selProj.id+','+myIdx+',\'cobro\')" title="Clic para ver / registrar cobros" style="padding:7px 10px;text-align:right;white-space:nowrap;vertical-align:top;cursor:pointer">'
           +'<div style="font-size:11px;font-weight:700;color:'+(cobTotal>0?'#3B6D11':'#cbd5e1')+';font-family:Arial">$'+fmt(cobTotal)+'</div>'
-          +(cobTotal>0?'<div style="font-size:8px;color:'+(cobTotal>=esp.withInd?'#639922':'#e6a817')+';font-family:Arial">'+(cobTotal>=esp.withInd?'✓ completo':'falta $'+fmt(esp.withInd-cobTotal))+(cobros.length?' · '+cobros.length+' reg.':'')+'</div>':'<div style="font-size:8px;color:#185FA5;font-family:Arial">+ registrar</div>')
+          +(canc?(cobros.length?'<div style="font-size:8px;color:#a8a8a8;font-family:Arial">'+cobros.length+' reg.</div>':''):(cobTotal>0?'<div style="font-size:8px;color:'+(cobTotal>=esp.withInd?'#639922':'#e6a817')+';font-family:Arial">'+(cobTotal>=esp.withInd?'✓ completo':'falta $'+fmt(esp.withInd-cobTotal))+(cobros.length?' · '+cobros.length+' reg.':'')+'</div>':'<div style="font-size:8px;color:#185FA5;font-family:Arial">+ registrar</div>'))
         +'</td>'
         +'<td onclick="openCobPagModal('+selProj.id+','+myIdx+',\'pago\')" title="Clic para ver / registrar pagos" style="padding:7px 10px;text-align:right;white-space:nowrap;vertical-align:top;cursor:pointer">'
           +'<div style="font-size:11px;font-weight:700;color:'+(pagTotal>0?'#e65a27':'#cbd5e1')+';font-family:Arial">$'+fmt(pagTotal)+'</div>'
-          +(pagTotal>0?'<div style="font-size:8px;color:'+(pagTotal>esp.mxn?'#e65a27':'#a8a8a8')+';font-family:Arial">'+(pagTotal>esp.mxn?'⚠ sobre ppto':pagos.length+' reg.')+'</div>':'<div style="font-size:8px;color:#185FA5;font-family:Arial">+ registrar</div>')
+          +(canc?(pagos.length?'<div style="font-size:8px;color:#a8a8a8;font-family:Arial">'+pagos.length+' reg.</div>':''):(pagTotal>0?'<div style="font-size:8px;color:'+(pagTotal>esp.mxn?'#e65a27':'#a8a8a8')+';font-family:Arial">'+(pagTotal>esp.mxn?'⚠ sobre ppto':pagos.length+' reg.')+'</div>':'<div style="font-size:8px;color:#185FA5;font-family:Arial">+ registrar</div>'))
         +'</td>'
         +'<td style="padding:7px 10px;text-align:right;font-weight:700;font-size:11px;font-family:Arial;vertical-align:top;color:'+(cobTotal>0||pagTotal>0?(margen>=0?'#3B6D11':'#e65a27'):'#cbd5e1')+'">'+(cobTotal>0||pagTotal>0?'$'+fmt(margen):'—')+'</td>'
         +'</tr>';
