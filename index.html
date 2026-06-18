@@ -9884,6 +9884,77 @@ function renderEstadisticas(){
 
   const etapaColors={PRECON:'#0369A1',EJECUTIVO:'#6990ab',REVISIONES:'#0891B2',INTERNO:'#67727a'};
 
+  // ── RESUMEN FINANCIERO Y EJECUTIVO ──────────────────────────
+  var fmt0=function(n){return Math.round(n||0).toLocaleString('es-MX');};
+  var inPer=function(f){if(!desde&&!hasta)return true;if(!f)return false;if(desde&&f<desde)return false;if(hasta&&f>hasta)return false;return true;};
+  var _curY=new Date().getFullYear();
+  var mFrom=(desde||(_curY+'-01-01')).slice(0,7);
+  var mTo=(hasta||(_curY+'-12-31')).slice(0,7);
+  var months=[];(function(){var d=new Date(mFrom+'-01T00:00:00');var end=new Date(mTo+'-01T00:00:00');var g=0;while(d<=end&&g<24){months.push(d.toISOString().slice(0,7));d.setMonth(d.getMonth()+1);g++;}})();
+  var cobMes={},pagMes={};months.forEach(function(m){cobMes[m]=0;pagMes[m]=0;});
+  var generado=0,gastado=0,cobPorCliente={},margenPorProy=[];
+  allP.forEach(function(p){
+    var ce=p.costosEjec||{};var pCob=0,pPag=0;
+    Object.keys(ce).forEach(function(k){
+      (ce[k].cobros||[]).forEach(function(c){var f=c.fecha||'';var mt=parseFloat(c.monto)||0;if(inPer(f)){generado+=mt;pCob+=mt;}var mm=f.slice(0,7);if(cobMes[mm]!==undefined)cobMes[mm]+=mt;});
+      (ce[k].pagos||[]).forEach(function(pg){var f=pg.fecha||'';var mt=parseFloat(pg.monto)||0;if(inPer(f)){gastado+=mt;pPag+=mt;}var mm=f.slice(0,7);if(pagMes[mm]!==undefined)pagMes[mm]+=mt;});
+    });
+    if(pCob>0&&p.cliente)cobPorCliente[p.cliente]=(cobPorCliente[p.cliente]||0)+pCob;
+    if(pCob>0||pPag>0)margenPorProy.push({nombre:p.nombre,margen:pCob-pPag});
+  });
+  var margenAnual=generado-gastado;
+  var cargaMes={};months.forEach(function(m){var mS=m+'-01',mE=m+'-31';cargaMes[m]=allP.filter(function(p){if(p.interno)return false;var ini=p.arranque||'';var fin=p.entregaV4||p.entregaV3||p.entregaV2||p.entregaV1||p.entrega||'';if(!ini)return false;if(ini>mE)return false;if(fin&&fin<mS)return false;return true;}).length;});
+  var decididos=ganados+perdidos+cancelados;var winRate=decididos?Math.round(ganados/decididos*100):0;
+  var m2Total=filtered.filter(function(p){return !p.interno;}).reduce(function(s,p){return s+(parseFloat(p.areaM2)||0);},0);
+  var _cotsAll=getCots();
+  var pipeline=filtered.filter(function(p){return p.etapa==='PRECON'&&!p.interno&&['Perdido','Cancelado'].indexOf(p.estatusProy||'')<0;}).reduce(function(s,p){var pc=_cotsAll.filter(function(c){return String(c.projId)===String(p.id);});if(!pc.length)return s;var cot=pc.filter(function(c){return String(c.id)===String(p.presupuestoControlCotId);})[0]||pc.slice().sort(function(a,b){return (b.fecha||'').localeCompare(a.fecha||'');})[0];return s+(cot?calcCotMetrics(cot).grandTotal:0);},0);
+  var mLbl=function(m){var p=m.split('-');var n=['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];return n[parseInt(p[1])]+' '+p[0].slice(2);};
+  var statCard=function(label,val,color,bg,sub){return '<div style="background:'+bg+';border-radius:10px;padding:12px 14px"><div style="font-size:9px;color:'+color+';text-transform:uppercase;letter-spacing:.04em;font-weight:700">'+label+'</div><div style="font-size:20px;font-weight:800;color:'+color+';font-family:Arial">'+val+'</div>'+(sub?'<div style="font-size:9px;color:#67727a;font-family:Arial">'+sub+'</div>':'')+'</div>';};
+  var groupedChart=function(ser1,ser2,c1,c2){
+    var maxV=Math.max.apply(null,[1].concat(months.map(function(m){return Math.max(ser1[m]||0,ser2[m]||0);})));
+    var W=Math.max(560,months.length*64),H=180,padB=22,top=10,plotH=H-padB-top,gw=(W-20)/months.length,bw=Math.min(15,(gw-12)/2);
+    var b='',l='';months.forEach(function(m,i){var gx=10+i*gw+gw/2;var h1=Math.round((ser1[m]||0)/maxV*plotH);var h2=Math.round((ser2[m]||0)/maxV*plotH);
+      b+='<rect x="'+(gx-bw-1)+'" y="'+(top+plotH-h1)+'" width="'+bw+'" height="'+h1+'" rx="2" fill="'+c1+'"></rect><rect x="'+(gx+1)+'" y="'+(top+plotH-h2)+'" width="'+bw+'" height="'+h2+'" rx="2" fill="'+c2+'"></rect>';
+      l+='<text x="'+gx+'" y="'+(H-7)+'" text-anchor="middle" font-size="9" fill="#8a98a8" font-family="Arial">'+mLbl(m)+'</text>';});
+    return '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;min-width:'+Math.min(W,920)+'px"><line x1="6" y1="'+(top+plotH)+'" x2="'+(W-6)+'" y2="'+(top+plotH)+'" stroke="#e2e8f0"></line>'+b+l+'</svg>';
+  };
+  var singleChart=function(ser,color){
+    var maxV=Math.max.apply(null,[1].concat(months.map(function(m){return ser[m]||0;})));
+    var W=Math.max(560,months.length*56),H=170,padB=22,top=14,plotH=H-padB-top,gw=(W-20)/months.length,bw=Math.min(26,gw-16);
+    var b='',l='',v='';months.forEach(function(m,i){var gx=10+i*gw+gw/2;var h=Math.round((ser[m]||0)/maxV*plotH);
+      b+='<rect x="'+(gx-bw/2)+'" y="'+(top+plotH-h)+'" width="'+bw+'" height="'+h+'" rx="2" fill="'+color+'"></rect>';
+      v+='<text x="'+gx+'" y="'+(top+plotH-h-3)+'" text-anchor="middle" font-size="9" fill="#67727a" font-family="Arial">'+(ser[m]||0)+'</text>';
+      l+='<text x="'+gx+'" y="'+(H-7)+'" text-anchor="middle" font-size="9" fill="#8a98a8" font-family="Arial">'+mLbl(m)+'</text>';});
+    return '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;min-width:'+Math.min(W,920)+'px"><line x1="6" y1="'+(top+plotH)+'" x2="'+(W-6)+'" y2="'+(top+plotH)+'" stroke="#e2e8f0"></line>'+b+v+l+'</svg>';
+  };
+  var cliSorted=Object.entries(cobPorCliente).sort(function(a,b){return b[1]-a[1];}).slice(0,8);
+  var maxCli=cliSorted.length?cliSorted[0][1]:1;
+  margenPorProy.sort(function(a,b){return b.margen-a.margen;});
+  var mpTop=margenPorProy.slice(0,8);var maxMp=mpTop.length?Math.max.apply(null,[1].concat(mpTop.map(function(x){return Math.abs(x.margen);}))):1;
+  var execHtml='<div style="background:#fff;border-radius:12px;border:.5px solid #bfd1e5;padding:16px 18px;margin-bottom:1.25rem">'
+    +'<div class="sec" style="margin-top:0;margin-bottom:14px">💰 Resumen financiero y ejecutivo</div>'
+    +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px;margin-bottom:18px">'
+    +statCard('Generado (cobrado)','$'+fmt0(generado),'#3B6D11','#eaf3de','')
+    +statCard('Gastado (asesores)','$'+fmt0(gastado),'#BA7517','#FAEEDA','')
+    +statCard('Margen','$'+fmt0(margenAnual),'#185FA5','#E6F1FB',(generado?Math.round(margenAnual/generado*100)+'% del cobrado':''))
+    +statCard('m² del periodo',fmt0(m2Total)+' m²','#254467','#eef2f6','proyectos no internos')
+    +statCard('Tasa de éxito',winRate+'%','#3B6D11','#eaf3de',ganados+' de '+decididos+' concursos')
+    +statCard('Pipeline (PRECON)','$'+fmt0(pipeline),'#6D28D9','#F5F3FF','valor potencial')
+    +'</div>'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:8px"><span style="font-size:12px;font-weight:700;color:#254467">Cobrado vs Pagado por mes</span><span style="font-size:10px;color:#67727a"><span style="display:inline-block;width:9px;height:9px;background:#639922;border-radius:2px"></span> Cobrado &nbsp; <span style="display:inline-block;width:9px;height:9px;background:#BA7517;border-radius:2px"></span> Pagado</span></div>'
+    +'<div style="overflow-x:auto">'+groupedChart(cobMes,pagMes,'#639922','#BA7517')+'</div>'
+    +'<div style="font-size:12px;font-weight:700;color:#254467;margin:16px 0 6px">Carga por mes <span style="font-weight:400;color:#a8a8a8">(proyectos activos)</span></div>'
+    +'<div style="overflow-x:auto">'+singleChart(cargaMes,'#6990ab')+'</div>'
+    +'</div>'
+    +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem;margin-bottom:1.25rem">'
+    +'<div style="background:#fff;border-radius:12px;border:.5px solid #bfd1e5;padding:16px 18px"><div class="sec" style="margin-top:0;margin-bottom:12px">Top clientes por $ generado</div>'
+    +(cliSorted.length?cliSorted.map(function(e){return '<div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;margin-bottom:3px"><span style="font-size:10px;font-weight:600;color:#1E293B;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;max-width:160px">'+e[0]+'</span><span style="font-size:10px;color:#3B6D11;font-weight:700;flex-shrink:0">$'+fmt0(e[1])+'</span></div>'+bar(e[1],maxCli,'#639922')+'</div>';}).join(''):'<div style="font-size:10px;color:#a8a8a8">Aún no hay cobros registrados.</div>')
+    +'</div>'
+    +'<div style="background:#fff;border-radius:12px;border:.5px solid #bfd1e5;padding:16px 18px"><div class="sec" style="margin-top:0;margin-bottom:12px">Margen por proyecto</div>'
+    +(mpTop.length?mpTop.map(function(x){return '<div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;margin-bottom:3px"><span style="font-size:10px;font-weight:600;color:#1E293B;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;max-width:160px">'+x.nombre+'</span><span style="font-size:10px;font-weight:700;flex-shrink:0;color:'+(x.margen>=0?'#3B6D11':'#e65a27')+'">$'+fmt0(x.margen)+'</span></div>'+bar(Math.abs(x.margen),maxMp,x.margen>=0?'#3B6D11':'#e65a27')+'</div>';}).join(''):'<div style="font-size:10px;color:#a8a8a8">Aún no hay datos de costos.</div>')
+    +'</div>'
+    +'</div>';
+
   document.getElementById('stats-container').innerHTML=`
     <!-- Filters -->
     <div style="background:#fff;border-radius:10px;padding:14px 16px;border:.5px solid #bfd1e5;margin-bottom:1.25rem">
@@ -9909,6 +9980,8 @@ function renderEstadisticas(){
         <span style="font-size:11px;color:#a8a8a8;margin-left:auto">${total} proyectos en el rango (incluye archivados)</span>
       </div>
     </div>
+
+    ${execHtml}
 
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem">
 
