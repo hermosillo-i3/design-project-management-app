@@ -9903,7 +9903,8 @@ function renderEstadisticas(){
     if(pCob>0||pPag>0)margenPorProy.push({nombre:p.nombre,margen:pCob-pPag});
   });
   var margenAnual=generado-gastado;
-  var cargaMes={};months.forEach(function(m){var mS=m+'-01',mE=m+'-31';cargaMes[m]=allP.filter(function(p){if(p.interno)return false;var ini=p.arranque||'';var fin=p.entregaV4||p.entregaV3||p.entregaV2||p.entregaV1||p.entrega||'';if(!ini)return false;if(ini>mE)return false;if(fin&&fin<mS)return false;return true;}).length;});
+  var _nowM=todayStr.slice(0,7);
+  var cargaMes={};months.forEach(function(m){var mS=m+'-01',mE=m+'-31';cargaMes[m]=allP.filter(function(p){if(p.interno)return false;var ini=p.arranque||'';var fin=p.entregaV4||p.entregaV3||p.entregaV2||p.entregaV1||p.entrega||'';if(!ini)return false;if(ini>mE)return false;if(fin){if(fin<mS)return false;}else{if(m>_nowM)return false;}return true;}).length;});
   var decididos=ganados+perdidos+cancelados;var winRate=decididos?Math.round(ganados/decididos*100):0;
   var m2Total=filtered.filter(function(p){return !p.interno;}).reduce(function(s,p){return s+(parseFloat(p.areaM2)||0);},0);
   var _cotsAll=getCots();
