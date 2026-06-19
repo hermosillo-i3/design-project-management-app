@@ -6347,6 +6347,7 @@ function openEspModal(cotId,espNombre){
     +'<button class="btn" onclick="closeModal()">Cancelar</button>'
     +'<button class="btn btn-primary" onclick="saveEspAsesores(\''+cotId+'\',\''+espNombre+'\')">Guardar</button>'
     +'</div>';
+  var _m=document.querySelector('.modal');if(_m)_m.classList.add('wide');
   openModal();
 }
 function buildAsesorRow(a,i){
