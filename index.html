@@ -6326,12 +6326,14 @@ function openEspModal(cotId,espNombre){
   var cot=getCots().find(function(c){return c.id===cotId;});if(!cot)return;
   var esp=cot.especialidades.find(function(e){return e.nombre===espNombre;});if(!esp)return;
   var asesores=esp.asesores||[];
+  var _tc=parseFloat(cot.tipoCambio)||18;window.__espTC=_tc;
   var rows=asesores.map(function(a,i){return buildAsesorRow(a,i);}).join('');
   if(!rows)rows=buildAsesorRow(null,0);
   document.getElementById('modal-body').innerHTML='<h3 style="margin-bottom:4px">'+espNombre+'</h3>'
-    +'<div style="font-size:11px;color:#67727a;margin-bottom:14px">'+cot.nombre+(cot.areaM2?' — '+Number(cot.areaM2).toLocaleString()+' m²':'')+'</div>'
-    +'<div style="display:grid;grid-template-columns:1.4fr 1.2fr 1fr 1fr auto;gap:5px;align-items:center;margin-bottom:5px">'
-    +['EMPRESA','CONTACTO','COTIZADO MXN','COBRADO MXN','ELEGIDO'].map(function(h){return '<span style="font-size:9px;font-weight:700;color:#a8a8a8">'+h+'</span>';}).join('')
+    +'<div style="font-size:11px;color:#67727a;margin-bottom:4px">'+cot.nombre+(cot.areaM2?' — '+Number(cot.areaM2).toLocaleString()+' m²':'')+' · T.C. $'+_tc+'</div>'
+    +'<div style="font-size:9px;color:#a8a8a8;margin-bottom:10px">Tip: si tu costo viene en USD, escríbelo en "Cotizado USD" y el MXN se calcula solo (USD × T.C.).</div>'
+    +'<div style="display:grid;grid-template-columns:1.3fr 1.1fr 1fr 1fr 1fr auto;gap:5px;align-items:center;margin-bottom:5px">'
+    +['EMPRESA','CONTACTO','COTIZADO USD','COTIZADO MXN','COBRADO MXN','ELEGIDO'].map(function(h){return '<span style="font-size:9px;font-weight:700;color:#a8a8a8">'+h+'</span>';}).join('')
     +'</div>'
     +'<div id="esp-asesor-rows">'+rows+'</div>'
     +'<button onclick="addAsesorRowModal()" style="margin-top:8px;font-size:11px;padding:4px 12px;border:.5px dashed #bfd1e5;border-radius:6px;background:#fff;cursor:pointer;font-family:Arial;color:#67727a">+ Asesor</button>'
@@ -6348,15 +6350,23 @@ function openEspModal(cotId,espNombre){
   openModal();
 }
 function buildAsesorRow(a,i){
-  return '<div style="display:grid;grid-template-columns:1.4fr 1.2fr 1fr 1fr auto;gap:5px;align-items:center;margin-bottom:5px" data-asesor>'
+  return '<div style="display:grid;grid-template-columns:1.3fr 1.1fr 1fr 1fr 1fr auto;gap:5px;align-items:center;margin-bottom:5px" data-asesor>'
     +'<input type="text" placeholder="Empresa" value="'+(a?a.empresa:'')+'" data-field="empresa" style="font-size:11px;padding:4px 7px;border:.5px solid #bfd1e5;border-radius:5px;font-family:Arial">'
     +'<input type="text" placeholder="Contacto" value="'+(a?a.contacto:'')+'" data-field="contacto" style="font-size:11px;padding:4px 7px;border:.5px solid #bfd1e5;border-radius:5px;font-family:Arial">'
+    +'<input type="number" placeholder="$ USD" value="'+(a&&a.costoUSD?a.costoUSD:'')+'" data-field="costoUSD" oninput="asesorUSD(this)" title="Costo en USD (× T.C. = MXN)" style="font-size:11px;padding:4px 7px;border:.5px solid #c3d9ec;border-radius:5px;font-family:Arial;text-align:right;background:#f7fbff">'
     +'<input type="number" placeholder="$ cotizado" value="'+(a?a.costoMXN:'')+'" data-field="costoMXN" style="font-size:11px;padding:4px 7px;border:.5px solid #bfd1e5;border-radius:5px;font-family:Arial;text-align:right">'
     +'<input type="number" placeholder="$ cobrado" value="'+(a?a.cobradoMXN:'')+'" data-field="cobradoMXN" style="font-size:11px;padding:4px 7px;border:.5px solid #bfd1e5;border-radius:5px;font-family:Arial;text-align:right">'
     +'<div style="display:flex;align-items:center;gap:6px">'
     +'<input type="checkbox" data-field="elegido" '+(a&&a.elegido?'checked':'')+' style="width:14px;height:14px;cursor:pointer" title="Elegido">'
     +'<button onclick="this.closest(\'[data-asesor]\').remove()" style="background:none;border:none;color:#bfd1e5;cursor:pointer;font-size:14px;padding:0">✕</button>'
     +'</div></div>';
+}
+function asesorUSD(el){
+  var tc=parseFloat(window.__espTC)||18;
+  var usd=parseFloat(el.value)||0;
+  var row=el.closest('[data-asesor]');if(!row)return;
+  var mxn=row.querySelector('[data-field="costoMXN"]');
+  if(mxn)mxn.value=usd?Math.round(usd*tc):'';
 }
 function addAsesorRowModal(){document.getElementById('esp-asesor-rows').insertAdjacentHTML('beforeend',buildAsesorRow(null,Date.now()));}
 function saveEspAsesores(cotId,espNombre){
@@ -6366,6 +6376,7 @@ function saveEspAsesores(cotId,espNombre){
   document.querySelectorAll('#esp-asesor-rows [data-asesor]').forEach(function(row){
     var empresa=row.querySelector('[data-field="empresa"]').value.trim();if(!empresa)return;
     asesores.push({empresa,contacto:row.querySelector('[data-field="contacto"]').value.trim(),
+      costoUSD:row.querySelector('[data-field="costoUSD"]').value,
       costoMXN:row.querySelector('[data-field="costoMXN"]').value,
       cobradoMXN:row.querySelector('[data-field="cobradoMXN"]').value,
       elegido:row.querySelector('[data-field="elegido"]').checked});
