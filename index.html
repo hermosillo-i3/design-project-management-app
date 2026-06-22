@@ -6116,17 +6116,36 @@ function openNuevaCotizacion(projId){
 }
 function openNuevaVersion(projId){
   var cots=getCots();
-  var projCots=cots.filter(function(c){return String(c.projId)===String(projId);}).sort(function(a,b){return b.fecha.localeCompare(a.fecha);});
+  var projCots=cots.filter(function(c){return String(c.projId)===String(projId);}).sort(function(a,b){return (b.fecha||'').localeCompare(a.fecha||'');});
   if(!projCots.length){openNuevaCotizacion(projId);return;}
-  var base=projCots[0];
-  var vNum=projCots.length+1;
+  if(projCots.length===1){doNuevaVersion(projId,projCots[0].id);return;}
+  // Varias cotizaciones: dejar elegir cuál duplicar
+  document.getElementById('modal-body').innerHTML='<h3 style="margin-bottom:4px">Nueva versión</h3>'
+    +'<div style="font-size:11px;color:#67727a;margin-bottom:12px">¿Cuál cotización quieres duplicar como base?</div>'
+    +'<div style="display:flex;flex-direction:column;gap:8px">'
+    +projCots.map(function(c){
+      var tot=calcCotMetrics(c).grandTotal;
+      return '<button onclick="doNuevaVersion('+projId+',\''+c.id+'\')" style="text-align:left;padding:9px 12px;border:.5px solid #bfd1e5;border-radius:8px;background:#fff;cursor:pointer;font-family:Arial;display:flex;justify-content:space-between;align-items:center;gap:10px" onmouseover="this.style.background=\'#f0f5fa\'" onmouseout="this.style.background=\'#fff\'">'
+        +'<span style="font-size:12px;font-weight:700;color:#254467">'+c.nombre+(c.tipoCotizacion?' <span style="font-size:9px;font-weight:400;color:#6990ab">· '+c.tipoCotizacion+'</span>':'')+'<div style="font-size:9px;font-weight:400;color:#a8a8a8">'+fmtDY(c.fecha)+'</div></span>'
+        +'<span style="font-size:12px;font-weight:700;color:#3B6D11;white-space:nowrap">$'+Math.round(tot).toLocaleString('es-MX')+'</span>'
+        +'</button>';
+    }).join('')
+    +'</div>'
+    +'<div class="btn-row" style="margin-top:14px"><button class="btn" onclick="closeModal()">Cancelar</button></div>';
+  openModal();
+}
+function doNuevaVersion(projId,baseId){
+  var cots=getCots();
+  var base=cots.find(function(c){return String(c.id)===String(baseId);});
+  if(!base){openNuevaCotizacion(projId);return;}
+  var vNum=cots.filter(function(c){return String(c.projId)===String(projId);}).length+1;
   var allProjs=[...activeProjs(),...internos()];
   var clone=JSON.parse(JSON.stringify(base));
   clone.id='cot_'+Date.now();
   clone.nombre='Cotización V'+vNum;
   clone.fecha=todayStr;
   clone._baseId=base.id;
-  var cotsArr=getCots();cotsArr.push(clone);saveCots(cotsArr);
+  cots.push(clone);saveCots(cots);
   document.getElementById('modal-body').innerHTML=buildCotModal(clone,projId,allProjs,true);
   openModal();
 }
