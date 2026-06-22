@@ -1205,7 +1205,7 @@ function renderDashboard(){
   function _pptoTotalPC(p){
     var t=0;var ctrl=p.presupuestoControlCotId?_cotsPC.find(function(c){return String(c.id)===String(p.presupuestoControlCotId);}):null;
     if(ctrl)t+=calcCotMetrics(ctrl).grandTotal;
-    (p.extraordinarios||[]).forEach(function(a){if(a.cotId){var ac=_cotsPC.find(function(c){return String(c.id)===String(a.cotId);});if(ac)t+=calcCotMetrics(ac).grandTotal;}});
+    (p.extraordinarios||[]).forEach(function(a){if(a.cotId){var ac=_cotsPC.find(function(c){return String(c.id)===String(a.cotId);});if(ac)t+=calcCotMetrics(ac).grandTotal;}else{t+=parseFloat(a.monto)||0;}});
     return t;
   }
   function _cobradoEjecPC(p){var ce=p.costosEjec||{};var t=0;Object.keys(ce).forEach(function(k){(ce[k].cobros||[]).forEach(function(c){t+=parseFloat(c.monto)||0;});});return t;}
@@ -1836,8 +1836,11 @@ function renderCostos(){
     return c;
   });
   var _canceladoTot=_canceladoBloque.reduce(function(s,x){return s+x;},0);
+  // Adicionales de monto manual (sin cotización ligada)
+  var manualExtras=(selProj.extraordinarios||[]).filter(function(e){return !e.cotId;});
+  var manualTot=manualExtras.reduce(function(s,e){return s+(parseFloat(e.monto)||0);},0);
   var pptoControl=blocks[0].metrics.grandTotal-_canceladoBloque[0];
-  var totalPpto=blocks.reduce(function(s,b){return s+b.metrics.grandTotal;},0)-_canceladoTot;
+  var totalPpto=blocks.reduce(function(s,b){return s+b.metrics.grandTotal;},0)-_canceladoTot+manualTot;
   // Summary chips
   html+='<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:1.25rem">'
     +'<div style="background:#EEF2FF;border-radius:8px;padding:10px 16px;min-width:120px">'
@@ -1916,6 +1919,28 @@ function renderCostos(){
     });
   });
   });
+  // Adicionales / extraordinarios de monto manual (como renglones)
+  if(manualExtras.length){
+    html+='<tr><td colspan="7" style="padding:9px 12px;font-size:10px;font-weight:800;color:#e65a27;font-family:Arial;background:#fff7ef;border-top:1px solid #f3d6b8">➕ Adicionales / Extraordinarios (monto manual)</td></tr>';
+    manualExtras.forEach(function(e){
+      var myIdx=espIdx;var espKey='extra:'+e.id;window.__costosEspKeys[myIdx]=espKey;window.__costosEspCot[myIdx]=null;espIdx++;
+      var espData=(costosData[espKey])||{};
+      var cobros=espData.cobros||[];var pagos=espData.pagos||[];
+      var cobTotal=cobros.reduce(function(s,c){return s+(parseFloat(c.monto)||0);},0);
+      var pagTotal=pagos.reduce(function(s,pg){return s+(parseFloat(pg.monto)||0);},0);
+      var margen=cobTotal-pagTotal;var monto=parseFloat(e.monto)||0;
+      html+='<tr style="border-bottom:.5px solid #eef2f6">'
+        +'<td style="padding:7px 10px;font-size:11px;font-weight:600;color:#1a2a3a;font-family:Arial;vertical-align:top">'+(e.descripcion||'Adicional')+'<div style="font-size:8px;color:#a8a8a8;font-weight:400">'+(e.fecha?fmtD(e.fecha):'')+(e.responsable?' · '+e.responsable:'')+'</div></td>'
+        +'<td style="padding:7px 10px;font-size:10px;color:#a8a8a8;font-family:Arial;vertical-align:top">—</td>'
+        +'<td style="padding:7px 10px;text-align:right;font-size:11px;color:#67727a;font-family:Arial;vertical-align:top;white-space:nowrap">$'+fmt(monto)+'</td>'
+        +'<td style="padding:7px 10px;text-align:right;font-size:11px;color:#3a6080;font-family:Arial;vertical-align:top">—</td>'
+        +'<td style="padding:7px 10px;text-align:right;font-size:11px;font-weight:700;color:#254467;font-family:Arial;vertical-align:top;white-space:nowrap">$'+fmt(monto)+'</td>'
+        +'<td onclick="openCobPagModal('+selProj.id+','+myIdx+',\'cobro\')" title="Clic para registrar cobros" style="padding:7px 10px;text-align:right;white-space:nowrap;vertical-align:top;cursor:pointer"><div style="font-size:11px;font-weight:700;color:'+(cobTotal>0?'#3B6D11':'#cbd5e1')+';font-family:Arial">$'+fmt(cobTotal)+'</div>'+(cobTotal>0?'<div style="font-size:8px;color:'+(cobTotal>=monto?'#639922':'#e6a817')+';font-family:Arial">'+(cobTotal>=monto?'✓ completo':'falta $'+fmt(monto-cobTotal))+'</div>':'<div style="font-size:8px;color:#185FA5;font-family:Arial">+ registrar</div>')+'</td>'
+        +'<td onclick="openCobPagModal('+selProj.id+','+myIdx+',\'pago\')" title="Clic para registrar pagos" style="padding:7px 10px;text-align:right;white-space:nowrap;vertical-align:top;cursor:pointer"><div style="font-size:11px;font-weight:700;color:'+(pagTotal>0?'#e65a27':'#cbd5e1')+';font-family:Arial">$'+fmt(pagTotal)+'</div>'+(pagTotal>0?'<div style="font-size:8px;color:#a8a8a8;font-family:Arial">'+pagos.length+' reg.</div>':'<div style="font-size:8px;color:#185FA5;font-family:Arial">+ registrar</div>')+'</td>'
+        +'<td style="padding:7px 10px;text-align:right;font-weight:700;font-size:11px;font-family:Arial;vertical-align:top;color:'+(cobTotal>0||pagTotal>0?(margen>=0?'#3B6D11':'#e65a27'):'#cbd5e1')+'">'+(cobTotal>0||pagTotal>0?'$'+fmt(margen):'—')+'</td>'
+        +'</tr>';
+    });
+  }
   // Totals row
   html+='<tr style="background:#eef2f6;border-top:2px solid #d6dee8">'
     +'<td colspan="2" style="padding:11px 12px;font-size:11px;font-weight:800;color:#254467;font-family:Arial;text-transform:uppercase;letter-spacing:.04em">Total proyecto</td>'
@@ -1947,25 +1972,6 @@ function renderCostos(){
         +'<td style="text-align:right;font-weight:700;color:#3B6D11;white-space:nowrap">$'+fmt(e.total)+'</td>'
         +'<td style="white-space:nowrap;text-align:right"><button data-est="'+String(n).replace(/"/g,'&quot;')+'" onclick="openEstimacionModal('+selProj.id+',this.dataset.est)" style="background:#fff;border:.5px solid #6990ab;border-radius:5px;cursor:pointer;color:#6990ab;font-size:10px;padding:2px 8px;font-family:Arial;margin-right:5px">✏ Editar</button><button data-est="'+String(n).replace(/"/g,'&quot;')+'" onclick="deleteEstimacion('+selProj.id+',this.dataset.est)" style="background:#fff;border:.5px solid #FECACA;border-radius:5px;cursor:pointer;color:#e65a27;font-size:10px;padding:2px 8px;font-family:Arial" title="Eliminar estimación">✕</button></td>'
         +'</tr>';}).join('')
-      +'</tbody></table></div></div>';
-  }
-  // Extraordinarios manuales (sin cotización ligada; los ligados ya salen desglosados arriba)
-  var extras=(selProj.extraordinarios||[]).filter(function(e){return !e.cotId;});
-  if(extras.length>0){
-    var totalExtras=extras.reduce(function(s,e){return s+(parseFloat(e.monto)||0);},0);
-    html+='<div style="margin-top:1.5rem">'
-      +'<div style="font-size:11px;font-weight:800;color:#e65a27;margin-bottom:8px;font-family:Arial">➕ Otros adicionales (monto manual)</div>'
-      +'<div class="tbl-wrap"><table>'
-      +'<thead><tr style="background:#fff3e0"><th>Fecha</th><th>Descripción</th><th style="text-align:right">Monto</th><th>Responsable</th></tr></thead><tbody>'
-      +extras.map(function(e){return '<tr>'
-        +'<td style="font-size:10px;color:#67727a">'+fmtD(e.fecha)+'</td>'
-        +'<td style="font-size:11px;font-weight:600">'+e.descripcion+(e.cotId?'<span style="font-size:8px;background:#e0eaf2;color:#254467;border-radius:3px;padding:0 4px;margin-left:4px">📄 cotización</span>':'')+'</td>'
-        +'<td style="text-align:right;font-weight:700;color:#e65a27;white-space:nowrap">$'+fmt(e.monto||0)+'</td>'
-        +'<td style="font-size:10px;color:#67727a">'+(e.responsable||'—')+'</td></tr>';}).join('')
-      +'<tr style="background:#fff3e0">'
-      +'<td colspan="2" style="font-size:11px;font-weight:800;font-family:Arial">Total extraordinarios</td>'
-      +'<td style="text-align:right;font-weight:800;color:#e65a27;font-family:Arial">$'+fmt(totalExtras)+'</td>'
-      +'<td></td></tr>'
       +'</tbody></table></div></div>';
   }
   container.innerHTML=html;
@@ -2142,7 +2148,7 @@ function deleteCobPag(projId,espIdx,tipo,idx){
   if(modalOpen){openCobPagModal(projId,espIdx,tipo);}
 }
 
-function costoBareEsp(key){if(typeof key==='string'&&key.indexOf('adic:')===0){return key.split(':').slice(2).join(':');}return key;}
+function costoBareEsp(key){if(typeof key==='string'&&key.indexOf('extra:')===0)return 'Adicional';if(typeof key==='string'&&key.indexOf('adic:')===0){return key.split(':').slice(2).join(':');}return key;}
 function openAsesorEdit(projId,espIdx){
   var espKey=window.__costosEspKeys[espIdx];
   if(espKey===undefined)return;
