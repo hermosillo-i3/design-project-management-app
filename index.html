@@ -2234,7 +2234,7 @@ function openProyecto(id,isInterno){
     <div id="ptab-content-general">
     <div class="frow"><div class="fg"><label>Nombre</label><input id="pn" value="${p.nombre}"></div><div class="fg"><label>Cliente</label><input id="pc" value="${p.cliente||''}"></div></div>
     <div class="frow"><div class="fg"><label>Área / Zona</label><input id="parea" value="${p.areaProyecto||''}" placeholder="Ej: Monterrey, Zona Norte..."></div><div class="fg"><label>Ubicación</label><input id="pubicacion" value="${p.ubicacion||''}" placeholder="Ej: Av. Constitución 123"></div></div>
-    <div class="frow"><div class="fg"><label>m² de construcción</label><input id="parea_m2" type="number" value="${p.areaM2||''}" placeholder="ej: 20000"><div style="font-size:9px;color:#a8a8a8;margin-top:3px">Se liga a las cotizaciones de este proyecto (se edita solo aquí).</div></div><div class="fg"></div></div>
+    <div class="frow"><div class="fg"><label>m² de construcción</label><input id="parea_m2" type="number" value="${p.areaM2||''}" placeholder="ej: 20000"><div style="font-size:9px;color:#a8a8a8;margin-top:3px">Se liga a las cotizaciones de este proyecto (se edita solo aquí).</div></div><div class="fg"><label>m² de terreno</label><input id="parea_terreno" type="number" value="${p.areaTerreno||''}" placeholder="ej: 35000"></div></div>
     ${!isInt?`<div class="frow"><div class="fg"><label>Etapa</label><select id="pet">${['PRECON','EJECUTIVO','REVISIONES'].map(e=>`<option ${p.etapa===e?'selected':''}>${e}</option>`).join('')}</select></div><div class="fg"><label>Jefe de proyecto</label><select id="pjefe"><option value="">— Sin jefe —</option>${jefes.map(j=>`<option value="${j}" ${(p.jefe||"")===j?"selected":""}>${j}</option>`).join("")}</select></div><div class="fg"><label>Coordinador</label><select id="pco"><option value="">—</option>${coordOpts}</select></div></div>`:''}
     <div class="fg"><label>Equipo (personas involucradas)</label>
       <select onchange="addTag(this,'peq-tags','peq-data','person-pill')" style="font-size:11px;padding:5px 8px;border-radius:6px;border:.5px solid #bfd1e5;font-family:Arial"><option value="">+ Agregar persona...</option>${personOpts}</select>
@@ -2439,6 +2439,7 @@ function saveProyecto(id,isInt){
     bloqueadoPor:document.getElementById('pbl')?document.getElementById('pbl').value:'',
     areaProyecto:document.getElementById('parea')?document.getElementById('parea').value:'',
     areaM2:document.getElementById('parea_m2')?document.getElementById('parea_m2').value.trim():(id?(projects.find(x=>x.id===id).areaM2||''):''),
+    areaTerreno:document.getElementById('parea_terreno')?document.getElementById('parea_terreno').value.trim():(id?(projects.find(x=>x.id===id).areaTerreno||''):''),
     ubicacion:document.getElementById('pubicacion')?document.getElementById('pubicacion').value:'',
     estatusProy:document.getElementById('pep')?document.getElementById('pep').value:'',
     docs:{
@@ -2489,12 +2490,16 @@ function saveProyecto(id,isInt){
   }
   else projects.push(dat);
   sv(K.proj,projects);
-  // Ligar el m² del proyecto a sus cotizaciones (se edita solo en el proyecto)
-  if(dat.areaM2!==''&&dat.areaM2!=null){
+  // Ligar el m² (construcción y terreno) del proyecto a sus cotizaciones (se edita solo en el proyecto)
+  (function(){
     var _cots=getCots();var _ch=false;
-    _cots.forEach(function(c){if(String(c.projId)===String(dat.id)&&String(c.areaM2||'')!==String(dat.areaM2)){c.areaM2=dat.areaM2;_ch=true;}});
+    _cots.forEach(function(c){
+      if(String(c.projId)!==String(dat.id))return;
+      if(dat.areaM2!==''&&dat.areaM2!=null&&String(c.areaM2||'')!==String(dat.areaM2)){c.areaM2=dat.areaM2;_ch=true;}
+      if(dat.areaTerreno!==''&&dat.areaTerreno!=null&&String(c.areaTerreno||'')!==String(dat.areaTerreno)){c.areaTerreno=dat.areaTerreno;_ch=true;}
+    });
     if(_ch)sv(K.cot,_cots);
-  }
+  })();
   closeModal();renderAll();
 }
 
@@ -3783,7 +3788,9 @@ function renderCotTabla(el,cots,allProjs,filterProj,catCot){
       html+='<div style="padding:12px 14px;border-bottom:.5px solid #eef2f6">'
         +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">'
         +'<div style="font-size:12px;font-weight:700;color:#1A1A2E;flex:1">'+cot.nombre+' <span style="font-size:10px;font-weight:400;color:#a8a8a8">'+fmtDY(cot.fecha)+'</span></div>'
-        +(m2?'<span style="font-size:10px;color:#67727a">'+Number(m2).toLocaleString()+' m²</span>':'')
+        +(cot.tipoCotizacion?'<span style="font-size:10px;background:#eef3f7;color:#254467;border-radius:4px;padding:1px 7px;font-weight:700">'+cot.tipoCotizacion+'</span>':'')
+        +(m2?'<span style="font-size:10px;color:#67727a">'+Number(m2).toLocaleString()+' m² const.</span>':'')
+        +(cot.areaTerreno?'<span style="font-size:10px;color:#67727a">'+Number(cot.areaTerreno).toLocaleString()+' m² terreno</span>':'')
         +(cot.indEst?'<span style="font-size:10px;background:#f0f5fa;color:#3a6080;border-radius:4px;padding:1px 6px">Est: '+cot.indEst+'%</span>':'')
         +(cot.indDis?'<span style="font-size:10px;background:#eef3f7;color:#5B21B6;border-radius:4px;padding:1px 6px">Dis: '+cot.indDis+'%</span>':'')
         +'<button onclick="openEditCotizacion(\''+cot.id+'\')" style="font-size:10px;padding:2px 8px;border:.5px solid #bfd1e5;border-radius:5px;background:#fff;cursor:pointer;font-family:Arial">Editar</button>'
@@ -6211,12 +6218,16 @@ function buildCotModal(cot,preselProjId,allProjs,isVersion){
     espSection+='</div>';
   });
 
-  var _projM2Map={};allProjs.forEach(function(pp){_projM2Map[pp.id]=pp.areaM2||'';});
-  window.__projM2Map=_projM2Map;
+  var _projM2Map={};var _projTerrMap={};allProjs.forEach(function(pp){_projM2Map[pp.id]=pp.areaM2||'';_projTerrMap[pp.id]=pp.areaTerreno||'';});
+  window.__projM2Map=_projM2Map;window.__projTerrMap=_projTerrMap;
   var _selProjId=preselProjId||(cot?cot.projId:'');
   var _projM2=_projM2Map[_selProjId];
   var _m2Locked=!!(_projM2!==undefined&&_projM2!==''&&_projM2!=null);
   var _m2Val=_m2Locked?_projM2:(cot?cot.areaM2:'');
+  var _projTerr=_projTerrMap[_selProjId];
+  var _terrLocked=!!(_projTerr!==undefined&&_projTerr!==''&&_projTerr!=null);
+  var _terrVal=_terrLocked?_projTerr:(cot?cot.areaTerreno:'');
+  var _tiposCot=['Proyecto Ejecutivo','DDSet','Anteproyecto','Planos Para Permisos'];
   return '<input type="hidden" id="cot-base-id" value="'+(cot&&cot._baseId?cot._baseId:'')+'">'
     +'<input type="hidden" id="cot-clone-id" value="'+(isVersion&&cot?cot.id:'')+'">'
     +'<h3 style="margin-bottom:4px">'+(isVersion?'Nueva versión':cot&&!isVersion?'Editar':'Nueva')+' cotización</h3>'
@@ -6229,7 +6240,9 @@ function buildCotModal(cot,preselProjId,allProjs,isVersion){
     +'</select></div>'
     +'<div class="fg"><label>Nombre / versión</label><input id="cot-nombre" type="text" value="'+(cot?cot.nombre:'Cotización V1')+'" style="width:100%;font-family:Arial;font-size:12px;padding:6px 8px;border:.5px solid #bfd1e5;border-radius:6px"></div>'
     +'<div class="fg"><label>Fecha</label><input id="cot-fecha" type="date" value="'+(cot?cot.fecha:todayStr)+'" style="width:100%;font-family:Arial;font-size:12px;padding:6px 8px;border:.5px solid #bfd1e5;border-radius:6px"></div>'
+    +'<div class="fg"><label>Tipo de cotización</label><select id="cot-tipo-cot" style="width:100%;font-family:Arial;font-size:12px;padding:6px 8px;border:.5px solid #bfd1e5;border-radius:6px"><option value="">— Selecciona —</option>'+_tiposCot.map(function(t){return '<option'+((cot&&cot.tipoCotizacion===t)?' selected':'')+'>'+t+'</option>';}).join('')+'</select></div>'
     +'<div class="fg"><label>Área m² construcción</label><input id="cot-area" type="number" value="'+(_m2Val||'')+'"'+(_m2Locked?' readonly':'')+' placeholder="ej: 51000" style="width:100%;font-family:Arial;font-size:12px;padding:6px 8px;border:.5px solid #bfd1e5;border-radius:6px'+(_m2Locked?';background:#f0f5fa':'')+'"><div id="cot-area-note" style="font-size:9px;color:#6990ab;margin-top:3px;display:'+(_m2Locked?'block':'none')+'">Ligado al m² del proyecto (edítalo en Proyectos).</div></div>'
+    +'<div class="fg"><label>Área m² terreno</label><input id="cot-terreno" type="number" value="'+(_terrVal||'')+'"'+(_terrLocked?' readonly':'')+' placeholder="ej: 35000" style="width:100%;font-family:Arial;font-size:12px;padding:6px 8px;border:.5px solid #bfd1e5;border-radius:6px'+(_terrLocked?';background:#f0f5fa':'')+'"><div id="cot-terreno-note" style="font-size:9px;color:#6990ab;margin-top:3px;display:'+(_terrLocked?'block':'none')+'">Ligado al terreno del proyecto (edítalo en Proyectos).</div></div>'
     +'<div class="fg"><label>Tipo de cambio MXN/USD</label><input id="cot-tc" type="number" value="'+(cot?cot.tipoCambio:'18')+'" style="width:100%;font-family:Arial;font-size:12px;padding:6px 8px;border:.5px solid #bfd1e5;border-radius:6px"></div>'
     +'<div class="fg"><label>Indirecto base Est. Prel. %</label><input id="cot-ind-est" type="number" value="'+(cot?cot.indEst:'')+'" placeholder="ej: 15" style="width:100%;font-family:Arial;font-size:12px;padding:6px 8px;border:.5px solid #bfd1e5;border-radius:6px"></div>'
     +'<div class="fg"><label>Indirecto base Diseño %</label><input id="cot-ind-dis" type="number" value="'+(cot?cot.indDis:'')+'" placeholder="ej: 15" style="width:100%;font-family:Arial;font-size:12px;padding:6px 8px;border:.5px solid #bfd1e5;border-radius:6px"></div>'
@@ -6244,15 +6257,18 @@ function buildCotModal(cot,preselProjId,allProjs,isVersion){
 }
 
 function cotProjChange(){
-  var sel=document.getElementById('cot-proj');var area=document.getElementById('cot-area');var note=document.getElementById('cot-area-note');
-  if(!sel||!area)return;
-  var m2=(window.__projM2Map||{})[sel.value];
-  if(m2!==undefined&&m2!==''&&m2!=null){
-    area.value=m2;area.readOnly=true;area.style.background='#f0f5fa';
-    if(note)note.style.display='block';
-  }else{
-    area.readOnly=false;area.style.background='';
-    if(note)note.style.display='none';
+  var sel=document.getElementById('cot-proj');if(!sel)return;
+  var area=document.getElementById('cot-area');var note=document.getElementById('cot-area-note');
+  if(area){
+    var m2=(window.__projM2Map||{})[sel.value];
+    if(m2!==undefined&&m2!==''&&m2!=null){area.value=m2;area.readOnly=true;area.style.background='#f0f5fa';if(note)note.style.display='block';}
+    else{area.readOnly=false;area.style.background='';if(note)note.style.display='none';}
+  }
+  var ter=document.getElementById('cot-terreno');var tnote=document.getElementById('cot-terreno-note');
+  if(ter){
+    var t=(window.__projTerrMap||{})[sel.value];
+    if(t!==undefined&&t!==''&&t!=null){ter.value=t;ter.readOnly=true;ter.style.background='#f0f5fa';if(tnote)tnote.style.display='block';}
+    else{ter.readOnly=false;ter.style.background='';if(tnote)tnote.style.display='none';}
   }
 }
 function addProjOnlyEsp(grp){
@@ -6307,6 +6323,8 @@ function saveCotizacion(existingId,preselProjId){
   var prevCot=cots.find(function(c){return c.id===finalId;})||{};
   var newCot={id:finalId,projId:parseInt(projId),nombre:nombre,fecha:fecha,
     areaM2:document.getElementById('cot-area').value,
+    areaTerreno:document.getElementById('cot-terreno')?document.getElementById('cot-terreno').value:'',
+    tipoCotizacion:document.getElementById('cot-tipo-cot')?document.getElementById('cot-tipo-cot').value:'',
     tipoCambio:document.getElementById('cot-tc').value,
     indEst:document.getElementById('cot-ind-est').value,
     indDis:document.getElementById('cot-ind-dis').value,
