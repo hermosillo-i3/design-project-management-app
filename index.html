@@ -347,6 +347,10 @@ body.qas-env{padding-top:32px}
       </select>
       <span id="filtro-lbl" style="font-size:10px;color:#254467;font-weight:700"></span>
       <button class="btn btn-sm" id="btn-cf" style="display:none" onclick="clearFilter()">✕ Quitar filtro</button>
+      <span style="margin-left:auto;font-size:10px;color:#a8a8a8">Histórico:</span>
+      <button class="btn btn-sm" onclick="descargarFormatoProyectos()" style="border:.5px solid #6990ab;color:#6990ab;font-weight:700">⬇ Formato Excel</button>
+      <button class="btn btn-sm" onclick="triggerProjImport()" style="border:.5px solid #639922;color:#3B6D11;font-weight:700">📥 Importar CSV</button>
+      <input type="file" id="proj-import-input" accept=".csv" style="display:none" onchange="importProyectosCSV(this)">
     </div>
     <!-- Panel Concurso -->
     <div id="proj-panel-concurso">
@@ -1388,6 +1392,65 @@ function ultimaCotizacion(projId){
   var cs=getCots().filter(function(c){return String(c.projId)===String(projId);}).sort(function(a,b){return (b.fecha||'').localeCompare(a.fecha||'');});
   if(!cs.length)return null;
   var c=cs[0];return {total:calcCotMetrics(c).grandTotal,nombre:c.nombre,tipo:c.tipoCotizacion||'',fecha:c.fecha};
+}
+// ─── IMPORTACIÓN MASIVA DE PROYECTOS (histórico) ─────────────
+var PROJ_CSV_HEADERS=['Nombre','Cliente','Tipo','Etapa (PRECON/EJECUTIVO/REVISIONES)','Estatus (Ganado/Perdido/Cancelado/StandBy)','Coordinador','Jefe','Equipo (separar con ; )','Arranque (AAAA-MM-DD)','Ultima entrega (AAAA-MM-DD)','m2 construccion','m2 terreno','Avance %'];
+function _csvCell(c){var s=String(c==null?'':c);return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;}
+function descargarFormatoProyectos(){
+  var ejemplo=['CEDIS Ejemplo Norte','Cliente Ejemplo','Obra Nueva','EJECUTIVO','Ganado','Abril Gamboa','Juan Cruz','Nataly Jaramillo; Daniel Ramirez','2021-03-15','2021-09-30','25000','40000','100'];
+  var csv=[PROJ_CSV_HEADERS,ejemplo].map(function(r){return r.map(_csvCell).join(',');}).join('\n');
+  var blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'});
+  var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='Formato_Proyectos_Historicos.csv';a.click();URL.revokeObjectURL(a.href);
+}
+function triggerProjImport(){var el=document.getElementById('proj-import-input');if(el)el.click();}
+function _parseCSVRows(text){
+  text=text.replace(/^﻿/,'');
+  var rows=[],row=[],cur='',q=false;
+  for(var i=0;i<text.length;i++){var ch=text[i];
+    if(q){ if(ch==='"'){ if(text[i+1]==='"'){cur+='"';i++;} else q=false; } else cur+=ch; }
+    else { if(ch==='"')q=true; else if(ch===','){row.push(cur);cur='';} else if(ch==='\n'){row.push(cur);rows.push(row);row=[];cur='';} else if(ch!=='\r')cur+=ch; }
+  }
+  if(cur!==''||row.length){row.push(cur);rows.push(row);}
+  return rows;
+}
+function importProyectosCSV(input){
+  var file=input.files[0];if(!file)return;
+  var reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      var rows=_parseCSVRows(e.target.result).filter(function(r){return r.some(function(c){return (c||'').trim()!=='';});});
+      if(rows.length<2){alert('El archivo no tiene filas de datos. Descarga el formato y llénalo.');input.value='';return;}
+      var dataRows=/nombre/i.test((rows[0][0]||''))?rows.slice(1):rows;
+      var ETAPAS=['PRECON','EJECUTIVO','REVISIONES'];
+      var nuevos=0;
+      dataRows.forEach(function(r,idx){
+        var nombre=(r[0]||'').trim();if(!nombre)return;
+        var et=((r[3]||'').trim().toUpperCase());if(ETAPAS.indexOf(et)<0)et='EJECUTIVO';
+        var ult=(r[9]||'').trim();
+        projects.push({
+          id:Date.now()+idx,num:projects.length+1,interno:false,
+          nombre:nombre,cliente:(r[1]||'').trim(),tipo:(r[2]||'').trim(),
+          etapa:et,estatusProy:(r[4]||'').trim(),
+          coord:(r[5]||'').trim(),jefe:(r[6]||'').trim(),
+          equipo:(r[7]||'').split(';').map(function(x){return x.trim();}).filter(Boolean),
+          consultores:[],
+          arranque:(r[8]||'').trim(),
+          entregaV1:ult,entrega:ult,
+          areaM2:(r[10]||'').trim(),areaTerreno:(r[11]||'').trim(),
+          avance:(parseInt(r[12])||100),
+          estatus:'Completado',prioridad:'Baja',causa:'',sinCliente:0,
+          docs:{ckRev:'N/A',ckEnt:'N/A',lista:'N/A',prog:'N/A'},
+          bloqueadoPor:'',archivado:true,archivedAt:todayStr,ultimaActualizacion:todayStr
+        });
+        nuevos++;
+      });
+      sv(K.proj,projects);
+      alert('✓ Se importaron '+nuevos+' proyecto(s) como histórico (archivados).');
+      renderAll();if(typeof renderArchivo==='function')renderArchivo();
+    }catch(err){alert('Error al leer el archivo: '+err.message);}
+    input.value='';
+  };
+  reader.readAsText(file,'UTF-8');
 }
 // ─────────────────────────────────────────────────────────────
 function renderProyectos(){
