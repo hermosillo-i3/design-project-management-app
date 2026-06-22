@@ -6255,7 +6255,7 @@ function buildCotModal(cot,preselProjId,allProjs,isVersion){
     +'<div class="fg"><label>Proyecto</label>'
     +'<select id="cot-proj" onchange="cotProjChange()" '+(isVersion?'disabled':'')+' style="width:100%;font-family:Arial;font-size:12px;padding:6px 8px;border:.5px solid #bfd1e5;border-radius:6px">'
     +'<option value="">— Selecciona —</option>'
-    +allProjs.map(function(p){return '<option value="'+p.id+'"'+(String(p.id)===String(preselProjId||'')?' selected':'')+'>'+p.nombre+'</option>';}).join('')
+    +allProjs.slice().sort(function(a,b){return (a.nombre||'').localeCompare(b.nombre||'');}).map(function(p){return '<option value="'+p.id+'"'+(String(p.id)===String(preselProjId||'')?' selected':'')+'>'+p.nombre+'</option>';}).join('')
     +'</select></div>'
     +'<div class="fg"><label>Nombre / versión</label><input id="cot-nombre" type="text" value="'+(cot?cot.nombre:'Cotización V1')+'" style="width:100%;font-family:Arial;font-size:12px;padding:6px 8px;border:.5px solid #bfd1e5;border-radius:6px"></div>'
     +'<div class="fg"><label>Fecha</label><input id="cot-fecha" type="date" value="'+(cot?cot.fecha:todayStr)+'" style="width:100%;font-family:Arial;font-size:12px;padding:6px 8px;border:.5px solid #bfd1e5;border-radius:6px"></div>'
