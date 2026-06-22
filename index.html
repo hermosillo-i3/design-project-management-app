@@ -354,7 +354,7 @@ body.qas-env{padding-top:32px}
         <table>
           <thead><tr>
             <th>#</th><th>Hist.#</th><th>Proyecto</th><th>Etapa</th><th>Tipo</th><th>Cliente</th><th>Jefe</th><th>Coord.</th>
-            <th>Equipo</th><th>Consultor</th><th>Entrega V1</th><th>V2</th><th>V3</th>
+            <th>Equipo</th><th>Consultor</th><th>Últ. entrega</th><th style="color:#3B6D11">Últ. cotización</th>
             <th>Prioridad</th><th>Semáforo</th><th>% Avz</th><th>Estatus</th><th>Estatus Proy.</th><th>Últ. act.</th><th class="no-print"></th>
           </tr></thead>
           <tbody id="tbody-proj"></tbody>
@@ -1384,6 +1384,11 @@ function getCobradoTotal(p){
   return total;
 }
 
+function ultimaCotizacion(projId){
+  var cs=getCots().filter(function(c){return String(c.projId)===String(projId);}).sort(function(a,b){return (b.fecha||'').localeCompare(a.fecha||'');});
+  if(!cs.length)return null;
+  var c=cs[0];return {total:calcCotMetrics(c).grandTotal,nombre:c.nombre,tipo:c.tipoCotizacion||'',fecha:c.fecha};
+}
 // ─────────────────────────────────────────────────────────────
 function renderProyectos(){
   const tab=getProjSubTab();
@@ -1432,9 +1437,8 @@ function renderProyectos(){
         <td><span class="badge b-blue">${p.coord||'—'}</span></td>
         <td style="max-width:120px">${pills(p.equipo)}</td>
         <td>${consulBadges(p.consultores)}</td>
-        <td style="font-size:10px;white-space:nowrap">${fmtD(p.entregaV1||p.entrega||'')}</td>
-        <td style="font-size:10px;color:#67727a">${fmtD(p.entregaV2||'')}</td>
-        <td style="font-size:10px;color:#67727a">${fmtD(p.entregaV3||'')}</td>
+        <td style="font-size:10px;white-space:nowrap">${(function(){var e=p.entregaV4||p.entregaV3||p.entregaV2||p.entregaV1||p.entrega||'';return e?fmtD(e):'—';})()}</td>
+        <td style="font-size:10px;white-space:nowrap">${(function(){var uc=ultimaCotizacion(p.id);return uc?('<span style="font-weight:700;color:#3B6D11">$'+Math.round(uc.total).toLocaleString('es-MX')+'</span>'+(uc.tipo?'<div style="font-size:8px;color:#a8a8a8">'+uc.tipo+'</div>':'')):'<span style="color:#cbd5e1">—</span>';})()}</td>
         <td><select onchange="updatePrioridad(${p.id},this.value)" style="font-size:10px;padding:2px 4px;border-radius:4px;border:.5px solid ${p.prioridad==='Alta'?'#f5b89b':p.prioridad==='Media'?'#FDE68A':'#86EFAC'};background:${p.prioridad==='Alta'?'#FFF5F5':p.prioridad==='Media'?'#fff8f6':'#eaf3de'};color:${p.prioridad==='Alta'?'#991B1B':p.prioridad==='Media'?'#92400E':'#14532D'};font-family:Arial;cursor:pointer">
           ${['Alta','Media','Baja'].map(v=>`<option value="${v}" ${p.prioridad===v?'selected':''}>${v}</option>`).join('')}
         </select></td>
