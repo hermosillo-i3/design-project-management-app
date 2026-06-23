@@ -1576,8 +1576,11 @@ function openFirmarContrato(projId){
   const jefeOpts=jefes.map(j=>`<option value="${j}" ${(p.jefe||'')=== j?'selected':''}>${j}</option>`).join('');
   const personOpts=[...cat.personas].sort((a,b)=>a.nombre.localeCompare(b.nombre)).map(pe=>`<option value="${pe.nombre}">${pe.nombre} (${pe.rol})</option>`).join('');
   const eqArr=p.equipo||[];
+  const _tipoMapEjec={'PRE - Expansión':'EJEC - Expansión','PRE - Tenant Improvements':'EJEC - Tenant Improvements','PRE - Parque Industrial':'EJEC - Parque Industrial','PRE - Obra Nueva':'EJEC - Ejecución para obra','PRE - Obra Nueva con Diseño por Terceros':'EJEC - Ejecución Diseño'};
+  const tipoActual=eraPrecon?(_tipoMapEjec[p.tipo]||p.tipo||''):(p.tipo||'');
+  const tipoOpts=TIPOS.map(t=>`<option value="${t}" ${t===tipoActual?'selected':''}>${t}</option>`).join('');
   document.getElementById('modal-body').innerHTML=`
-    <h3 style="margin-bottom:4px">${yaFirmado?'✍ Contrato firmado':'✍ Firmar contrato'}</h3>
+    <h3 style="margin-bottom:4px">${yaFirmado?'✍ Contrato firmado':'✍ Firmar contrato'}</h3>`+`
     <div style="font-size:11px;color:#67727a;margin-bottom:16px">${p.nombre}</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
       <label style="font-size:11px;font-weight:700;color:#254467">Fecha de firma <span style="color:#e65a27">*</span>
@@ -1596,6 +1599,13 @@ function openFirmarContrato(projId){
         <input type="date" id="fc-fin-dis" value="${p.fechaFinDis||''}" style="display:block;width:100%;margin-top:4px;font-size:11px;padding:5px 8px;border:.5px solid #bfd1e5;border-radius:6px;font-family:Arial">
       </label>
     </div>
+    <label style="font-size:11px;font-weight:700;color:#254467;display:block;margin-bottom:14px">
+      Tipo de proyecto <span style="font-size:10px;font-weight:400;color:#67727a">${eraPrecon?'(sugerido el equivalente de ejecución; ajústalo si aplica)':''}</span>
+      <select id="fc-tipo" style="display:block;width:100%;margin-top:4px;font-size:11px;padding:5px 8px;border:.5px solid #bfd1e5;border-radius:6px;font-family:Arial">
+        <option value="">— Sin cambiar —</option>
+        ${tipoOpts}
+      </select>
+    </label>
     <label style="font-size:11px;font-weight:700;color:#254467;display:block;margin-bottom:14px">
       Presupuesto de Control <span style="font-size:10px;font-weight:400;color:#67727a">(cotización que queda congelada)</span>
       <select id="fc-cot" style="display:block;width:100%;margin-top:4px;font-size:11px;padding:5px 8px;border:.5px solid #bfd1e5;border-radius:6px;font-family:Arial">
@@ -1676,6 +1686,8 @@ function saveFirmarContrato(projId){
   if(nuevoJefe) p.jefe=nuevoJefe;
   if(nuevoCoord) p.coord=nuevoCoord;
   if(nuevoEq&&nuevoEq.length) p.equipo=nuevoEq;
+  const nuevoTipo=document.getElementById('fc-tipo')?document.getElementById('fc-tipo').value:'';
+  if(nuevoTipo) p.tipo=nuevoTipo;
   p.ultimaActualizacion=todayStr;
   sv(K.proj,projects);
   closeModal();
