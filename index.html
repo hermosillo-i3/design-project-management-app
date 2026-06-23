@@ -1394,10 +1394,17 @@ function ultimaCotizacion(projId){
   var c=cs[0];return {total:calcCotMetrics(c).grandTotal,nombre:c.nombre,tipo:c.tipoCotizacion||'',fecha:c.fecha};
 }
 // ─── IMPORTACIÓN MASIVA DE PROYECTOS (histórico) ─────────────
-var PROJ_CSV_HEADERS=['Nombre','Cliente','Tipo','Etapa (PRECON/EJECUTIVO/REVISIONES)','Estatus (Ganado/Perdido/Cancelado/StandBy)','Coordinador','Jefe','Equipo (separar con ; )','Arranque (AAAA-MM-DD)','Ultima entrega (AAAA-MM-DD)','m2 construccion','m2 terreno','Avance %'];
+var PROJ_CSV_HEADERS=['Nombre','Cliente','Area / Zona','Ubicacion','Tipo','Etapa (PRECON/EJECUTIVO/REVISIONES)','Estatus (Ganado/Perdido/Cancelado/StandBy)','Coordinador','Jefe','Equipo (separar con ; )','Arranque (AAAA-MM-DD)','Ultima entrega (AAAA-MM-DD)','m2 construccion','m2 terreno','Avance %'];
 function _csvCell(c){var s=String(c==null?'':c);return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;}
+function _normFecha(s){
+  s=(s||'').trim();if(!s)return '';
+  if(/^\d{4}-\d{1,2}-\d{1,2}/.test(s)){var p=s.slice(0,10).split('-');return p[0]+'-'+('0'+p[1]).slice(-2)+'-'+('0'+p[2]).slice(-2);}
+  var m=s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);
+  if(m){var d=m[1],mo=m[2],y=m[3];if(y.length===2)y='20'+y;return y+'-'+('0'+mo).slice(-2)+'-'+('0'+d).slice(-2);}
+  return s;
+}
 function descargarFormatoProyectos(){
-  var ejemplo=['CEDIS Ejemplo Norte','Cliente Ejemplo','Obra Nueva','EJECUTIVO','Ganado','Abril Gamboa','Juan Cruz','Nataly Jaramillo; Daniel Ramirez','2021-03-15','2021-09-30','25000','40000','100'];
+  var ejemplo=['CEDIS Ejemplo Norte','Cliente Ejemplo','Monterrey, Zona Norte','Av. Ejemplo 123','Obra Nueva','EJECUTIVO','Ganado','Abril Gamboa','Juan Cruz','Nataly Jaramillo; Daniel Ramirez','2021-03-15','2021-09-30','25000','40000','100'];
   var csv=[PROJ_CSV_HEADERS,ejemplo].map(function(r){return r.map(_csvCell).join(',');}).join('\n');
   var blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'});
   var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='Formato_Proyectos_Historicos.csv';a.click();URL.revokeObjectURL(a.href);
@@ -1425,19 +1432,21 @@ function importProyectosCSV(input){
       var nuevos=0;
       dataRows.forEach(function(r,idx){
         var nombre=(r[0]||'').trim();if(!nombre)return;
-        var et=((r[3]||'').trim().toUpperCase());if(ETAPAS.indexOf(et)<0)et='EJECUTIVO';
-        var ult=(r[9]||'').trim();
+        var et=((r[5]||'').trim().toUpperCase());if(ETAPAS.indexOf(et)<0)et='EJECUTIVO';
+        var ult=_normFecha(r[11]);
         projects.push({
           id:Date.now()+idx,num:projects.length+1,interno:false,
-          nombre:nombre,cliente:(r[1]||'').trim(),tipo:(r[2]||'').trim(),
-          etapa:et,estatusProy:(r[4]||'').trim(),
-          coord:(r[5]||'').trim(),jefe:(r[6]||'').trim(),
-          equipo:(r[7]||'').split(';').map(function(x){return x.trim();}).filter(Boolean),
+          nombre:nombre,cliente:(r[1]||'').trim(),
+          areaProyecto:(r[2]||'').trim(),ubicacion:(r[3]||'').trim(),
+          tipo:(r[4]||'').trim(),
+          etapa:et,estatusProy:(r[6]||'').trim(),
+          coord:(r[7]||'').trim(),jefe:(r[8]||'').trim(),
+          equipo:(r[9]||'').split(';').map(function(x){return x.trim();}).filter(Boolean),
           consultores:[],
-          arranque:(r[8]||'').trim(),
+          arranque:_normFecha(r[10]),
           entregaV1:ult,entrega:ult,
-          areaM2:(r[10]||'').trim(),areaTerreno:(r[11]||'').trim(),
-          avance:(parseInt(r[12])||100),
+          areaM2:(r[12]||'').trim(),areaTerreno:(r[13]||'').trim(),
+          avance:(parseInt(r[14])||100),
           estatus:'Completado',prioridad:'Baja',causa:'',sinCliente:0,
           docs:{ckRev:'N/A',ckEnt:'N/A',lista:'N/A',prog:'N/A'},
           bloqueadoPor:'',archivado:true,archivedAt:todayStr,ultimaActualizacion:todayStr
