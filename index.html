@@ -6056,9 +6056,12 @@ function toggleHistManual(projId){
   renderCotizaciones();
 }
 
-function getAsesoresExistentes(){
+function getAsesoresExistentes(espNombre){
   var seen={},out=[];
-  getCots().forEach(function(c){(c.especialidades||[]).forEach(function(e){(e.asesores||[]).forEach(function(a){if(a&&a.empresa&&a.empresa.trim()){var n=a.empresa.trim();var k=n.toLowerCase();if(!seen[k]){seen[k]=1;out.push(n);}}});});});
+  getCots().forEach(function(c){(c.especialidades||[]).forEach(function(e){
+    if(espNombre&&e.nombre!==espNombre)return;
+    (e.asesores||[]).forEach(function(a){if(a&&a.empresa&&a.empresa.trim()){var n=a.empresa.trim();var k=n.toLowerCase();if(!seen[k]){seen[k]=1;out.push(n);}}});
+  });});
   return out.sort(function(a,b){return a.localeCompare(b);});
 }
 function renderCotAsesores2(el,cots,allProjs,catCot){
@@ -6520,7 +6523,7 @@ function openEspModal(cotId,espNombre){
   var _tc=parseFloat(cot.tipoCambio)||18;window.__espTC=_tc;
   var rows=asesores.map(function(a,i){return buildAsesorRow(a,i);}).join('');
   if(!rows)rows=buildAsesorRow(null,0);
-  var _aseDL='<datalist id="asesores-dl">'+getAsesoresExistentes().map(function(n){return '<option value="'+n.replace(/"/g,'&quot;')+'">';}).join('')+'</datalist>';
+  var _aseDL='<datalist id="asesores-dl">'+getAsesoresExistentes(espNombre).map(function(n){return '<option value="'+n.replace(/"/g,'&quot;')+'">';}).join('')+'</datalist>';
   document.getElementById('modal-body').innerHTML=_aseDL+'<h3 style="margin-bottom:4px">'+espNombre+'</h3>'
     +'<div style="font-size:11px;color:#67727a;margin-bottom:4px">'+cot.nombre+(cot.areaM2?' — '+Number(cot.areaM2).toLocaleString()+' m²':'')+' · T.C. $'+_tc+'</div>'
     +'<div style="font-size:9px;color:#a8a8a8;margin-bottom:10px">Tip: si tu costo viene en USD, escríbelo en "Cotizado USD" y el MXN se calcula solo (USD × T.C.).</div>'
