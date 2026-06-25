@@ -6087,7 +6087,8 @@ function _renderGestionAsesores(){
     +'<button class="btn btn-primary" onclick="saveAsesorCat()">'+(ed?'Guardar cambios':'+ Agregar asesor')+'</button>'
     +(ed?' <button class="btn" onclick="window.__aseEditId=\'\';window.__aseEsps=[];_renderGestionAsesores()">Cancelar edición</button>':'')
     +'</div>'
-    +'<div style="font-size:11px;font-weight:700;color:#254467;margin-bottom:6px">Asesores registrados ('+list.length+')</div>'
+    +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap"><span style="font-size:11px;font-weight:700;color:#254467">Asesores registrados ('+list.length+')</span>'
+    +'<button class="btn" onclick="importAsesoresUsados()" style="font-size:10px;padding:3px 9px">⤵ Importar los que ya he usado</button></div>'
     +(list.length?'<div style="display:flex;flex-direction:column;gap:6px;max-height:280px;overflow-y:auto">'+list.slice().sort(function(a,b){return String(a.empresa||'').localeCompare(String(b.empresa||''));}).map(function(a){
         return '<div style="border:.5px solid #eef2f6;border-radius:7px;padding:7px 10px;display:flex;align-items:flex-start;gap:8px">'
           +'<div style="flex:1;min-width:0"><div style="font-size:11px;font-weight:700;color:#254467">'+a.empresa+'</div>'
@@ -6110,6 +6111,34 @@ function saveAsesorCat(){
 }
 function editAsesorCat(id){var a=getAseCat().find(function(x){return String(x.id)===String(id);});if(!a)return;window.__aseEditId=id;window.__aseEsps=(a.especialidades||[]).slice();_renderGestionAsesores();}
 function deleteAsesorCat(id){if(!confirm('¿Eliminar este asesor del catálogo?'))return;cat.asesores=(cat.asesores||[]).filter(function(a){return String(a.id)!==String(id);});sv(K.cat,cat);if(String(window.__aseEditId)===String(id)){window.__aseEditId='';window.__aseEsps=[];}_renderGestionAsesores();}
+function importAsesoresUsados(){
+  if(!cat.asesores)cat.asesores=[];
+  var existentes={};cat.asesores.forEach(function(a){var k=(a.empresa||'').trim().toLowerCase();if(k)existentes[k]=a;});
+  var found={};
+  getCots().forEach(function(c){(c.especialidades||[]).forEach(function(e){
+    (e.asesores||[]).forEach(function(a){
+      if(!a||!a.empresa||!a.empresa.trim())return;
+      var nombre=a.empresa.trim();var k=nombre.toLowerCase();
+      if(!found[k])found[k]={empresa:nombre,esps:{}};
+      if(e.nombre)found[k].esps[e.nombre]=1;
+    });
+  });});
+  var nuevos=0,actualizados=0;
+  Object.keys(found).forEach(function(k){
+    var f=found[k];var esps=Object.keys(f.esps);
+    if(existentes[k]){
+      var a=existentes[k];if(!a.especialidades)a.especialidades=[];var add=0;
+      esps.forEach(function(es){if(a.especialidades.indexOf(es)<0){a.especialidades.push(es);add++;}});
+      if(add)actualizados++;
+    }else{
+      cat.asesores.push({id:'ase_'+Date.now()+'_'+Math.floor(Math.random()*1000),empresa:f.empresa,telefono:'',correo:'',especialidades:esps});
+      nuevos++;
+    }
+  });
+  sv(K.cat,cat);
+  _renderGestionAsesores();
+  alert('Importación lista:\n• '+nuevos+' asesor(es) nuevo(s) agregado(s)\n• '+actualizados+' actualizado(s) con nuevas especialidades\n\nAhora puedes agregarles teléfono y correo con el botón ✏.');
+}
 function getAsesoresExistentes(espNombre){
   var seen={},out=[];
   function add(n){if(n&&n.trim()){var t=n.trim();var k=t.toLowerCase();if(!seen[k]){seen[k]=1;out.push(t);}}}
