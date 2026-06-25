@@ -3844,7 +3844,7 @@ function renderCotizaciones(){
   // Pasar allProjsAll para que los proyectos archivados/perdidos también resuelvan su nombre
   if(view==='tabla') renderCotTabla(el,cots,allProjsAll,filterProj,catCot);
   else if(view==='historico') renderCotHistorico(el,cots,allProjsAll,catCot);
-  else renderCotAsesores(el,cots,allProjsAll,catCot);
+  else renderCotAsesores2(el,cots,allProjsAll,catCot);
 }
 
 // ─── VISTA TABLA ─────────────────────────────────────────────
@@ -6056,6 +6056,66 @@ function toggleHistManual(projId){
   renderCotizaciones();
 }
 
+function getAsesoresExistentes(){
+  var seen={},out=[];
+  getCots().forEach(function(c){(c.especialidades||[]).forEach(function(e){(e.asesores||[]).forEach(function(a){if(a&&a.empresa&&a.empresa.trim()){var n=a.empresa.trim();var k=n.toLowerCase();if(!seen[k]){seen[k]=1;out.push(n);}}});});});
+  return out.sort(function(a,b){return a.localeCompare(b);});
+}
+function renderCotAsesores2(el,cots,allProjs,catCot){
+  var espFiltro=ld('gh_cot_asesor_esp','');
+  var espMap={};
+  cots.forEach(function(cot){
+    var proj=allProjs.find(function(p){return String(p.id)===String(cot.projId);});
+    (cot.especialidades||[]).forEach(function(esp){
+      if(espFiltro&&esp.nombre!==espFiltro)return;
+      if(!espMap[esp.nombre])espMap[esp.nombre]={};
+      var am=espMap[esp.nombre];
+      (esp.asesores||[]).forEach(function(a){
+        if(!a.empresa||!a.empresa.trim())return;
+        var norm=a.empresa.trim().toLowerCase();
+        if(!am[norm])am[norm]={empresa:a.empresa.trim(),contacto:a.contacto||'',items:[],elegidoCount:0};
+        if(a.contacto&&!am[norm].contacto)am[norm].contacto=a.contacto;
+        var mxn=parseFloat(a.costoMXN)||0;
+        am[norm].items.push({proj:proj?proj.nombre:'—',fecha:cot.fecha||'',mxn:mxn,elegido:!!a.elegido});
+        if(a.elegido)am[norm].elegidoCount++;
+      });
+    });
+  });
+  var espNames=Object.keys(espMap).sort(function(a,b){return a.localeCompare(b);});
+  var espOptions=Object.entries(catCot).map(function(e){var g=e[0],v=e[1];var esps=[...v.base,...v.extras].sort();return '<optgroup label="'+g+'">'+esps.map(function(x){return '<option value="'+x+'"'+(espFiltro===x?' selected':'')+'>'+x+'</option>';}).join('')+'</optgroup>';}).join('');
+  var html='<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center">'
+    +'<select onchange="sv(\'gh_cot_asesor_esp\',this.value);renderCotizaciones()" style="font-size:11px;padding:5px 8px;border-radius:6px;border:.5px solid #bfd1e5;font-family:Arial">'
+    +'<option value="">Todas las especialidades</option>'+espOptions+'</select>'
+    +'<span style="font-size:11px;color:#a8a8a8">'+espNames.length+' especialidad(es)</span></div>';
+  if(!espNames.length){el.innerHTML+=html+'<div style="text-align:center;padding:3rem;color:#a8a8a8;font-size:13px">Sin datos de asesores aún.</div>';return;}
+  espNames.forEach(function(en){
+    var am=espMap[en];
+    var aseList=Object.keys(am).map(function(k){
+      var e=am[k];
+      var conMonto=e.items.filter(function(x){return x.mxn>0;});
+      var avg=conMonto.length?Math.round(conMonto.reduce(function(s,x){return s+x.mxn;},0)/conMonto.length):0;
+      var sorted=e.items.slice().sort(function(x,y){return (y.fecha||'').localeCompare(x.fecha||'');});
+      var last=sorted.length?sorted[0].mxn:0;
+      return {empresa:e.empresa,contacto:e.contacto,eleg:e.elegidoCount,avg:avg,last:last,items:sorted};
+    }).sort(function(a,b){return b.eleg-a.eleg||a.avg-b.avg;});
+    html+='<div style="margin-bottom:18px"><div style="font-size:11px;font-weight:800;color:#254467;text-transform:uppercase;letter-spacing:.05em;padding:6px 0;border-bottom:1.5px solid #254467;margin-bottom:8px">'+en+' <span style="font-weight:400;color:#a8a8a8">· '+aseList.length+' opción(es)</span></div>';
+    aseList.forEach(function(a){
+      html+='<div style="border:.5px solid #bfd1e5;border-radius:8px;padding:8px 12px;margin-bottom:6px">'
+        +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
+        +'<span style="font-size:12px;font-weight:700;color:#254467">'+a.empresa+'</span>'
+        +(a.contacto?'<span style="font-size:10px;color:#a8a8a8">'+a.contacto+'</span>':'')
+        +(a.eleg>0?'<span style="font-size:9px;font-weight:700;background:#eaf3de;color:#3B6D11;border-radius:10px;padding:1px 7px">★ elegido '+a.eleg+'</span>':'')
+        +'<span style="margin-left:auto;font-size:11px;color:#67727a">Prom: <strong style="color:#254467">$'+a.avg.toLocaleString('es-MX')+'</strong></span>'
+        +'<span style="font-size:11px;color:#67727a">Último: <strong style="color:#254467">$'+a.last.toLocaleString('es-MX')+'</strong></span>'
+        +'</div>'
+        +'<div style="margin-top:5px;display:flex;flex-direction:column;gap:2px">'
+        +a.items.map(function(it){return '<div style="display:flex;gap:8px;align-items:center;font-size:10px;color:#67727a">'+(it.elegido?'<span style="color:#3B6D11">★</span>':'<span style="color:#dfe4ea">•</span>')+'<span style="flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+it.proj+'</span><span style="color:#a8a8a8;flex-shrink:0">'+(it.fecha?fmtDY(it.fecha):'')+'</span><span style="font-weight:700;color:#254467;white-space:nowrap;flex-shrink:0">$'+(it.mxn||0).toLocaleString('es-MX')+'</span></div>';}).join('')
+        +'</div></div>';
+    });
+    html+='</div>';
+  });
+  el.innerHTML+=html;
+}
 function renderCotAsesores(el,cots,allProjs,catCot){
   var espFiltro=ld('gh_cot_asesor_esp','');
   var sortBy=ld('gh_cot_asesor_sort','elegido');
@@ -6460,7 +6520,8 @@ function openEspModal(cotId,espNombre){
   var _tc=parseFloat(cot.tipoCambio)||18;window.__espTC=_tc;
   var rows=asesores.map(function(a,i){return buildAsesorRow(a,i);}).join('');
   if(!rows)rows=buildAsesorRow(null,0);
-  document.getElementById('modal-body').innerHTML='<h3 style="margin-bottom:4px">'+espNombre+'</h3>'
+  var _aseDL='<datalist id="asesores-dl">'+getAsesoresExistentes().map(function(n){return '<option value="'+n.replace(/"/g,'&quot;')+'">';}).join('')+'</datalist>';
+  document.getElementById('modal-body').innerHTML=_aseDL+'<h3 style="margin-bottom:4px">'+espNombre+'</h3>'
     +'<div style="font-size:11px;color:#67727a;margin-bottom:4px">'+cot.nombre+(cot.areaM2?' — '+Number(cot.areaM2).toLocaleString()+' m²':'')+' · T.C. $'+_tc+'</div>'
     +'<div style="font-size:9px;color:#a8a8a8;margin-bottom:10px">Tip: si tu costo viene en USD, escríbelo en "Cotizado USD" y el MXN se calcula solo (USD × T.C.).</div>'
     +'<div style="display:grid;grid-template-columns:1.3fr 1.1fr 1fr 1fr 1fr auto;gap:5px;align-items:center;margin-bottom:5px">'
@@ -6483,7 +6544,7 @@ function openEspModal(cotId,espNombre){
 }
 function buildAsesorRow(a,i){
   return '<div style="display:grid;grid-template-columns:1.3fr 1.1fr 1fr 1fr 1fr auto;gap:5px;align-items:center;margin-bottom:5px" data-asesor>'
-    +'<input type="text" placeholder="Empresa" value="'+(a?a.empresa:'')+'" data-field="empresa" style="font-size:11px;padding:4px 7px;border:.5px solid #bfd1e5;border-radius:5px;font-family:Arial">'
+    +'<input type="text" placeholder="Empresa" list="asesores-dl" value="'+(a?a.empresa:'')+'" data-field="empresa" style="font-size:11px;padding:4px 7px;border:.5px solid #bfd1e5;border-radius:5px;font-family:Arial">'
     +'<input type="text" placeholder="Contacto" value="'+(a?a.contacto:'')+'" data-field="contacto" style="font-size:11px;padding:4px 7px;border:.5px solid #bfd1e5;border-radius:5px;font-family:Arial">'
     +'<input type="number" placeholder="$ USD" value="'+(a&&a.costoUSD?a.costoUSD:'')+'" data-field="costoUSD" oninput="asesorUSD(this)" title="Costo en USD (× T.C. = MXN)" style="font-size:11px;padding:4px 7px;border:.5px solid #c3d9ec;border-radius:5px;font-family:Arial;text-align:right;background:#f7fbff">'
     +'<input type="number" placeholder="$ cotizado" value="'+(a?a.costoMXN:'')+'" data-field="costoMXN" style="font-size:11px;padding:4px 7px;border:.5px solid #bfd1e5;border-radius:5px;font-family:Arial;text-align:right">'
