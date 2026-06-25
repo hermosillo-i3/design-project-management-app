@@ -6087,6 +6087,17 @@ function _renderGestionAsesores(){
     +'<button class="btn btn-primary" onclick="saveAsesorCat()">'+(ed?'Guardar cambios':'+ Agregar asesor')+'</button>'
     +(ed?' <button class="btn" onclick="window.__aseEditId=\'\';window.__aseEsps=[];_renderGestionAsesores()">Cancelar edición</button>':'')
     +'</div>'
+    +(function(){var all=getAsesoresExistentes('');if(all.length<2)return '';var opts=all.map(function(n){return '<option value="'+esc(n)+'">'+esc(n)+'</option>';}).join('');
+      return '<div style="background:#fff8f3;border:.5px solid #f3d6c2;border-radius:8px;padding:12px;margin-bottom:14px">'
+      +'<div style="font-size:11px;font-weight:700;color:#254467;margin-bottom:4px">🔗 Fusionar duplicados</div>'
+      +'<div style="font-size:10px;color:#67727a;margin-bottom:8px">¿El mismo asesor quedó con nombres distintos (ej. <em>UEN Diseño</em> y <em>UEN DISEÑO</em>)? Únelos: se reemplaza en todas las cotizaciones y costos.</div>'
+      +'<div style="display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center">'
+      +'<select id="ase-merge-from" style="font-size:11px;padding:5px 8px;border:.5px solid #bfd1e5;border-radius:5px;font-family:Arial"><option value="">Nombre duplicado...</option>'+opts+'</select>'
+      +'<span style="font-size:14px;color:#a8a8a8">→</span>'
+      +'<select id="ase-merge-to" style="font-size:11px;padding:5px 8px;border:.5px solid #bfd1e5;border-radius:5px;font-family:Arial"><option value="">Nombre correcto (se queda)...</option>'+opts+'</select>'
+      +'</div>'
+      +'<button class="btn btn-primary" onclick="mergeAsesores()" style="margin-top:8px;font-size:11px">Fusionar</button>'
+      +'</div>';})()
     +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap"><span style="font-size:11px;font-weight:700;color:#254467">Asesores registrados ('+list.length+')</span>'
     +'<button class="btn" onclick="importAsesoresUsados()" style="font-size:10px;padding:3px 9px">⤵ Importar los que ya he usado</button></div>'
     +(list.length?'<div style="display:flex;flex-direction:column;gap:6px;max-height:280px;overflow-y:auto">'+list.slice().sort(function(a,b){return String(a.empresa||'').localeCompare(String(b.empresa||''));}).map(function(a){
@@ -6111,6 +6122,44 @@ function saveAsesorCat(){
 }
 function editAsesorCat(id){var a=getAseCat().find(function(x){return String(x.id)===String(id);});if(!a)return;window.__aseEditId=id;window.__aseEsps=(a.especialidades||[]).slice();_renderGestionAsesores();}
 function deleteAsesorCat(id){if(!confirm('¿Eliminar este asesor del catálogo?'))return;cat.asesores=(cat.asesores||[]).filter(function(a){return String(a.id)!==String(id);});sv(K.cat,cat);if(String(window.__aseEditId)===String(id)){window.__aseEditId='';window.__aseEsps=[];}_renderGestionAsesores();}
+function mergeAsesores(){
+  var from=(document.getElementById('ase-merge-from').value||'').trim();
+  var to=(document.getElementById('ase-merge-to').value||'').trim();
+  if(!from||!to){alert('Elige el nombre duplicado y el nombre correcto.');return;}
+  if(from.toLowerCase()===to.toLowerCase()){alert('Son el mismo nombre. Elige dos distintos.');return;}
+  if(!confirm('Se reemplazará "'+from+'" por "'+to+'" en todas las cotizaciones y costos. ¿Continuar?'))return;
+  var fl=from.toLowerCase();var cambios=0;
+  // 1) Cotizaciones
+  var cots=getCots();
+  cots.forEach(function(c){(c.especialidades||[]).forEach(function(e){(e.asesores||[]).forEach(function(a){
+    if(a&&a.empresa&&a.empresa.trim().toLowerCase()===fl){a.empresa=to;cambios++;}
+  });});});
+  saveCots(cots);
+  // 2) Costos (asesor por alcance)
+  (projects||[]).forEach(function(p){if(!p.costosEjec)return;Object.keys(p.costosEjec).forEach(function(k){
+    var ce=p.costosEjec[k];if(ce&&ce.asesor&&String(ce.asesor).trim().toLowerCase()===fl){ce.asesor=to;cambios++;}
+  });});
+  sv(K.proj,projects);
+  // 3) Catalogo: fusionar entradas
+  if(!cat.asesores)cat.asesores=[];
+  var tl=to.toLowerCase();
+  var fromIdx=cat.asesores.findIndex(function(a){return (a.empresa||'').trim().toLowerCase()===fl;});
+  var toEntry=cat.asesores.find(function(a){return (a.empresa||'').trim().toLowerCase()===tl;});
+  if(fromIdx>=0){
+    var fromEntry=cat.asesores[fromIdx];
+    if(toEntry){
+      if(!toEntry.especialidades)toEntry.especialidades=[];
+      (fromEntry.especialidades||[]).forEach(function(es){if(toEntry.especialidades.indexOf(es)<0)toEntry.especialidades.push(es);});
+      if(!toEntry.telefono&&fromEntry.telefono)toEntry.telefono=fromEntry.telefono;
+      if(!toEntry.correo&&fromEntry.correo)toEntry.correo=fromEntry.correo;
+      cat.asesores.splice(fromIdx,1);
+    }else{fromEntry.empresa=to;}
+  }
+  sv(K.cat,cat);
+  _renderGestionAsesores();
+  renderCotizaciones();
+  alert('Listo: "'+from+'" se fusionó con "'+to+'" ('+cambios+' registro(s) actualizado(s)).');
+}
 function importAsesoresUsados(){
   if(!cat.asesores)cat.asesores=[];
   var existentes={};cat.asesores.forEach(function(a){var k=(a.empresa||'').trim().toLowerCase();if(k)existentes[k]=a;});
