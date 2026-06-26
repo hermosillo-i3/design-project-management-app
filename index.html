@@ -6066,15 +6066,16 @@ function _aseEspChips(){
 }
 function aseEspAdd(sel){var v=sel.value;if(!v)return;if(!window.__aseEsps)window.__aseEsps=[];if(window.__aseEsps.indexOf(v)<0)window.__aseEsps.push(v);sel.value='';var el=document.getElementById('ase-esp-chips');if(el)el.innerHTML=_aseEspChips();}
 function aseEspRemove(i){if(window.__aseEsps)window.__aseEsps.splice(i,1);var el=document.getElementById('ase-esp-chips');if(el)el.innerHTML=_aseEspChips();}
-function openGestionAsesores(){window.__aseEditId='';window.__aseEsps=[];window.__aseContactos=[];_renderGestionAsesores();openModal();var m=document.querySelector('.modal');if(m)m.classList.add('wide');}
+function openGestionAsesores(){window.__aseEditId='';window.__aseEsps=[];window.__aseContactos=[];window.__aseFormOpen=false;window.__aseMergeOpen=false;window.__aseSearch='';_renderGestionAsesores();openModal();var m=document.querySelector('.modal');if(m)m.classList.add('wide');}
 function _renderGestionAsesores(){
   var list=getAseCat();
   var ed=list.find(function(a){return String(a.id)===String(window.__aseEditId||'');})||null;
+  var formOpen=!!ed||!!window.__aseFormOpen;
+  var mergeOpen=!!window.__aseMergeOpen;
+  var q=(window.__aseSearch||'').trim().toLowerCase();
   var esc=function(s){return String(s==null?'':s).replace(/"/g,'&quot;');};
-  document.getElementById('modal-body').innerHTML=
-    '<h3 style="margin-bottom:4px">👤 Catálogo de asesores</h3>'
-    +'<div style="font-size:11px;color:#67727a;margin-bottom:12px">Da de alta tus asesores con su contacto y las ingenierías que cubren. Aparecerán al cotizar (filtrados por especialidad).</div>'
-    +'<div style="background:#f8fafc;border:.5px solid #bfd1e5;border-radius:8px;padding:12px;margin-bottom:14px">'
+  // --- Formulario alta/edición (oculto por defecto) ---
+  var form=!formOpen?'':'<div style="background:#f8fafc;border:.5px solid #bfd1e5;border-radius:8px;padding:12px;margin-bottom:14px">'
     +'<div style="font-size:11px;font-weight:700;color:#254467;margin-bottom:8px">'+(ed?'✏ Editar asesor':'+ Nuevo asesor')+'</div>'
     +'<input id="ase-empresa" placeholder="Nombre del asesor / empresa" value="'+(ed?esc(ed.empresa):'')+'" style="width:100%;box-sizing:border-box;font-size:11px;padding:6px 8px;border:.5px solid #bfd1e5;border-radius:5px;font-family:Arial;margin-bottom:8px">'
     +'<div style="font-size:10px;color:#67727a;margin-bottom:4px">Contactos:</div>'
@@ -6084,9 +6085,10 @@ function _renderGestionAsesores(){
     +'<select onchange="aseEspAdd(this)" style="font-size:11px;padding:4px 8px;border:.5px solid #bfd1e5;border-radius:5px;font-family:Arial"><option value="">+ Agregar especialidad...</option>'+_aseEspOptions()+'</select></div>'
     +'<div id="ase-esp-chips" style="margin-bottom:8px">'+_aseEspChips()+'</div>'
     +'<button class="btn btn-primary" onclick="saveAsesorCat()">'+(ed?'Guardar cambios':'+ Agregar asesor')+'</button>'
-    +(ed?' <button class="btn" onclick="window.__aseEditId=\'\';window.__aseEsps=[];window.__aseContactos=[];_renderGestionAsesores()">Cancelar edición</button>':'')
-    +'</div>'
-    +(function(){var all=getAsesoresExistentes('');if(all.length<2)return '';var opts=all.map(function(n){return '<option value="'+esc(n)+'">'+esc(n)+'</option>';}).join('');
+    +' <button class="btn" onclick="window.__aseEditId=\'\';window.__aseEsps=[];window.__aseContactos=[];window.__aseFormOpen=false;_renderGestionAsesores()">Cancelar</button>'
+    +'</div>';
+  // --- Fusionar (oculto por defecto) ---
+  var merge=!mergeOpen?'':(function(){var all=getAsesoresExistentes('');var opts=all.map(function(n){return '<option value="'+esc(n)+'">'+esc(n)+'</option>';}).join('');
       return '<div style="background:#fff8f3;border:.5px solid #f3d6c2;border-radius:8px;padding:12px;margin-bottom:14px">'
       +'<div style="font-size:11px;font-weight:700;color:#254467;margin-bottom:4px">🔗 Fusionar duplicados</div>'
       +'<div style="font-size:10px;color:#67727a;margin-bottom:8px">¿El mismo asesor quedó con nombres distintos (ej. <em>UEN Diseño</em> y <em>UEN DISEÑO</em>)? Únelos: se reemplaza en todas las cotizaciones y costos.</div>'
@@ -6096,19 +6098,73 @@ function _renderGestionAsesores(){
       +'<select id="ase-merge-to" style="font-size:11px;padding:5px 8px;border:.5px solid #bfd1e5;border-radius:5px;font-family:Arial"><option value="">Nombre correcto (se queda)...</option>'+opts+'</select>'
       +'</div>'
       +'<button class="btn btn-primary" onclick="mergeAsesores()" style="margin-top:8px;font-size:11px">Fusionar</button>'
-      +'</div>';})()
-    +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap"><span style="font-size:11px;font-weight:700;color:#254467">Asesores registrados ('+list.length+')</span>'
-    +'<button class="btn" onclick="importAsesoresUsados()" style="font-size:10px;padding:3px 9px">⤵ Importar los que ya he usado</button></div>'
-    +(list.length?'<div style="display:flex;flex-direction:column;gap:6px;max-height:280px;overflow-y:auto">'+list.slice().sort(function(a,b){return String(a.empresa||'').localeCompare(String(b.empresa||''));}).map(function(a){
-        return '<div style="border:.5px solid #eef2f6;border-radius:7px;padding:7px 10px;display:flex;align-items:flex-start;gap:8px">'
-          +'<div style="flex:1;min-width:0"><div style="font-size:11px;font-weight:700;color:#254467">'+a.empresa+'</div>'
-          +(function(){var cs=_aseGetContactos(a);if(!cs.length)return '';return cs.map(function(c){var l=[c.nombre,c.puesto].filter(Boolean).join(' — ');var d=[c.telefono,c.correo].filter(Boolean).join(' · ');return '<div style="font-size:9px;color:#67727a">'+(l?'<strong>'+esc(l)+'</strong>'+(d?' · ':''):'')+esc(d)+'</div>';}).join('');})()
-          +'<div style="margin-top:3px">'+(a.especialidades||[]).map(function(e){return '<span style="font-size:8px;background:#f0f5fa;color:#3a6080;border-radius:4px;padding:1px 5px;margin-right:3px;display:inline-block;margin-bottom:2px">'+e+'</span>';}).join('')+'</div></div>'
+      +'</div>';})();
+  // --- Directorio (filtrado por búsqueda y agrupado por inicial) ---
+  var dd=_aseDirData();var dir=dd.html;
+  document.getElementById('modal-body').innerHTML=
+    '<h3 style="margin-bottom:4px">📇 Directorio de asesores</h3>'
+    +'<div style="font-size:11px;color:#67727a;margin-bottom:12px">Tus asesores con sus contactos e ingenierías. Aparecen al cotizar (filtrados por especialidad).</div>'
+    +'<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">'
+    +'<input id="ase-search" placeholder="🔍 Buscar asesor, contacto o ingeniería..." value="'+esc(window.__aseSearch||'')+'" oninput="window.__aseSearch=this.value;clearTimeout(window.__aseSearchT);window.__aseSearchT=setTimeout(_aseRefreshDir,200)" style="flex:1;min-width:180px;font-size:11px;padding:6px 10px;border:.5px solid #bfd1e5;border-radius:6px;font-family:Arial">'
+    +'<button class="btn btn-primary" onclick="window.__aseFormOpen=true;window.__aseEditId=\'\';window.__aseEsps=[];window.__aseContactos=[{nombre:\'\',puesto:\'\',correo:\'\',telefono:\'\'}];_renderGestionAsesores()" style="font-size:11px">+ Nuevo asesor</button>'
+    +'<button class="btn" onclick="importAsesoresUsados()" style="font-size:11px">⤵ Importar</button>'
+    +'<button class="btn" onclick="window.__aseMergeOpen=!window.__aseMergeOpen;_renderGestionAsesores()" style="font-size:11px">🔗 Fusionar</button>'
+    +'</div>'
+    +form+merge
+    +'<div id="ase-count" style="font-size:11px;font-weight:700;color:#254467;margin-bottom:6px">'+dd.filtLen+' de '+dd.total+' asesor(es)</div>'
+    +'<div id="ase-dir">'+dir+'</div>'
+    +'<div class="btn-row" style="margin-top:14px"><button class="btn btn-primary" onclick="closeModal();renderCotizaciones()">Cerrar</button></div>';
+}
+function _aseDirData(){
+  var list=getAseCat();
+  var q=(window.__aseSearch||'').trim().toLowerCase();
+  var esc=function(s){return String(s==null?'':s).replace(/"/g,'&quot;');};
+  var filt=list.filter(function(a){
+    if(!q)return true;
+    var hay=(a.empresa||'')+' '+(a.especialidades||[]).join(' ')+' '+_aseGetContactos(a).map(function(c){return [c.nombre,c.puesto,c.correo,c.telefono].join(' ');}).join(' ');
+    return hay.toLowerCase().indexOf(q)>=0;
+  }).sort(function(a,b){return String(a.empresa||'').localeCompare(String(b.empresa||''));});
+  var grupos={};filt.forEach(function(a){var L=(a.empresa||'#').trim().charAt(0).toUpperCase()||'#';if(!grupos[L])grupos[L]=[];grupos[L].push(a);});
+  var letras=Object.keys(grupos).sort();
+  var dir='';
+  if(!list.length){dir='<div style="text-align:center;padding:2rem;color:#a8a8a8;font-size:12px">Aún no tienes asesores en el directorio.<br>Usa <strong>+ Nuevo asesor</strong> o <strong>Importar</strong>.</div>';}
+  else if(!filt.length){dir='<div style="text-align:center;padding:2rem;color:#a8a8a8;font-size:12px">Sin resultados para "'+esc(q)+'".</div>';}
+  else{
+    dir='<div style="max-height:340px;overflow-y:auto;padding-right:4px">';
+    letras.forEach(function(L){
+      dir+='<div style="font-size:10px;font-weight:800;color:#6990ab;letter-spacing:.08em;padding:4px 2px;border-bottom:.5px solid #eef2f6;margin:6px 0 6px">'+L+'</div>';
+      grupos[L].forEach(function(a){
+        var cs=_aseGetContactos(a);
+        dir+='<div style="border:.5px solid #eef2f6;border-radius:8px;padding:9px 11px;margin-bottom:7px;background:#fff">'
+          +'<div style="display:flex;align-items:flex-start;gap:8px">'
+          +'<div style="width:30px;height:30px;border-radius:50%;background:#eaf1f7;color:#254467;font-weight:800;font-size:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0">'+esc((a.empresa||'?').trim().charAt(0).toUpperCase())+'</div>'
+          +'<div style="flex:1;min-width:0">'
+          +'<div style="font-size:12px;font-weight:700;color:#254467">'+esc(a.empresa||'')+'</div>'
+          +'<div style="margin-top:2px">'+(a.especialidades||[]).map(function(e){return '<span style="font-size:8px;background:#f0f5fa;color:#3a6080;border-radius:4px;padding:1px 5px;margin-right:3px;display:inline-block;margin-bottom:2px">'+esc(e)+'</span>';}).join('')+'</div>'
+          +'</div>'
           +'<button onclick="editAsesorCat(\''+a.id+'\')" style="background:none;border:.5px solid #6990ab;border-radius:4px;color:#6990ab;font-size:9px;padding:2px 7px;cursor:pointer;font-family:Arial">✏</button>'
           +'<button onclick="deleteAsesorCat(\''+a.id+'\')" style="background:none;border:.5px solid #FECACA;border-radius:4px;color:#e65a27;font-size:9px;padding:2px 7px;cursor:pointer;font-family:Arial">✕</button>'
+          +'</div>'
+          +(cs.length?'<div style="margin-top:7px;padding-top:7px;border-top:.5px dashed #eef2f6;display:flex;flex-direction:column;gap:4px">'+cs.map(function(c){
+              var l=[c.nombre,c.puesto].filter(Boolean).join(' — ');
+              return '<div style="font-size:10px;color:#67727a;display:flex;gap:10px;flex-wrap:wrap;align-items:center">'
+                +(l?'<span style="font-weight:700;color:#3a6080">'+esc(l)+'</span>':'')
+                +(c.telefono?'<span>📞 '+esc(c.telefono)+'</span>':'')
+                +(c.correo?'<span>✉ '+esc(c.correo)+'</span>':'')
+                +'</div>';
+            }).join('')+'</div>':'')
           +'</div>';
-      }).join('')+'</div>':'<div style="font-size:10px;color:#a8a8a8">Aún no hay asesores registrados.</div>')
-    +'<div class="btn-row" style="margin-top:14px"><button class="btn btn-primary" onclick="closeModal();renderCotizaciones()">Cerrar</button></div>';
+      });
+    });
+    dir+='</div>';
+  }
+  return {html:dir,filtLen:filt.length,total:list.length};
+}
+function _aseRefreshDir(){
+  if(!document.getElementById('ase-dir'))return;
+  var dd=_aseDirData();
+  document.getElementById('ase-dir').innerHTML=dd.html;
+  var c=document.getElementById('ase-count');if(c)c.textContent=dd.filtLen+' de '+dd.total+' asesor(es)';
 }
 function _aseGetContactos(a){
   if(a&&a.contactos&&a.contactos.length)return a.contactos;
@@ -6149,7 +6205,7 @@ function saveAsesorCat(){
   var rec={id:window.__aseEditId||('ase_'+Date.now()),empresa:emp,contactos:contactos,contacto:first.nombre||'',telefono:first.telefono||'',correo:first.correo||'',especialidades:(window.__aseEsps||[]).slice()};
   if(window.__aseEditId){var i=cat.asesores.findIndex(function(a){return String(a.id)===String(window.__aseEditId);});if(i>=0)cat.asesores[i]=rec;else cat.asesores.push(rec);}
   else cat.asesores.push(rec);
-  sv(K.cat,cat);window.__aseEditId='';window.__aseEsps=[];window.__aseContactos=[];_renderGestionAsesores();
+  sv(K.cat,cat);window.__aseEditId='';window.__aseEsps=[];window.__aseContactos=[];window.__aseFormOpen=false;_renderGestionAsesores();
 }
 function editAsesorCat(id){var a=getAseCat().find(function(x){return String(x.id)===String(id);});if(!a)return;window.__aseEditId=id;window.__aseEsps=(a.especialidades||[]).slice();window.__aseContactos=_aseGetContactos(a).map(function(c){return {nombre:c.nombre||'',puesto:c.puesto||'',correo:c.correo||'',telefono:c.telefono||''};});_renderGestionAsesores();}
 function deleteAsesorCat(id){if(!confirm('¿Eliminar este asesor del catálogo?'))return;cat.asesores=(cat.asesores||[]).filter(function(a){return String(a.id)!==String(id);});sv(K.cat,cat);if(String(window.__aseEditId)===String(id)){window.__aseEditId='';window.__aseEsps=[];window.__aseContactos=[];}_renderGestionAsesores();}
