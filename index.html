@@ -6124,15 +6124,20 @@ function _aseDirData(){
     var hay=(a.empresa||'')+' '+(a.especialidades||[]).join(' ')+' '+_aseGetContactos(a).map(function(c){return [c.nombre,c.puesto,c.correo,c.telefono].join(' ');}).join(' ');
     return hay.toLowerCase().indexOf(q)>=0;
   }).sort(function(a,b){return String(a.empresa||'').localeCompare(String(b.empresa||''));});
-  var grupos={};filt.forEach(function(a){var L=(a.empresa||'#').trim().charAt(0).toUpperCase()||'#';if(!grupos[L])grupos[L]=[];grupos[L].push(a);});
-  var letras=Object.keys(grupos).sort();
+  var grupos={};var SIN='Sin ingeniería asignada';
+  filt.forEach(function(a){
+    var esps=(a.especialidades||[]).filter(Boolean);
+    if(!esps.length)esps=[SIN];
+    esps.forEach(function(e){if(!grupos[e])grupos[e]=[];grupos[e].push(a);});
+  });
+  var letras=Object.keys(grupos).sort(function(a,b){if(a===SIN)return 1;if(b===SIN)return -1;return a.localeCompare(b);});
   var dir='';
   if(!list.length){dir='<div style="text-align:center;padding:2rem;color:#a8a8a8;font-size:12px">Aún no tienes asesores en el directorio.<br>Usa <strong>+ Nuevo asesor</strong> o <strong>Importar</strong>.</div>';}
   else if(!filt.length){dir='<div style="text-align:center;padding:2rem;color:#a8a8a8;font-size:12px">Sin resultados para "'+esc(q)+'".</div>';}
   else{
     dir='<div style="max-height:340px;overflow-y:auto;padding-right:4px">';
     letras.forEach(function(L){
-      dir+='<div style="font-size:10px;font-weight:800;color:#6990ab;letter-spacing:.08em;padding:4px 2px;border-bottom:.5px solid #eef2f6;margin:6px 0 6px">'+L+'</div>';
+      dir+='<div style="font-size:11px;font-weight:800;color:#254467;text-transform:uppercase;letter-spacing:.05em;padding:6px 2px;border-bottom:1.5px solid #254467;margin:10px 0 8px">'+esc(L)+' <span style="font-weight:400;color:#a8a8a8;text-transform:none">· '+grupos[L].length+'</span></div>';
       grupos[L].forEach(function(a){
         var cs=_aseGetContactos(a);
         dir+='<div style="border:.5px solid #eef2f6;border-radius:8px;padding:9px 11px;margin-bottom:7px;background:#fff">'
