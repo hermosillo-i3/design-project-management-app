@@ -4077,6 +4077,7 @@ function renderCotTabla(el,cots,allProjs,filterProj,catCot){
         +'<div style="display:flex;gap:16px;margin-left:auto;flex-wrap:wrap;align-items:center">'
         +'<div style="text-align:right"><div style="font-size:9px;color:#6990ab">MXN cotizado</div><div style="font-size:13px;font-weight:700;color:#fff">'+(grandTotMXN?'$'+grandTotMXN.toLocaleString('es-MX',{maximumFractionDigits:0}):'-')+'</div></div>'
         +(m2?'<div style="text-align:right"><div style="font-size:9px;color:#6990ab">MXN/m²</div><div style="font-size:13px;font-weight:700;color:#fff">'+(grandTotMXN?'$'+(grandTotMXN/m2).toFixed(2):'-')+'</div></div>':'')
+        +(m2&&tc?'<div style="text-align:right"><div style="font-size:9px;color:#6990ab">USD/m²</div><div style="font-size:13px;font-weight:700;color:#fff">'+(grandTotMXN?'$'+(grandTotMXN/m2/tc).toFixed(2):'-')+'</div></div>':'')
         +'<div style="text-align:right"><div style="font-size:9px;color:#6990ab">MXN+indirecto'+(descAmt>0?' (subtotal)':'')+'</div><div style="font-size:13px;font-weight:700;color:'+(descAmt>0?'#9fb4c9':'#FCD34D')+';'+(descAmt>0?'text-decoration:line-through':'')+'">'+(grandTotConInd?'$'+grandTotConInd.toLocaleString('es-MX',{maximumFractionDigits:0}):'-')+'</div></div>'
         +(descAmt>0?'<div style="text-align:right"><div style="font-size:9px;color:#9be7a0">Descuento</div><div style="font-size:13px;font-weight:700;color:#9be7a0">−$'+descAmt.toLocaleString('es-MX',{maximumFractionDigits:0})+'</div></div>':'')
         +(descAmt>0?'<div style="text-align:right"><div style="font-size:9px;color:#FCD34D">TOTAL con desc.</div><div style="font-size:14px;font-weight:700;color:#FCD34D">$'+totalFinal.toLocaleString('es-MX',{maximumFractionDigits:0})+'</div></div>':'')
@@ -4105,12 +4106,17 @@ function renderCombinadasBlock(projId,projCots){
   combs.forEach(function(cb){
     var comps=(cb.componentes||[]).map(function(id){return cots.find(function(c){return String(c.id)===String(id);});}).filter(Boolean);
     var total=comps.reduce(function(s,c){return s+calcCotMetrics(c).grandTotal;},0);
+    var granM2=comps.reduce(function(s,c){return s+(parseFloat(c.areaM2)||0);},0);
+    var totalUSD=comps.reduce(function(s,c){var tc=parseFloat(c.tipoCambio)||18;return s+calcCotMetrics(c).grandTotal/tc;},0);
     html+='<div style="border:.5px solid #d9cff0;border-radius:8px;background:#fff;padding:9px 12px;margin-bottom:7px">'
       +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">'
       +'<span style="font-size:12px;font-weight:700;color:#5B21B6">'+cb.nombre+'</span>'
       +'<span style="font-size:10px;color:#a8a8a8">'+fmtDY(cb.fecha)+'</span>'
       +'<span style="font-size:9px;background:#efe9fb;color:#7C3AED;border-radius:4px;padding:1px 7px;font-weight:700">'+comps.length+' alcance'+(comps.length!==1?'s':'')+'</span>'
-      +'<span style="margin-left:auto;font-size:14px;font-weight:700;color:#5B21B6">'+fmt(total)+'</span>'
+      +(granM2?'<span style="font-size:10px;color:#67727a">'+Number(granM2).toLocaleString()+' m²</span>':'')
+      +'<span style="margin-left:auto;text-align:right"><span style="font-size:14px;font-weight:700;color:#5B21B6">'+fmt(total)+'</span>'
+      +(granM2?'<div style="font-size:9px;color:#67727a">$'+(total/granM2).toFixed(2)+' MXN/m² · $'+(totalUSD/granM2).toFixed(2)+' USD/m²</div>':'')
+      +'</span>'
       +'</div>'
       +'<div style="display:flex;flex-direction:column;gap:2px;margin-bottom:7px">'
       +comps.map(function(c){var t=calcCotMetrics(c).grandTotal;return '<div style="display:flex;gap:8px;font-size:10px;color:#67727a"><span style="flex:1">• '+c.nombre+'</span><span style="font-weight:700;color:#254467">'+fmt(t)+'</span></div>';}).join('')
@@ -4190,10 +4196,11 @@ function imprimirCombinada(combId){
   var proj=allProjs.find(function(p){return String(p.id)===String(cb.projId);});
   var pN=proj?proj.nombre:'Proyecto #'+cb.projId;
   var fmt=function(n){return n?'$'+Math.round(n).toLocaleString('es-MX'):'—';};
-  var granTotal=0,granM2=0;
+  var granTotal=0,granM2=0,granUSD=0;
   var secciones=comps.map(function(c){
     var m=calcCotMetrics(c);
-    granTotal+=m.grandTotal;granM2+=(parseFloat(c.areaM2)||0);
+    var _tc=parseFloat(c.tipoCambio)||18;
+    granTotal+=m.grandTotal;granM2+=(parseFloat(c.areaM2)||0);granUSD+=m.grandTotal/_tc;
     var filas='';
     Object.keys(m.bySection).forEach(function(cat){
       var sec=m.bySection[cat];
@@ -4227,7 +4234,9 @@ function imprimirCombinada(combId){
     +'<div class="hdr-sub">Gerencia de Diseño CDMX — Grupo Hermosillo</div>'
     +'<div class="hdr-sub" style="margin-top:4px">🧩 '+cb.nombre+' · '+fmtDY(cb.fecha)+' · '+comps.length+' alcances'+(granM2?' · '+Number(granM2).toLocaleString()+' m²':'')+'</div></div>'
     +secciones
-    +'<table style="margin-top:14px"><tbody><tr class="grand"><td>TOTAL COMBINADO ('+comps.length+' alcances)</td><td class="r">'+fmt(granTotal)+'</td></tr></tbody></table>'
+    +'<table style="margin-top:14px"><tbody><tr class="grand"><td>TOTAL COMBINADO ('+comps.length+' alcances)</td><td class="r">'+fmt(granTotal)+'</td></tr>'
+    +(granM2?'<tr><td style="font-size:10px;color:#67727a">Por metro cuadrado ('+Number(granM2).toLocaleString()+' m²)</td><td class="r" style="font-weight:700;color:#254467">$'+(granTotal/granM2).toFixed(2)+' MXN/m² · $'+(granUSD/granM2).toFixed(2)+' USD/m²</td></tr>':'')
+    +'</tbody></table>'
     +'<div class="footer">Generado el '+fmtDY(todayStr)+' · Documento informativo</div>'
     +'</body></html>');
   win.document.close();
