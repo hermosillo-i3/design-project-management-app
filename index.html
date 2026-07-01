@@ -7275,7 +7275,7 @@ function renderConsultores(){
         +' style="'+st+'">'
         +'<div style="display:flex;align-items:flex-start;gap:6px;margin-bottom:3px">'
         +'<input type="checkbox" onchange="toggleTask('+t.id+',this.checked)" style="margin-top:2px;flex-shrink:0;cursor:pointer">'
-        +'<div style="font-size:11px;color:#1A1A2E;line-height:1.4;flex:1">'+(t.urgente?'<span style="background:#fdecea;color:#e65a27;border-radius:4px;padding:0 5px;font-size:8px;font-weight:700;margin-right:4px">🔥 URGENTE</span>':'')+t.texto.substring(0,65)+(t.texto.length>65?'…':'')+'</div>'
+        +'<div style="font-size:11px;color:#1A1A2E;line-height:1.4;flex:1;word-break:break-word">'+(t.urgente?'<span style="background:#fdecea;color:#e65a27;border-radius:4px;padding:0 5px;font-size:8px;font-weight:700;margin-right:4px">🔥 URGENTE</span>':'')+String(t.texto||'').replace(/</g,'&lt;')+'</div>'
         +'</div>'
         +'<div style="display:flex;gap:5px;align-items:center;font-size:10px;flex-wrap:wrap;margin-left:18px">'
         +(proj?'<span style="color:'+(proj.archivado?'#a8a8a8':'#254467')+';font-weight:700;font-size:9px">'+proj.nombre.substring(0,22)+(proj.archivado?' <span style="font-weight:400;border:.5px solid #ccc;border-radius:3px;padding:0 3px">arch</span>':'')+'</span>':'')
