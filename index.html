@@ -3872,6 +3872,7 @@ function renderCotTabla(el,cots,allProjs,filterProj,catCot){
       +(!isArch&&!isPerd&&proj?'<span style="font-size:9px;background:#e0eaf2;color:#254467;border-radius:4px;padding:1px 6px;font-weight:700">'+proj.etapa+'</span>':'')
       +'<button onclick="openNuevaVersion('+projId+')" style="font-size:10px;padding:3px 10px;border:.5px solid #6990ab;border-radius:5px;background:#fff;color:#6990ab;cursor:pointer;font-family:Arial">+ Nueva versión</button>'
       +'<button onclick="openNuevaCotizacion('+projId+')" style="font-size:10px;padding:3px 10px;border:.5px solid #bfd1e5;border-radius:5px;background:#fff;cursor:pointer;font-family:Arial">+ Cotización</button>'
+      +(projCots.length>1?'<button onclick="openArmarCombinada('+projId+')" style="font-size:10px;padding:3px 10px;border:.5px solid #7C3AED;border-radius:5px;background:#fff;color:#7C3AED;cursor:pointer;font-family:Arial;font-weight:700">🧩 Armar combinada</button>':'')
       +'</div>';
 
     projCots.forEach(function(cot){
@@ -4085,9 +4086,151 @@ function renderCotTabla(el,cots,allProjs,filterProj,catCot){
       if(cot.notas) html+='<div style="font-size:10px;color:#67727a;font-style:italic;background:#fff8f6;border-radius:6px;padding:6px 10px;margin-top:8px">'+cot.notas+'</div>';
       html+='</div>';
     });
+    html+=renderCombinadasBlock(projId,projCots);
     html+='</div>';
   });
   el.innerHTML+=html;
+}
+
+// ─── COTIZACIONES COMBINADAS (varios alcances) ───────────────
+function getCombinadas(){return ld('gh_cot_combinadas',[]);}
+function saveCombinadas(a){sv('gh_cot_combinadas',a);}
+function renderCombinadasBlock(projId,projCots){
+  var combs=getCombinadas().filter(function(c){return String(c.projId)===String(projId);});
+  if(!combs.length)return '';
+  var cots=getCots();
+  var fmt=function(n){return '$'+Math.round(n||0).toLocaleString('es-MX');};
+  var html='<div style="padding:10px 14px;background:#faf8ff;border-top:1.5px solid #e5ddf7">'
+    +'<div style="font-size:9px;font-weight:700;color:#7C3AED;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">🧩 Cotizaciones combinadas</div>';
+  combs.forEach(function(cb){
+    var comps=(cb.componentes||[]).map(function(id){return cots.find(function(c){return String(c.id)===String(id);});}).filter(Boolean);
+    var total=comps.reduce(function(s,c){return s+calcCotMetrics(c).grandTotal;},0);
+    html+='<div style="border:.5px solid #d9cff0;border-radius:8px;background:#fff;padding:9px 12px;margin-bottom:7px">'
+      +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">'
+      +'<span style="font-size:12px;font-weight:700;color:#5B21B6">'+cb.nombre+'</span>'
+      +'<span style="font-size:10px;color:#a8a8a8">'+fmtDY(cb.fecha)+'</span>'
+      +'<span style="font-size:9px;background:#efe9fb;color:#7C3AED;border-radius:4px;padding:1px 7px;font-weight:700">'+comps.length+' alcance'+(comps.length!==1?'s':'')+'</span>'
+      +'<span style="margin-left:auto;font-size:14px;font-weight:700;color:#5B21B6">'+fmt(total)+'</span>'
+      +'</div>'
+      +'<div style="display:flex;flex-direction:column;gap:2px;margin-bottom:7px">'
+      +comps.map(function(c){var t=calcCotMetrics(c).grandTotal;return '<div style="display:flex;gap:8px;font-size:10px;color:#67727a"><span style="flex:1">• '+c.nombre+'</span><span style="font-weight:700;color:#254467">'+fmt(t)+'</span></div>';}).join('')
+      +(cb.componentes&&cb.componentes.length>comps.length?'<div style="font-size:9px;color:#e65a27">⚠ Algún alcance fue eliminado; edita la combinada.</div>':'')
+      +'</div>'
+      +'<div style="display:flex;gap:6px;flex-wrap:wrap">'
+      +'<button onclick="imprimirCombinada(\''+cb.id+'\')" style="font-size:10px;padding:2px 8px;border:.5px solid #6990ab;border-radius:5px;background:#fff;color:#6990ab;cursor:pointer;font-family:Arial">🖨 Imprimir</button>'
+      +'<button onclick="openArmarCombinada('+projId+',\''+cb.id+'\')" style="font-size:10px;padding:2px 8px;border:.5px solid #bfd1e5;border-radius:5px;background:#fff;cursor:pointer;font-family:Arial">✏ Editar</button>'
+      +'<button onclick="deleteCombinada(\''+cb.id+'\')" style="font-size:10px;padding:2px 8px;border:.5px solid #FECACA;border-radius:5px;background:#fff;color:#e65a27;cursor:pointer;font-family:Arial">✕</button>'
+      +'</div></div>';
+  });
+  html+='</div>';
+  return html;
+}
+function openArmarCombinada(projId,editId){
+  var cots=getCots().filter(function(c){return String(c.projId)===String(projId);}).sort(function(a,b){return (b.fecha||'').localeCompare(a.fecha||'');});
+  var ed=editId?getCombinadas().find(function(c){return String(c.id)===String(editId);}):null;
+  var sel=ed?(ed.componentes||[]).map(String):[];
+  var fmt=function(n){return '$'+Math.round(n||0).toLocaleString('es-MX');};
+  var esc=function(s){return String(s==null?'':s).replace(/"/g,'&quot;');};
+  var rows=cots.map(function(c){
+    var t=calcCotMetrics(c).grandTotal;
+    var checked=sel.indexOf(String(c.id))>=0;
+    return '<label style="display:flex;align-items:center;gap:8px;padding:7px 10px;border:.5px solid #e5ddf7;border-radius:7px;margin-bottom:5px;cursor:pointer;background:'+(checked?'#faf8ff':'#fff')+'">'
+      +'<input type="checkbox" class="comb-chk" value="'+c.id+'"'+(checked?' checked':'')+' style="cursor:pointer">'
+      +'<span style="flex:1;font-size:11px;font-weight:700;color:#254467">'+esc(c.nombre)+(c.tipoCotizacion?' <span style="font-weight:400;color:#6990ab;font-size:9px">· '+esc(c.tipoCotizacion)+'</span>':'')+'<div style="font-size:9px;font-weight:400;color:#a8a8a8">'+fmtDY(c.fecha)+'</div></span>'
+      +'<span style="font-size:11px;font-weight:700;color:#5B21B6">'+fmt(t)+'</span>'
+      +'</label>';
+  }).join('');
+  document.getElementById('modal-body').innerHTML=
+    '<h3 style="margin-bottom:4px">🧩 '+(ed?'Editar combinada':'Armar cotización combinada')+'</h3>'
+    +'<div style="font-size:11px;color:#67727a;margin-bottom:12px">Elige los alcances (cotizaciones) que quieres juntar en un solo documento. Se sumará el total de todos.</div>'
+    +'<div class="fg" style="margin-bottom:12px"><label>Nombre de la combinada</label>'
+    +'<input id="comb-nombre" value="'+(ed?esc(ed.nombre):'')+'" placeholder="Ej. Cotización integral V1" style="width:100%;font-family:Arial;font-size:12px;padding:6px 8px;border:.5px solid #bfd1e5;border-radius:6px"></div>'
+    +'<div style="font-size:10px;font-weight:700;color:#67727a;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Alcances a incluir</div>'
+    +(rows||'<div style="font-size:11px;color:#a8a8a8">Este proyecto no tiene cotizaciones para combinar.</div>')
+    +'<div id="comb-total-preview" style="text-align:right;font-size:12px;font-weight:700;color:#5B21B6;margin-top:8px"></div>'
+    +'<div class="btn-row" style="margin-top:14px"><button class="btn" onclick="closeModal()">Cancelar</button>'
+    +'<button class="btn btn-primary" onclick="saveCombinada('+projId+','+(ed?'\''+ed.id+'\'':'null')+')">'+(ed?'Guardar cambios':'Crear combinada')+'</button></div>';
+  openModal();
+  var upd=function(){
+    var ids=[].slice.call(document.querySelectorAll('.comb-chk:checked')).map(function(x){return x.value;});
+    var allC=getCots();var t=ids.reduce(function(s,id){var c=allC.find(function(x){return String(x.id)===String(id);});return s+(c?calcCotMetrics(c).grandTotal:0);},0);
+    document.getElementById('comb-total-preview').textContent=ids.length?('Total combinado: '+fmt(t)+' ('+ids.length+' alcance'+(ids.length!==1?'s':'')+')'):'';
+  };
+  [].slice.call(document.querySelectorAll('.comb-chk')).forEach(function(x){x.addEventListener('change',upd);});
+  upd();
+}
+function saveCombinada(projId,editId){
+  var nombre=(document.getElementById('comb-nombre').value||'').trim();
+  var ids=[].slice.call(document.querySelectorAll('.comb-chk:checked')).map(function(x){return x.value;});
+  if(!nombre){alert('Ponle un nombre a la combinada.');return;}
+  if(ids.length<2){alert('Elige al menos 2 alcances para combinar.');return;}
+  var combs=getCombinadas();
+  if(editId){
+    var i=combs.findIndex(function(c){return String(c.id)===String(editId);});
+    if(i>=0){combs[i].nombre=nombre;combs[i].componentes=ids;}
+  }else{
+    combs.push({id:'comb_'+Date.now(),projId:projId,nombre:nombre,fecha:todayStr,componentes:ids});
+  }
+  saveCombinadas(combs);
+  closeModal();
+  renderCotizaciones();
+}
+function deleteCombinada(id){
+  if(!confirm('¿Eliminar esta cotización combinada? (No borra las cotizaciones individuales.)'))return;
+  saveCombinadas(getCombinadas().filter(function(c){return String(c.id)!==String(id);}));
+  renderCotizaciones();
+}
+function imprimirCombinada(combId){
+  var cb=getCombinadas().find(function(c){return String(c.id)===String(combId);});
+  if(!cb)return;
+  var cots=getCots();
+  var comps=(cb.componentes||[]).map(function(id){return cots.find(function(c){return String(c.id)===String(id);});}).filter(Boolean);
+  if(!comps.length){alert('Esta combinada ya no tiene alcances válidos.');return;}
+  var allProjs=[...activeProjs(),...internos(),...ld(K.proj,[]).filter(function(p){return p.archivado;})];
+  var proj=allProjs.find(function(p){return String(p.id)===String(cb.projId);});
+  var pN=proj?proj.nombre:'Proyecto #'+cb.projId;
+  var fmt=function(n){return n?'$'+Math.round(n).toLocaleString('es-MX'):'—';};
+  var granTotal=0,granM2=0;
+  var secciones=comps.map(function(c){
+    var m=calcCotMetrics(c);
+    granTotal+=m.grandTotal;granM2+=(parseFloat(c.areaM2)||0);
+    var filas='';
+    Object.keys(m.bySection).forEach(function(cat){
+      var sec=m.bySection[cat];
+      filas+='<tr class="cat-row"><td colspan="2">'+cat+'</td><td class="r">'+fmt(sec.withInd)+'</td></tr>';
+      (sec.esps||[]).forEach(function(e){
+        filas+='<tr><td></td><td>'+e.nombre+'</td><td class="r">'+fmt(e.withInd)+'</td></tr>';
+      });
+    });
+    if(m.indTotal){filas+='<tr class="cat-row"><td colspan="2">Indirectos</td><td class="r">'+fmt(m.indTotal)+'</td></tr>';}
+    return '<div class="sec-hdr">'+c.nombre+(c.tipoCotizacion?' · '+c.tipoCotizacion:'')+'</div>'
+      +'<table><thead><tr><th></th><th>Concepto</th><th class="r">MXN + indirecto</th></tr></thead><tbody>'
+      +filas
+      +'<tr class="sub-row"><td colspan="2">Subtotal '+c.nombre+'</td><td class="r">'+fmt(m.grandTotal)+'</td></tr>'
+      +'</tbody></table>';
+  }).join('');
+  var win=window.open('','_blank');
+  win.document.write('<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Cotización combinada — '+pN+' — '+cb.nombre+'</title>'
+    +'<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;color:#1A1A2E;font-size:12px;padding:2rem;max-width:820px;margin:0 auto}'
+    +'.hdr{background:#254467;color:#fff;border-radius:8px;padding:14px 18px;margin-bottom:16px}'
+    +'.hdr-title{font-size:16px;font-weight:700}.hdr-sub{font-size:11px;color:#bfd1e5;margin-top:3px}'
+    +'.sec-hdr{font-size:11px;font-weight:700;color:#5B21B6;margin:16px 0 5px;padding-bottom:3px;border-bottom:1.5px solid #d9cff0}'
+    +'table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:4px}'
+    +'th{padding:5px 8px;background:#f0f5fa;font-size:9px;font-weight:700;color:#67727a;text-align:left;border-bottom:1px solid #bfd1e5}th.r{text-align:right}'
+    +'td{padding:5px 8px;border-bottom:.5px solid #e8eef4}td.r{text-align:right}'
+    +'.cat-row td{background:#eef3f7;font-weight:700;color:#254467}'
+    +'.sub-row td{background:#efe9fb;font-weight:700;color:#5B21B6;font-size:12px}'
+    +'.grand td{background:#254467;color:#fff;font-weight:700;font-size:14px;padding:9px}'
+    +'.footer{margin-top:20px;padding-top:8px;border-top:.5px solid #bfd1e5;font-size:9px;color:#a8a8a8}'
+    +'@media print{body{padding:.5rem}@page{margin:1.5cm}}</style></head><body>'
+    +'<div class="hdr"><div class="hdr-title">'+pN+'</div>'
+    +'<div class="hdr-sub">Gerencia de Diseño CDMX — Grupo Hermosillo</div>'
+    +'<div class="hdr-sub" style="margin-top:4px">🧩 '+cb.nombre+' · '+fmtDY(cb.fecha)+' · '+comps.length+' alcances'+(granM2?' · '+Number(granM2).toLocaleString()+' m²':'')+'</div></div>'
+    +secciones
+    +'<table style="margin-top:14px"><tbody><tr class="grand"><td>TOTAL COMBINADO ('+comps.length+' alcances)</td><td class="r">'+fmt(granTotal)+'</td></tr></tbody></table>'
+    +'<div class="footer">Generado el '+fmtDY(todayStr)+' · Documento informativo</div>'
+    +'</body></html>');
+  win.document.close();
 }
 
 // ─── VISTA HISTÓRICO ─────────────────────────────────────────
