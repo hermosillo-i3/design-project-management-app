@@ -3147,9 +3147,9 @@ function openPersonDetail(nombre, rol){
   var dlStr=deadline.toISOString().slice(0,10);
   var entregas=[];
   myProjs.forEach(function(p){
-    [p.entregaV1,p.entregaV2,p.entregaV3,p.entregaV4].forEach(function(v,i){
-      if(v&&v.trim()&&v<=dlStr) entregas.push({proj:p.nombre,ver:'V'+(i+1),fecha:v,venc:v<todayStr,sem:sem(p).cls});
-    });
+    var vers=[p.entregaV1,p.entregaV2,p.entregaV3,p.entregaV4];
+    var lastI=-1;for(var vi=0;vi<vers.length;vi++){if(vers[vi]&&vers[vi].trim())lastI=vi;}
+    if(lastI>=0){var lv=vers[lastI];if(lv<=dlStr)entregas.push({proj:p.nombre,ver:'V'+(lastI+1),fecha:lv,venc:lv<todayStr,sem:sem(p).cls});}
   });
   entregas.sort(function(a,b){return a.fecha.localeCompare(b.fecha);});
 
@@ -7145,9 +7145,9 @@ function renderConsultores(){
 
     const entregas=[];
     myProjs.forEach(function(p){
-      [p.entregaV1,p.entregaV2,p.entregaV3,p.entregaV4].forEach(function(v,i){
-        if(v&&v.trim()&&v<=dlStr) entregas.push({proj:p.nombre,ver:'V'+(i+1),fecha:v,venc:v<todayStr,scls:sem(p).cls});
-      });
+      var vers=[p.entregaV1,p.entregaV2,p.entregaV3,p.entregaV4];
+      var lastI=-1;for(var vi=0;vi<vers.length;vi++){if(vers[vi]&&vers[vi].trim())lastI=vi;}
+      if(lastI>=0){var lv=vers[lastI];if(lv<=dlStr)entregas.push({proj:p.nombre,ver:'V'+(lastI+1),fecha:lv,venc:lv<todayStr,scls:sem(p).cls});}
     });
     entregas.sort(function(a,b){return a.fecha.localeCompare(b.fecha);});
 
@@ -8896,9 +8896,9 @@ function renderGerencia(){
     // Entregas
     const entregas=[];
     myProjs.forEach(function(p){
-      [p.entregaV1,p.entregaV2,p.entregaV3,p.entregaV4].forEach(function(v,i){
-        if(v&&v.trim()&&v<=dlStr) entregas.push({proj:p.nombre,ver:'V'+(i+1),fecha:v,venc:v<todayStr,scls:sem(p).cls});
-      });
+      var vers=[p.entregaV1,p.entregaV2,p.entregaV3,p.entregaV4];
+      var lastI=-1;for(var vi=0;vi<vers.length;vi++){if(vers[vi]&&vers[vi].trim())lastI=vi;}
+      if(lastI>=0){var lv=vers[lastI];if(lv<=dlStr)entregas.push({proj:p.nombre,ver:'V'+(lastI+1),fecha:lv,venc:lv<todayStr,scls:sem(p).cls});}
     });
     entregas.sort(function(a,b){return a.fecha.localeCompare(b.fecha);});
 
@@ -9190,9 +9190,9 @@ function renderEquipoDetalle(allProjs){
     var dlStr=deadline.toISOString().slice(0,10);
     var entregas=[];
     myProjs.forEach(function(p){
-      [p.entregaV1,p.entregaV2,p.entregaV3,p.entregaV4].forEach(function(v,i){
-        if(v&&v.trim()&&v<=dlStr) entregas.push({proj:p.nombre,ver:'V'+(i+1),fecha:v,venc:v<todayStr,scls:sem(p).cls});
-      });
+      var vers=[p.entregaV1,p.entregaV2,p.entregaV3,p.entregaV4];
+      var lastI=-1;for(var vi=0;vi<vers.length;vi++){if(vers[vi]&&vers[vi].trim())lastI=vi;}
+      if(lastI>=0){var lv=vers[lastI];if(lv<=dlStr)entregas.push({proj:p.nombre,ver:'V'+(lastI+1),fecha:lv,venc:lv<todayStr,scls:sem(p).cls});}
     });
     entregas.sort(function(a,b){return a.fecha.localeCompare(b.fecha);});
 
