@@ -2837,6 +2837,7 @@ function saveTaskNote(taskId){
   sv(K.tasks,tasks);
   closeModal();
   renderEquipo();
+  if(typeof renderConsultores==='function')renderConsultores();
 }
 
 function archiveTask(taskId){
@@ -7283,7 +7284,11 @@ function renderConsultores(){
         +'<button onclick="addTaskNote('+t.id+')" style="font-size:9px;padding:1px 6px;border:.5px solid #bfd1e5;border-radius:4px;background:#fff;cursor:pointer;font-family:Arial;color:#67727a">+ Nota</button>'
         +'<button onclick="openEditTask('+t.id+')" style="font-size:9px;padding:1px 6px;border:.5px solid #6990ab;border-radius:4px;background:#fff;cursor:pointer;font-family:Arial;color:#6990ab">✏</button>'
         +'<button onclick="archiveTask('+t.id+')" style="font-size:9px;padding:1px 6px;border:.5px solid #bfd1e5;border-radius:4px;background:#fff;cursor:pointer;font-family:Arial;color:#a8a8a8" title="Archivar — visible en Seguimiento > Ver archivados">Arch.</button>'
-        +'</div></div>';
+        +'</div>'
+        +((t.notas&&t.notas.length)?'<div style="margin-left:18px;margin-top:4px;display:flex;flex-direction:column;gap:2px">'
+          +t.notas.map(function(n){return '<div style="background:#f0f5fa;border-left:2px solid #6990ab;border-radius:4px;padding:3px 7px;font-size:9px;color:#3a6080"><span style="color:#a8a8a8">'+(n.fecha?fmtD(n.fecha)+': ':'')+'</span>'+String(n.texto||'').replace(/</g,'&lt;')+'</div>';}).join('')
+          +'</div>':'')
+        +'</div>';
     });
     html+='</div>';
     if(myTasks.length>10) html+='<div style="padding:7px 12px;font-size:10px;color:#6990ab;cursor:pointer;font-weight:700" onclick="consulVerMas(this,\''+cNombreEsc+'\')">Ver '+(myTasks.length-10)+' más...</div>';
