@@ -3801,6 +3801,16 @@ function allEspsFlat(cat){
 
 function getCots(){return ld(K.cot,[]);}
 function saveCots(a){sv(K.cot,a);}
+function _cotTs(c){var mm=String(c&&c.id||'').match(/(\d{10,})/);return mm?parseInt(mm[1]):0;}
+function _cotCollapsedMap(){return ld('gh_cot_collapsed',{})||{};}
+function toggleCotCollapse(cotId){var m=_cotCollapsedMap();if(m[cotId])delete m[cotId];else m[cotId]=true;sv('gh_cot_collapsed',m);renderCotizaciones();}
+function toggleAllCots(projId){
+  var cots=getCots().filter(function(c){return String(c.projId)===String(projId);});
+  var m=_cotCollapsedMap();
+  var allCol=cots.length&&cots.every(function(c){return m[c.id];});
+  cots.forEach(function(c){if(allCol)delete m[c.id];else m[c.id]=true;});
+  sv('gh_cot_collapsed',m);renderCotizaciones();
+}
 
 // ─── RENDER PRINCIPAL ────────────────────────────────────────
 function renderCotizaciones(){
@@ -3862,7 +3872,9 @@ function renderCotTabla(el,cots,allProjs,filterProj,catCot){
     var s=proj&&!proj.archivado?sem(proj):{cls:'none',label:'—'};
     var isArch=proj&&proj.archivado;
     var isPerd=proj&&['Perdido','Cancelado'].includes(proj.estatusProy||'');
-    projCots.sort(function(a,b){return b.fecha.localeCompare(a.fecha);});
+    projCots.sort(function(a,b){return (_cotTs(b)-_cotTs(a))||(b.fecha||'').localeCompare(a.fecha||'');});
+    var _collMap=_cotCollapsedMap();
+    var _allCol=projCots.length&&projCots.every(function(c){return _collMap[c.id];});
     html+='<div style="background:#fff;border-radius:10px;border:.5px solid '+(isArch?'#ddd':isPerd?'#fdd':'#bfd1e5')+';margin-bottom:1rem;overflow:hidden">'
       +'<div style="background:'+(isArch?'#f5f5f5':isPerd?'#fff8f8':'#f8fafc')+';border-bottom:.5px solid #bfd1e5;padding:9px 14px;display:flex;align-items:center;gap:8px">'
       +'<div style="font-size:13px;font-weight:700;color:'+(isArch?'#a8a8a8':isPerd?'#c0392b':'#254467')+';flex:1">'+pN+'</div>'
@@ -3873,6 +3885,7 @@ function renderCotTabla(el,cots,allProjs,filterProj,catCot){
       +'<button onclick="openNuevaVersion('+projId+')" style="font-size:10px;padding:3px 10px;border:.5px solid #6990ab;border-radius:5px;background:#fff;color:#6990ab;cursor:pointer;font-family:Arial">+ Nueva versión</button>'
       +'<button onclick="openNuevaCotizacion('+projId+')" style="font-size:10px;padding:3px 10px;border:.5px solid #bfd1e5;border-radius:5px;background:#fff;cursor:pointer;font-family:Arial">+ Cotización</button>'
       +(projCots.length>1?'<button onclick="openArmarCombinada('+projId+')" style="font-size:10px;padding:3px 10px;border:.5px solid #7C3AED;border-radius:5px;background:#fff;color:#7C3AED;cursor:pointer;font-family:Arial;font-weight:700">🧩 Armar combinada</button>':'')
+      +(projCots.length>1?'<button onclick="toggleAllCots('+projId+')" style="font-size:10px;padding:3px 10px;border:.5px solid #bfd1e5;border-radius:5px;background:#fff;color:#67727a;cursor:pointer;font-family:Arial">'+(_allCol?'🗖 Expandir todas':'🗕 Minimizar todas')+'</button>':'')
       +'</div>';
 
     projCots.forEach(function(cot){
@@ -3881,8 +3894,24 @@ function renderCotTabla(el,cots,allProjs,filterProj,catCot){
       var cats=Object.keys(catCot).sort();
       var grandTotMXN=0,grandTotConInd=0,grandTotCob=0;
 
+      // ── Versión minimizada ──
+      if(_collMap[cot.id]){
+        var _mC=calcCotMetrics(cot);
+        html+='<div style="padding:8px 14px;border-bottom:.5px solid #eef2f6;display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:#fbfcfd">'
+          +'<button onclick="toggleCotCollapse(\''+cot.id+'\')" title="Expandir" style="font-size:11px;padding:2px 8px;border:.5px solid #bfd1e5;border-radius:5px;background:#fff;cursor:pointer;font-family:Arial;font-weight:700">▸</button>'
+          +'<span style="font-size:12px;font-weight:700;color:#1A1A2E">'+cot.nombre+' <span style="font-size:10px;font-weight:400;color:#a8a8a8">'+fmtDY(cot.fecha)+'</span></span>'
+          +(cot.tipoCotizacion?'<span style="font-size:10px;background:#eef3f7;color:#254467;border-radius:4px;padding:1px 7px;font-weight:700">'+cot.tipoCotizacion+'</span>':'')
+          +(m2?'<span style="font-size:10px;color:#67727a">'+Number(m2).toLocaleString()+' m²</span>':'')
+          +'<span style="margin-left:auto;font-size:13px;font-weight:700;color:#254467">'+(_mC.grandTotal?'$'+Math.round(_mC.grandTotal).toLocaleString('es-MX'):'-')+'</span>'
+          +'<button onclick="openEditCotizacion(\''+cot.id+'\')" style="font-size:10px;padding:2px 8px;border:.5px solid #bfd1e5;border-radius:5px;background:#fff;cursor:pointer;font-family:Arial">Editar</button>'
+          +'<button data-cotid="'+cot.id+'" onclick="imprimirCotizacion(this.dataset.cotid)" style="font-size:10px;padding:2px 8px;border:.5px solid #6990ab;border-radius:5px;background:#fff;color:#6990ab;cursor:pointer;font-family:Arial" title="Imprimir">🖨</button>'
+          +'</div>';
+        return;
+      }
+
       html+='<div style="padding:12px 14px;border-bottom:.5px solid #eef2f6">'
         +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">'
+        +'<button onclick="toggleCotCollapse(\''+cot.id+'\')" title="Minimizar" style="font-size:11px;padding:2px 8px;border:.5px solid #bfd1e5;border-radius:5px;background:#fff;cursor:pointer;font-family:Arial;font-weight:700">▾</button>'
         +'<div style="font-size:12px;font-weight:700;color:#1A1A2E;flex:1">'+cot.nombre+' <span style="font-size:10px;font-weight:400;color:#a8a8a8">'+fmtDY(cot.fecha)+'</span></div>'
         +(cot.tipoCotizacion?'<span style="font-size:10px;background:#eef3f7;color:#254467;border-radius:4px;padding:1px 7px;font-weight:700">'+cot.tipoCotizacion+'</span>':'')
         +(m2?'<span style="font-size:10px;color:#67727a">'+Number(m2).toLocaleString()+' m² const.</span>':'')
