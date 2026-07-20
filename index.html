@@ -6473,6 +6473,75 @@ function getAsesoresExistentes(espNombre){
   (cat.asesores||[]).forEach(function(a){if(!espNombre||(a.especialidades||[]).indexOf(espNombre)>=0)add(a.empresa);});
   return out.sort(function(a,b){return a.localeCompare(b);});
 }
+// ─── AVISOS DE ESTATUS A ASESORES ────────────────────────────
+function _asesorVivoProj(p){
+  if(!p||p.archivado)return false;
+  var ep=p.estatusProy||'';
+  if(['Perdido','Cancelado','StandBy','Ganado'].indexOf(ep)>=0)return false;
+  if(p.estatus==='Pausado')return false;
+  return true;
+}
+function getAsesorNotif(){return ld('gh_asesor_notif',{})||{};}
+function getAsesorNotifMeses(){return parseInt(ld('gh_asesor_notif_meses',2))||2;}
+function setAsesorNotifMeses(m){sv('gh_asesor_notif_meses',parseInt(m)||2);renderCotizaciones();}
+function marcarAsesorAvisado(keyEnc){var k=decodeURIComponent(keyEnc);var m=getAsesorNotif();m[k]=todayStr;sv('gh_asesor_notif',m);renderCotizaciones();}
+function desmarcarAsesorAvisado(keyEnc){var k=decodeURIComponent(keyEnc);var m=getAsesorNotif();delete m[k];sv('gh_asesor_notif',m);renderCotizaciones();}
+function _buildAsesorNotifPanel(cots,allProjs){
+  var meses=getAsesorNotifMeses();var cadDias=meses*30;
+  var notif=getAsesorNotif();
+  var esc=function(s){return String(s==null?'':s).replace(/</g,'&lt;');};
+  var byAse={};
+  cots.forEach(function(cot){
+    var proj=allProjs.find(function(p){return String(p.id)===String(cot.projId);});
+    if(!_asesorVivoProj(proj))return;
+    (cot.especialidades||[]).forEach(function(esp){
+      (esp.asesores||[]).forEach(function(a){
+        if(!a||!a.empresa||!a.empresa.trim())return;
+        var nombre=a.empresa.trim();var k=nombre.toLowerCase();
+        if(!byAse[k])byAse[k]={nombre:nombre,projs:{}};
+        byAse[k].projs[proj.id]=proj.nombre;
+      });
+    });
+  });
+  var arr=Object.keys(byAse).map(function(k){
+    var last=notif[k]||'';
+    var dias=last?Math.round((today-new Date(last))/86400000):null;
+    var overdue=!last||(dias!=null&&dias>=cadDias);
+    return {k:k,nombre:byAse[k].nombre,projs:Object.keys(byAse[k].projs).map(function(id){return byAse[k].projs[id];}),last:last,dias:dias,overdue:overdue};
+  }).sort(function(a,b){return (b.overdue?1:0)-(a.overdue?1:0)||a.nombre.localeCompare(b.nombre);});
+  var overdueN=arr.filter(function(x){return x.overdue;}).length;
+  var selMeses=[1,2,3].map(function(m){return '<option value="'+m+'"'+(meses===m?' selected':'')+'>cada '+m+' mes'+(m>1?'es':'')+'</option>';}).join('');
+  var html='<div style="border:.5px solid '+(overdueN?'#f3c9b6':'#d9e6c9')+';border-radius:10px;background:'+(overdueN?'#fff8f3':'#f6faf0')+';padding:12px 14px;margin-bottom:16px">'
+    +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:'+(arr.length?'10px':'0')+'">'
+    +'<span style="font-size:12px;font-weight:800;color:#254467">🔔 Avisos de estatus a asesores</span>'
+    +(overdueN?'<span style="font-size:10px;font-weight:700;background:#e65a27;color:#fff;border-radius:10px;padding:1px 9px">'+overdueN+' por avisar</span>':'<span style="font-size:10px;font-weight:700;background:#eaf3de;color:#3B6D11;border-radius:10px;padding:1px 9px">todos al día ✓</span>')
+    +'<label style="margin-left:auto;font-size:10px;color:#67727a;display:flex;align-items:center;gap:5px">Recordar <select onchange="setAsesorNotifMeses(this.value)" style="font-size:10px;padding:3px 6px;border-radius:5px;border:.5px solid #bfd1e5;font-family:Arial">'+selMeses+'</select></label>'
+    +'</div>';
+  if(!arr.length){
+    html+='<div style="font-size:11px;color:#67727a">No hay asesores con proyectos en evaluación. Cuando cotices con asesores en proyectos vivos, aparecerán aquí.</div></div>';
+    return html;
+  }
+  arr.forEach(function(x){
+    var ke=encodeURIComponent(x.k);
+    html+='<div style="display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-top:.5px solid #eef2f6">'
+      +'<div style="flex:1;min-width:0">'
+      +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
+      +'<span style="font-size:12px;font-weight:700;color:#254467">'+esc(x.nombre)+'</span>'
+      +(x.overdue?'<span style="font-size:9px;font-weight:700;background:#fdecea;color:#e65a27;border-radius:10px;padding:1px 8px">🔔 Toca avisar</span>'
+                 :'<span style="font-size:9px;font-weight:700;background:#eaf3de;color:#3B6D11;border-radius:10px;padding:1px 8px">✅ Al día</span>')
+      +'<span style="font-size:9px;color:#a8a8a8">'+(x.last?'último aviso: '+fmtDY(x.last)+(x.dias!=null?' · hace '+x.dias+' días':''):'nunca avisado')+'</span>'
+      +'</div>'
+      +'<div style="font-size:10px;color:#67727a;margin-top:3px">'+x.projs.length+' proyecto'+(x.projs.length!==1?'s':'')+' en evaluación: '+x.projs.map(esc).join(', ')+'</div>'
+      +'</div>'
+      +'<div style="display:flex;flex-direction:column;gap:3px;align-items:flex-end;flex-shrink:0">'
+      +'<button onclick="marcarAsesorAvisado(\''+ke+'\')" style="font-size:10px;padding:3px 9px;border:none;border-radius:5px;background:'+(x.overdue?'#254467':'#6990ab')+';color:#fff;cursor:pointer;font-family:Arial;font-weight:700;white-space:nowrap">✓ Avisé hoy</button>'
+      +(x.last?'<button onclick="desmarcarAsesorAvisado(\''+ke+'\')" style="font-size:9px;padding:1px 7px;border:.5px solid #bfd1e5;border-radius:4px;background:#fff;color:#a8a8a8;cursor:pointer;font-family:Arial">deshacer</button>':'')
+      +'</div>'
+      +'</div>';
+  });
+  html+='</div>';
+  return html;
+}
 function renderCotAsesores2(el,cots,allProjs,catCot){
   var espFiltro=ld('gh_cot_asesor_esp','');
   var espMap={};
@@ -6508,6 +6577,7 @@ function renderCotAsesores2(el,cots,allProjs,catCot){
     +'<option value="">Todas las especialidades</option>'+espOptions+'</select>'
     +'<span style="font-size:11px;color:#a8a8a8">'+espNames.length+' especialidad(es)</span>'
     +'<button class="btn btn-primary" onclick="openGestionAsesores()" style="margin-left:auto;font-size:11px">👤 Gestionar asesores</button></div>';
+  html+=_buildAsesorNotifPanel(cots,allProjs);
   if(!espNames.length){el.innerHTML+=html+'<div style="text-align:center;padding:3rem;color:#a8a8a8;font-size:13px">Sin datos de asesores aún.</div>';return;}
   espNames.forEach(function(en){
     var am=espMap[en];
