@@ -10653,6 +10653,7 @@ function toggleConsulComment(cmId, consulNombre, cumplido){
 }
 
 
+function toggleAseProjs(id){var d=document.getElementById(id);if(d)d.style.display=d.style.display==='none'?'block':'none';}
 function renderEstadisticas(){
   // Get all projects including archived
   const allP=[...ld(K.proj,[])];
@@ -10809,10 +10810,49 @@ function renderEstadisticas(){
   var maxAseEje=aseEjeSorted.length?aseEjeSorted[0].count:1;
   var totalEje=filtered.filter(_esEje).length;
   var sinAseEje=filtered.filter(function(p){return _esEje(p)&&!_tieneAse(p);}).length;
+  // Por ingeniería: asesor por especialidad (de cotización elegidos + costos con clave = especialidad)
+  var byEsp={};
+  var _addEsp=function(espName,aseName,projName){
+    if(!espName||!aseName)return;var ek=espName.trim();var ak=aseName.trim().toLowerCase();if(!ek||!ak)return;
+    if(!byEsp[ek])byEsp[ek]={};if(!byEsp[ek][ak])byEsp[ek][ak]={nombre:aseName.trim(),projsSet:{}};
+    byEsp[ek][ak].projsSet[projName]=1;
+  };
+  filtered.forEach(function(p){
+    if(!_esEje(p))return;
+    _cotsAll.forEach(function(c){if(String(c.projId)!==String(p.id))return;(c.especialidades||[]).forEach(function(e){(e.asesores||[]).forEach(function(a){if(a&&a.elegido&&a.empresa&&a.empresa.trim())_addEsp(e.nombre,a.empresa,p.nombre);});});});
+    if(p.costosEjec)Object.keys(p.costosEjec).forEach(function(k){if(k.indexOf(':')>=0||k.indexOf('__')===0)return;var a=p.costosEjec[k]&&p.costosEjec[k].asesor;if(a&&String(a).trim())_addEsp(k,a,p.nombre);});
+  });
+  var espListAse=Object.keys(byEsp).sort(function(a,b){return a.localeCompare(b);});
+  var selEspAse=ld('gh_stats_ase_esp','');if(!selEspAse||espListAse.indexOf(selEspAse)<0)selEspAse=espListAse[0]||'';
+  var espAseArr=(selEspAse&&byEsp[selEspAse])?Object.keys(byEsp[selEspAse]).map(function(k){var o=byEsp[selEspAse][k];return {nombre:o.nombre,count:Object.keys(o.projsSet).length,projs:Object.keys(o.projsSet)};}).sort(function(a,b){return b.count-a.count||a.nombre.localeCompare(b.nombre);}):[];
+  var maxEspAse=espAseArr.length?espAseArr[0].count:1;
+  // Barra horizontal clicable que despliega proyectos
+  var _aseBar=function(x,maxV,pref,i){
+    var id=pref+'_'+i;var pct=Math.max(3,Math.round(x.count/maxV*100));
+    return '<div style="margin-bottom:9px">'
+      +'<div onclick="toggleAseProjs(\''+id+'\')" style="cursor:pointer" title="Clic para ver proyectos">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px"><span style="font-size:11px;font-weight:600;color:#254467;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;max-width:280px">▸ '+x.nombre+'</span><span style="font-size:11px;color:#5B21B6;font-weight:800;flex-shrink:0">'+x.count+'</span></div>'
+      +'<div style="height:16px;background:#f0ecfa;border-radius:4px;overflow:hidden"><div style="width:'+pct+'%;height:100%;background:#7C3AED;border-radius:4px"></div></div>'
+      +'</div>'
+      +'<div id="'+id+'" style="display:none;font-size:10px;color:#67727a;margin-top:5px;padding:6px 9px;background:#faf8ff;border-radius:6px">📁 '+x.count+' proyecto'+(x.count!==1?'s':'')+': '+x.projs.map(function(n){return String(n).replace(/</g,'&lt;');}).join(' · ')+'</div>'
+      +'</div>';
+  };
+  var espOptsAse=espListAse.map(function(e){return '<option value="'+e.replace(/"/g,'&quot;')+'"'+(e===selEspAse?' selected':'')+'>'+e+'</option>';}).join('');
   var aseHtml='<div style="background:#fff;border-radius:12px;border:.5px solid #bfd1e5;padding:16px 18px;margin-bottom:1.25rem">'
     +'<div class="sec" style="margin-top:0;margin-bottom:4px">🏗️ Contratistas / asesores en proyectos ejecutivos</div>'
-    +'<div style="font-size:10px;color:#67727a;margin-bottom:12px">Nº de proyectos ejecutivos por asesor · '+totalEje+' proyecto'+(totalEje!==1?'s':'')+' ejecutivo'+(totalEje!==1?'s':'')+(sinAseEje?' · <span style="color:#e65a27;font-weight:700">'+sinAseEje+' sin asesor asignado</span>':'')+'</div>'
-    +(aseEjeSorted.length?aseEjeSorted.map(function(x){return '<div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;margin-bottom:3px"><span style="font-size:10px;font-weight:600;color:#1E293B;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;max-width:280px" title="'+x.projs.join(', ').replace(/"/g,'&quot;')+'">'+x.nombre+'</span><span style="font-size:10px;color:#5B21B6;font-weight:700;flex-shrink:0">'+x.count+'</span></div>'+bar(x.count,maxAseEje,'#7C3AED')+'</div>';}).join(''):'<div style="font-size:11px;color:#a8a8a8">Aún no hay asesores asignados en proyectos ejecutivos. Asígnalos en la ficha del proyecto (campo <strong>"Asesores / contratistas del proyecto"</strong>) o en Costos.</div>')
+    +'<div style="font-size:10px;color:#67727a;margin-bottom:14px">'+totalEje+' proyecto'+(totalEje!==1?'s':'')+' ejecutivo'+(totalEje!==1?'s':'')+' · haz clic en un asesor para ver en qué proyectos está'+(sinAseEje?' · <span style="color:#e65a27;font-weight:700">'+sinAseEje+' sin asesor asignado</span>':'')+'</div>'
+    +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.25rem">'
+    // Global
+    +'<div><div style="font-size:12px;font-weight:700;color:#254467;margin-bottom:10px">Global (todos los asesores)</div>'
+    +(aseEjeSorted.length?aseEjeSorted.map(function(x,i){return _aseBar(x,maxAseEje,'aseg',i);}).join(''):'<div style="font-size:11px;color:#a8a8a8">Aún no hay asesores asignados. Agrégalos en la ficha del proyecto (campo <strong>"Asesores / contratistas del proyecto"</strong>) o en Costos.</div>')
+    +'</div>'
+    // Por ingeniería
+    +'<div><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px"><span style="font-size:12px;font-weight:700;color:#254467">Por ingeniería</span>'
+    +(espListAse.length?'<select onchange="sv(\'gh_stats_ase_esp\',this.value);renderEstadisticas()" style="font-size:10px;padding:3px 7px;border-radius:5px;border:.5px solid #bfd1e5;font-family:Arial;margin-left:auto">'+espOptsAse+'</select>':'')
+    +'</div>'
+    +(espAseArr.length?espAseArr.map(function(x,i){return _aseBar(x,maxEspAse,'asee',i);}).join(''):'<div style="font-size:11px;color:#a8a8a8">Sin datos por ingeniería todavía. Esta vista usa el asesor elegido en cotizaciones y en Costos (por especialidad).</div>')
+    +'</div>'
+    +'</div>'
     +'</div>';
 
   document.getElementById('stats-container').innerHTML=`
