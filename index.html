@@ -2318,6 +2318,8 @@ function openProyecto(id,isInterno){
   const consulOpts=cat.consultores.map(c=>`<option value="${c.nombre}">${c.nombre}</option>`).join('');
   const eqArr=p.equipo||[];
   const cArr=p.consultores||[];
+  const aseArr=p.asesoresProyecto||[];
+  const aseOpts=getAsesoresExistentes('').map(function(n){return '<option value="'+n.replace(/"/g,'&quot;')+'">'+n+'</option>';}).join('');
 
   document.getElementById('modal-body').innerHTML=`
     <h3 style="${isInt?'color:#6990ab':''};">${id?(isInt?'Editar proyecto interno':'Editar proyecto'):(isInt?'Nuevo proyecto interno':'Nuevo proyecto')}</h3>
@@ -2340,6 +2342,11 @@ function openProyecto(id,isInterno){
       <div id="pconsul-tags" class="tag-list">${cArr.map((c,i)=>`<span class="tag purple">${c.nombre}<span class="xt" onclick="removeConsulTag(${i})">×</span></span>`).join('')}</div>
       <input type="hidden" id="pconsul-data" value='${JSON.stringify(cArr)}'>
     </div>
+    ${!isInt?`<div class="fg"><label>Asesores / contratistas del proyecto <span style="font-size:9px;font-weight:400;color:#a8a8a8">— alimenta la gráfica de Estadísticas</span></label>
+      <select onchange="addTag(this,'pase-tags','pase-data','person-pill')" style="font-size:11px;padding:5px 8px;border-radius:6px;border:.5px solid #bfd1e5;font-family:Arial"><option value="">+ Agregar asesor...</option>${aseOpts}</select>
+      <div id="pase-tags" class="tag-list">${aseArr.map((a)=>`<span class="tag" style="background:#efe9fb;color:#5B21B6">${a}<span class="xt" onclick="removeTag(this,'pase-data')">×</span></span>`).join('')}</div>
+      <input type="hidden" id="pase-data" value='${JSON.stringify(aseArr)}'>
+    </div>`:''}
     ${!isInt?`
     <div class="fg"><label>Tipo de proyecto</label><select id="ptipo">${TIPOS.map(t=>`<option ${(p.tipo||'')=== t?'selected':''}>${t}</option>`).join('')}</select></div>
     <div class="frow"><div class="fg"><label>F. Arranque</label><input type="date" id="par" value="${p.arranque||''}"></div><div class="fg"><label>F. Entrega V1</label><input type="date" id="pev1" value="${p.entregaV1||p.entrega||''}"></div></div>
@@ -2517,6 +2524,7 @@ function saveProyecto(id,isInt){
     jefe:document.getElementById('pjefe')?document.getElementById('pjefe').value:'',
     coord:document.getElementById('pco')?document.getElementById('pco').value:'',
     equipo:eq,consultores:co,
+    asesoresProyecto:document.getElementById('pase-data')?JSON.parse(document.getElementById('pase-data').value||'[]'):(id?(projects.find(x=>x.id===id).asesoresProyecto||[]):[]),
     arranque:document.getElementById('par')?document.getElementById('par').value:'',
     entregaV1:document.getElementById('pev1')?document.getElementById('pev1').value:'',
     entregaV2:document.getElementById('pev2')?document.getElementById('pev2').value:'',
@@ -10781,6 +10789,32 @@ function renderEstadisticas(){
     +'</div>'
     +'</div>';
 
+  // ── CONTRATISTAS / ASESORES EN PROYECTOS EJECUTIVOS ──
+  var _esEje=function(p){return !p.interno&&['EJECUTIVO','REVISIONES'].indexOf(p.etapa)>=0;};
+  var _tieneAse=function(p){
+    if(p.asesoresProyecto&&p.asesoresProyecto.length)return true;
+    if(p.costosEjec&&Object.keys(p.costosEjec).some(function(k){return p.costosEjec[k]&&p.costosEjec[k].asesor;}))return true;
+    return _cotsAll.some(function(c){return String(c.projId)===String(p.id)&&(c.especialidades||[]).some(function(e){return (e.asesores||[]).some(function(a){return a.elegido;});});});
+  };
+  var byAsesorEje={};
+  filtered.forEach(function(p){
+    if(!_esEje(p))return;
+    var set={};
+    (p.asesoresProyecto||[]).forEach(function(n){if(n&&String(n).trim())set[String(n).trim().toLowerCase()]=String(n).trim();});
+    if(p.costosEjec)Object.keys(p.costosEjec).forEach(function(k){var a=p.costosEjec[k]&&p.costosEjec[k].asesor;if(a&&String(a).trim())set[String(a).trim().toLowerCase()]=String(a).trim();});
+    _cotsAll.forEach(function(c){if(String(c.projId)!==String(p.id))return;(c.especialidades||[]).forEach(function(e){(e.asesores||[]).forEach(function(a){if(a&&a.elegido&&a.empresa&&a.empresa.trim())set[a.empresa.trim().toLowerCase()]=a.empresa.trim();});});});
+    Object.keys(set).forEach(function(kk){if(!byAsesorEje[kk])byAsesorEje[kk]={nombre:set[kk],count:0,projs:[]};byAsesorEje[kk].count++;byAsesorEje[kk].projs.push(p.nombre);});
+  });
+  var aseEjeSorted=Object.keys(byAsesorEje).map(function(k){return byAsesorEje[k];}).sort(function(a,b){return b.count-a.count||a.nombre.localeCompare(b.nombre);});
+  var maxAseEje=aseEjeSorted.length?aseEjeSorted[0].count:1;
+  var totalEje=filtered.filter(_esEje).length;
+  var sinAseEje=filtered.filter(function(p){return _esEje(p)&&!_tieneAse(p);}).length;
+  var aseHtml='<div style="background:#fff;border-radius:12px;border:.5px solid #bfd1e5;padding:16px 18px;margin-bottom:1.25rem">'
+    +'<div class="sec" style="margin-top:0;margin-bottom:4px">🏗️ Contratistas / asesores en proyectos ejecutivos</div>'
+    +'<div style="font-size:10px;color:#67727a;margin-bottom:12px">Nº de proyectos ejecutivos por asesor · '+totalEje+' proyecto'+(totalEje!==1?'s':'')+' ejecutivo'+(totalEje!==1?'s':'')+(sinAseEje?' · <span style="color:#e65a27;font-weight:700">'+sinAseEje+' sin asesor asignado</span>':'')+'</div>'
+    +(aseEjeSorted.length?aseEjeSorted.map(function(x){return '<div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;margin-bottom:3px"><span style="font-size:10px;font-weight:600;color:#1E293B;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;max-width:280px" title="'+x.projs.join(', ').replace(/"/g,'&quot;')+'">'+x.nombre+'</span><span style="font-size:10px;color:#5B21B6;font-weight:700;flex-shrink:0">'+x.count+'</span></div>'+bar(x.count,maxAseEje,'#7C3AED')+'</div>';}).join(''):'<div style="font-size:11px;color:#a8a8a8">Aún no hay asesores asignados en proyectos ejecutivos. Asígnalos en la ficha del proyecto (campo <strong>"Asesores / contratistas del proyecto"</strong>) o en Costos.</div>')
+    +'</div>';
+
   document.getElementById('stats-container').innerHTML=`
     <!-- Filters -->
     <div style="background:#fff;border-radius:10px;padding:14px 16px;border:.5px solid #bfd1e5;margin-bottom:1.25rem">
@@ -10808,6 +10842,7 @@ function renderEstadisticas(){
     </div>
 
     ${execHtml}
+    ${aseHtml}
 
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem">
 
