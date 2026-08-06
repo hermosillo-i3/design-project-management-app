@@ -337,6 +337,7 @@ body.qas-env{padding-top:32px}
     <!-- Controles comunes -->
     <div style="display:flex;gap:6px;margin-bottom:7px;flex-wrap:wrap;align-items:center" class="no-print">
       <button class="btn btn-ghost btn-sm" onclick="openProyecto(null,false)">+ Proyecto</button>
+      <button class="btn btn-sm" onclick="imprimirReporteDepto()" style="border:.5px solid #254467;color:#254467;font-weight:700">🖨 Reporte Depto. Diseño</button>
       <select id="proj-sort" onchange="renderProyectos()" style="font-size:11px;padding:4px 8px;border-radius:6px;border:.5px solid #bfd1e5;font-family:Arial">
         <option value="num">Orden #</option>
         <option value="coord">Por coordinador</option>
@@ -1462,6 +1463,57 @@ function importProyectosCSV(input){
   reader.readAsText(file,'UTF-8');
 }
 // ─────────────────────────────────────────────────────────────
+function imprimirReporteDepto(){
+  var all=activeProjs();
+  var concurso=all.filter(function(p){return p.etapa==='PRECON'||p.etapa==='INTERNO'||['Perdido','StandBy','Cancelado'].includes(p.estatusProy);}).sort(function(a,b){return a.num-b.num;});
+  var ejec=all.filter(function(p){return p.etapa==='EJECUTIVO'||p.etapa==='REVISIONES';}).sort(function(a,b){return a.num-b.num;});
+  var esc=function(s){return String(s==null?'':s).replace(/</g,'&lt;');};
+  var ult=function(p){var e=p.entregaV4||p.entregaV3||p.entregaV2||p.entregaV1||p.entrega||'';return e?fmtD(e):'—';};
+  var eqTxt=function(p){return (p.equipo||[]).join(', ')||'—';};
+  var conTxt=function(p){return (p.consultores||[]).map(function(c){return c.nombre;}).join(', ')||'—';};
+  var heads='<tr><th>Proyecto</th><th>Cliente</th><th>Coordinador</th><th>Equipo</th><th>Consultor</th><th>Estructurista</th><th>Últ. entrega</th><th>Prioridad</th><th style="width:24%">Comentarios</th></tr>';
+  var rowsHtml=function(list){
+    if(!list.length)return '<tr><td colspan="9" style="text-align:center;color:#999;padding:12px">Sin proyectos</td></tr>';
+    return list.map(function(p){
+      var pr=p.prioridad||'—';var prC=pr==='Alta'?'#991B1B':pr==='Media'?'#92400E':pr==='Baja'?'#14532D':'#666';
+      return '<tr>'
+        +'<td class="b">'+esc(p.nombre)+'</td>'
+        +'<td>'+esc(p.cliente||'—')+'</td>'
+        +'<td>'+esc(p.coord||'—')+'</td>'
+        +'<td>'+esc(eqTxt(p))+'</td>'
+        +'<td>'+esc(conTxt(p))+'</td>'
+        +'<td>'+esc(p.estructurista||'—')+'</td>'
+        +'<td class="nw">'+ult(p)+'</td>'
+        +'<td style="font-weight:700;color:'+prC+'">'+esc(pr)+'</td>'
+        +'<td class="com"></td>'
+        +'</tr>';
+    }).join('');
+  };
+  var win=window.open('','_blank');
+  win.document.write('<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Reporte Departamento de Diseño</title><style>'
+    +'*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;color:#1A1A2E;font-size:11px;padding:1.2rem}'
+    +'.hdr{background:#254467;color:#fff;border-radius:8px;padding:12px 16px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:flex-end}'
+    +'.hdr-t{font-size:16px;font-weight:700}.hdr-s{font-size:10px;color:#bfd1e5;margin-top:3px}'
+    +'.sec{font-size:12px;font-weight:700;color:#254467;margin:16px 0 6px;padding-bottom:3px;border-bottom:2px solid #254467}'
+    +'table{width:100%;border-collapse:collapse;font-size:10px;margin-bottom:8px}'
+    +'th{background:#254467;color:#fff;padding:5px 6px;text-align:left;font-size:9px;font-weight:700;border:.5px solid #254467}'
+    +'td{padding:5px 6px;border:.5px solid #cbd5e1;vertical-align:top}'
+    +'td.b{font-weight:700;color:#254467}.nw{white-space:nowrap}'
+    +'td.com{background:#fffef8}'
+    +'tr:nth-child(even) td{background:#f6f8fb}tr:nth-child(even) td.com{background:#fffef2}'
+    +'@page{size:landscape;margin:1cm}@media print{body{padding:.3rem}}'
+    +'</style></head><body>'
+    +'<div class="hdr"><div><div class="hdr-t">Reporte Departamento de Diseño</div><div class="hdr-s">Gerencia de Diseño CDMX — Grupo Hermosillo · Junta de revisión de proyectos</div></div>'
+    +'<div style="text-align:right;font-size:10px;color:#bfd1e5">'+today.toLocaleDateString('es-MX',{day:'2-digit',month:'long',year:'numeric'})+'</div></div>'
+    +'<div class="sec">🏆 Concurso ('+concurso.length+')</div>'
+    +'<table><thead>'+heads+'</thead><tbody>'+rowsHtml(concurso)+'</tbody></table>'
+    +'<div class="sec">⚙ Ejecutivo ('+ejec.length+')</div>'
+    +'<table><thead>'+heads+'</thead><tbody>'+rowsHtml(ejec)+'</tbody></table>'
+    +'<div style="margin-top:16px;font-size:9px;color:#999">Generado el '+fmtDY(todayStr)+' · La columna de Comentarios queda en blanco para anotar durante la junta.</div>'
+    +'</body></html>');
+  win.document.close();
+  setTimeout(function(){try{win.print();}catch(e){}},400);
+}
 function renderProyectos(){
   const tab=getProjSubTab();
   // Sync tab button styles
