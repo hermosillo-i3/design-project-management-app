@@ -1471,14 +1471,17 @@ function imprimirReporteDepto(){
   var ult=function(p){var e=p.entregaV4||p.entregaV3||p.entregaV2||p.entregaV1||p.entrega||'';return e?fmtD(e):'—';};
   var eqTxt=function(p){return (p.equipo||[]).join(', ')||'—';};
   var conTxt=function(p){return (p.consultores||[]).map(function(c){return c.nombre;}).join(', ')||'—';};
-  var heads='<tr><th>Proyecto</th><th>Cliente</th><th>Coordinador</th><th>Equipo</th><th>Consultor</th><th>Estructurista</th><th>Últ. entrega</th><th>Prioridad</th><th style="width:24%">Comentarios</th></tr>';
+  var heads='<tr><th>Proyecto</th><th>Cliente</th><th>Ubicación</th><th>m²</th><th>Coordinador</th><th>Equipo</th><th>Consultor</th><th>Estructurista</th><th>Últ. entrega</th><th>Prioridad</th><th style="width:20%">Comentarios</th></tr>';
   var rowsHtml=function(list){
-    if(!list.length)return '<tr><td colspan="9" style="text-align:center;color:#999;padding:12px">Sin proyectos</td></tr>';
+    if(!list.length)return '<tr><td colspan="11" style="text-align:center;color:#999;padding:12px">Sin proyectos</td></tr>';
     return list.map(function(p){
       var pr=p.prioridad||'—';var prC=pr==='Alta'?'#991B1B':pr==='Media'?'#92400E':pr==='Baja'?'#14532D':'#666';
+      var ubi=[p.areaProyecto,p.ubicacion].filter(Boolean).join(' · ')||'—';
       return '<tr>'
         +'<td class="b">'+esc(p.nombre)+'</td>'
         +'<td>'+esc(p.cliente||'—')+'</td>'
+        +'<td>'+esc(ubi)+'</td>'
+        +'<td class="nw">'+(p.areaM2?Number(p.areaM2).toLocaleString('es-MX')+' m²':'—')+'</td>'
         +'<td>'+esc(p.coord||'—')+'</td>'
         +'<td>'+esc(eqTxt(p))+'</td>'
         +'<td>'+esc(conTxt(p))+'</td>'
