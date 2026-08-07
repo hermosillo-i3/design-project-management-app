@@ -391,9 +391,11 @@ body.qas-env{padding-top:32px}
 <!-- SEGUIMIENTO -->
 <div id="p-seguimiento" class="panel">
   <div style="display:flex;gap:6px;margin-bottom:8px;align-items:center;flex-wrap:wrap" class="no-print">
+    <button id="seg-mode-btn" class="btn btn-sm" onclick="segToggleMode()" style="font-weight:700">👥 Por cliente</button>
     <select id="seg-sel" onchange="renderSeg()" style="font-size:11px;padding:5px 8px;border-radius:6px;border:.5px solid #bfd1e5;font-family:Arial,sans-serif;min-width:200px"></select>
-    <button class="btn btn-primary btn-sm" onclick="openAddTask()">+ Tarea</button>
-    <button class="btn btn-sm" onclick="openAddComment()">+ Comentario</button>
+    <select id="seg-cliente" onchange="renderSeg()" style="display:none;font-size:11px;padding:5px 8px;border-radius:6px;border:.5px solid #bfd1e5;font-family:Arial,sans-serif;min-width:200px"></select>
+    <button id="seg-btn-tarea" class="btn btn-primary btn-sm" onclick="openAddTask()">+ Tarea</button>
+    <button id="seg-btn-com" class="btn btn-sm" onclick="openAddComment()">+ Comentario</button>
     <label style="font-size:10px;color:#67727a;display:flex;align-items:center;gap:4px"><input type="checkbox" id="show-arch" onchange="renderSeg()"> Ver archivados</label>
     <label style="font-size:10px;color:#67727a;display:flex;align-items:center;gap:4px"><input type="checkbox" id="show-done-seg" onchange="renderSeg()"> Ver completadas</label>
   </div>
@@ -2858,23 +2860,63 @@ function saveDoc(id){
 }
 
 // ── SEGUIMIENTO ──────────────────────────────────────────────
+function segToggleMode(){var m=ld('gh_seg_mode','proyecto');sv('gh_seg_mode',m==='cliente'?'proyecto':'cliente');populateSeg();}
 function populateSeg(){
+  const mode=ld('gh_seg_mode','proyecto');
   const sel=document.getElementById('seg-sel');
+  const cliSel=document.getElementById('seg-cliente');
   const all=[...activeProjs(),...internos()].sort((a,b)=>a.nombre.localeCompare(b.nombre));
   const prev=sel.value;
   sel.innerHTML=all.map(p=>`<option value="${p.id}">${p.nombre}${p.interno?' [INT]':''}</option>`).join('');
   if(prev) sel.value=prev;
+  // Clientes (incluye archivados para sesiones de cliente)
+  var allP=ld(K.proj,[]);
+  var clientes=Object.keys(allP.reduce(function(o,p){if(p.cliente&&p.cliente.trim())o[p.cliente.trim()]=1;return o;},{})).sort(function(a,b){return a.localeCompare(b);});
+  var prevC=cliSel?cliSel.value:'';
+  if(cliSel){cliSel.innerHTML=clientes.map(function(c){return '<option value="'+c.replace(/"/g,'&quot;')+'">'+c+'</option>';}).join('');if(prevC)cliSel.value=prevC;}
+  // Mostrar/ocultar según modo
+  if(sel)sel.style.display=mode==='cliente'?'none':'';
+  if(cliSel)cliSel.style.display=mode==='cliente'?'':'none';
+  var mb=document.getElementById('seg-mode-btn');if(mb)mb.textContent=mode==='cliente'?'📁 Por proyecto':'👥 Por cliente';
+  ['seg-btn-tarea','seg-btn-com'].forEach(function(bid){var b=document.getElementById(bid);if(b)b.style.display=mode==='cliente'?'none':'';});
   renderSeg();
 }
+function _segFeedFor(pid,showArch,showDoneSeg){
+  var pTasks=tasks.filter(function(t){return t.projId===pid&&(showArch||!t.archivado)&&(showDoneSeg||!t.done);}).sort(function(a,b){return (a.fechaCompromiso||'z')>(b.fechaCompromiso||'z')?1:-1;});
+  var pComments=comments.filter(function(c){return c.projId===pid&&(showArch||!c.archivado);}).sort(function(a,b){return b.fecha.localeCompare(a.fecha);});
+  return [...pTasks.map(function(t){return {...t,_type:'task'};}),...pComments.map(function(c){return {...c,_type:'comment'};})].sort(function(a,b){return (b.fecha||b.fechaPedido||'').localeCompare(a.fecha||a.fechaPedido||'');});
+}
+function renderSegCliente(){
+  var showArch=document.getElementById('show-arch')&&document.getElementById('show-arch').checked;
+  var showDoneSeg=document.getElementById('show-done-seg')&&document.getElementById('show-done-seg').checked;
+  var cli=document.getElementById('seg-cliente')?document.getElementById('seg-cliente').value:'';
+  var allP=ld(K.proj,[]);
+  var projs=allP.filter(function(p){return (p.cliente||'').trim()===cli;});
+  var activos=projs.filter(function(p){return !p.archivado;}).sort(function(a,b){return a.nombre.localeCompare(b.nombre);});
+  var arch=projs.filter(function(p){return p.archivado;}).sort(function(a,b){return a.nombre.localeCompare(b.nombre);});
+  var projBlock=function(p){
+    var feed=_segFeedFor(p.id,showArch,showDoneSeg);
+    return '<div style="margin-bottom:16px">'
+      +'<div style="font-size:12px;font-weight:800;color:#254467;border-bottom:1.5px solid #254467;padding-bottom:4px;margin-bottom:8px">'+String(p.nombre||'').replace(/</g,'&lt;')+(p.archivado?' <span style="font-size:9px;font-weight:600;color:#a8a8a8">(archivado)</span>':'')+' <span style="font-weight:400;color:#a8a8a8;font-size:10px">· '+feed.length+' registro'+(feed.length!==1?'s':'')+'</span></div>'
+      +(feed.length?feed.map(_segItemHtml).join(''):'<div style="color:#a8a8a8;font-size:10px;padding:2px 0 6px">Sin actividad registrada.</div>')
+      +'</div>';
+  };
+  var html='';
+  if(activos.length){html+='<div style="font-size:11px;font-weight:800;color:#3B6D11;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">🟢 Activos ('+activos.length+')</div>';activos.forEach(function(p){html+=projBlock(p);});}
+  if(arch.length){html+='<div style="font-size:11px;font-weight:800;color:#a8a8a8;text-transform:uppercase;letter-spacing:.05em;margin:18px 0 10px;border-top:.5px dashed #d0d7de;padding-top:12px">📦 Archivados ('+arch.length+')</div>';arch.forEach(function(p){html+=projBlock(p);});}
+  if(!activos.length&&!arch.length)html='<div style="color:#67727a;font-size:11px;padding:1rem;text-align:center">Sin proyectos para este cliente.</div>';
+  document.getElementById('seg-feed').innerHTML=html;
+}
 function renderSeg(){
+  if(ld('gh_seg_mode','proyecto')==='cliente'){renderSegCliente();return;}
   const pid=parseInt(document.getElementById('seg-sel').value);
   const p=projects.find(x=>x.id===pid);if(!p)return;
   const showArch=document.getElementById('show-arch')&&document.getElementById('show-arch').checked;
   const showDoneSeg=document.getElementById('show-done-seg')&&document.getElementById('show-done-seg').checked;
-  const pTasks=tasks.filter(t=>t.projId===pid&&(showArch||!t.archivado)&&(showDoneSeg||!t.done)).sort((a,b)=>(a.fechaCompromiso||'z')>(b.fechaCompromiso||'z')?1:-1);
-  const pComments=comments.filter(c=>c.projId===pid&&(showArch||!c.archivado)).sort((a,b)=>b.fecha.localeCompare(a.fecha));
-  const feed=[...pTasks.map(t=>({...t,_type:'task'})),...pComments.map(c=>({...c,_type:'comment'}))].sort((a,b)=>(b.fecha||b.fechaPedido||'').localeCompare(a.fecha||a.fechaPedido||''));
-  document.getElementById('seg-feed').innerHTML=feed.length?feed.map(item=>{
+  const feed=_segFeedFor(pid,showArch,showDoneSeg);
+  document.getElementById('seg-feed').innerHTML=feed.length?feed.map(_segItemHtml).join(''):'<div style="color:#67727a;font-size:11px;padding:1rem;text-align:center">Sin actividad registrada para este proyecto.</div>';
+}
+function _segItemHtml(item){
     if(item._type==='task'){
       const ov=item.fechaCompromiso&&item.fechaCompromiso<todayStr&&!item.done;
       return`<div class="feed-item task ${item.done?'done':''}${item.archivado?' arch':''}">
@@ -2911,7 +2953,6 @@ function renderSeg(){
         </div>
       </div>`;
     }
-  }).join(''):'<div style="color:#67727a;font-size:11px;padding:1rem;text-align:center">Sin actividad registrada para este proyecto.</div>';
 }
 function openAddTask(){
   const pid=parseInt(document.getElementById('seg-sel').value);
