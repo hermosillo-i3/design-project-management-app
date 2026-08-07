@@ -1465,8 +1465,18 @@ function importProyectosCSV(input){
 // ─────────────────────────────────────────────────────────────
 function imprimirReporteDepto(){
   var all=activeProjs();
-  var concurso=all.filter(function(p){return p.etapa==='PRECON'||p.etapa==='INTERNO'||['Perdido','StandBy','Cancelado'].includes(p.estatusProy);}).sort(function(a,b){return a.num-b.num;});
-  var ejec=all.filter(function(p){return p.etapa==='EJECUTIVO'||p.etapa==='REVISIONES';}).sort(function(a,b){return a.num-b.num;});
+  var _sortSel=document.getElementById('proj-sort')?document.getElementById('proj-sort').value:'num';
+  var _sortRep=function(ps){
+    if(_sortSel==='coord')return ps.slice().sort(function(a,b){return (a.coord||'').localeCompare(b.coord||'');});
+    if(_sortSel==='sem'){var o={crit:0,risk:1,none:2,ok:3};return ps.slice().sort(function(a,b){return (o[sem(a).cls]||3)-(o[sem(b).cls]||3);});}
+    if(_sortSel==='avz')return ps.slice().sort(function(a,b){return a.avance-b.avance;});
+    if(_sortSel==='prio'){var po={'Alta':0,'Media':1,'Baja':2};return ps.slice().sort(function(a,b){return (po[a.prioridad]!=null?po[a.prioridad]:1)-(po[b.prioridad]!=null?po[b.prioridad]:1);});}
+    if(_sortSel==='cliente')return ps.slice().sort(function(a,b){return (a.cliente||'').localeCompare(b.cliente||'');});
+    return ps.slice().sort(function(a,b){return a.num-b.num;});
+  };
+  var _sortLbl={num:'número',coord:'coordinador',sem:'semáforo',avz:'avance',prio:'prioridad',cliente:'cliente'}[_sortSel]||'número';
+  var concurso=_sortRep(all.filter(function(p){return p.etapa==='PRECON'||p.etapa==='INTERNO'||['Perdido','StandBy','Cancelado'].includes(p.estatusProy);}));
+  var ejec=_sortRep(all.filter(function(p){return p.etapa==='EJECUTIVO'||p.etapa==='REVISIONES';}));
   var esc=function(s){return String(s==null?'':s).replace(/</g,'&lt;');};
   var ult=function(p){var e=p.entregaV4||p.entregaV3||p.entregaV2||p.entregaV1||p.entrega||'';return e?fmtD(e):'—';};
   var eqTxt=function(p){return (p.equipo||[]).join(', ')||'—';};
@@ -1506,7 +1516,7 @@ function imprimirReporteDepto(){
     +'tr:nth-child(even) td{background:#f6f8fb}tr:nth-child(even) td.com{background:#fffef2}'
     +'@page{size:landscape;margin:1cm}@media print{body{padding:.3rem}}'
     +'</style></head><body>'
-    +'<div class="hdr"><div><div class="hdr-t">Reporte Departamento de Diseño</div><div class="hdr-s">Gerencia de Diseño CDMX — Grupo Hermosillo · Junta de revisión de proyectos</div></div>'
+    +'<div class="hdr"><div><div class="hdr-t">Reporte Departamento de Diseño</div><div class="hdr-s">Gerencia de Diseño CDMX — Grupo Hermosillo · Junta de revisión · Ordenado por '+_sortLbl+'</div></div>'
     +'<div style="text-align:right;font-size:10px;color:#bfd1e5">'+today.toLocaleDateString('es-MX',{day:'2-digit',month:'long',year:'numeric'})+'</div></div>'
     +'<div class="sec">🏆 Concurso ('+concurso.length+')</div>'
     +'<table><thead>'+heads+'</thead><tbody>'+rowsHtml(concurso)+'</tbody></table>'
