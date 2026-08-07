@@ -2892,21 +2892,44 @@ function renderSegCliente(){
   var cli=document.getElementById('seg-cliente')?document.getElementById('seg-cliente').value:'';
   var allP=ld(K.proj,[]);
   var projs=allP.filter(function(p){return (p.cliente||'').trim()===cli;});
-  var activos=projs.filter(function(p){return !p.archivado;}).sort(function(a,b){return a.nombre.localeCompare(b.nombre);});
-  var arch=projs.filter(function(p){return p.archivado;}).sort(function(a,b){return a.nombre.localeCompare(b.nombre);});
+  var colMap=ld('gh_seg_collapsed',{})||{};
+  var activos=_segCliSort(projs.filter(function(p){return !p.archivado;}),cli);
+  var arch=_segCliSort(projs.filter(function(p){return p.archivado;}),cli);
   var projBlock=function(p){
     var feed=_segFeedFor(p.id,showArch,showDoneSeg);
-    return '<div style="margin-bottom:16px">'
-      +'<div style="font-size:12px;font-weight:800;color:#254467;border-bottom:1.5px solid #254467;padding-bottom:4px;margin-bottom:8px">'+String(p.nombre||'').replace(/</g,'&lt;')+(p.archivado?' <span style="font-size:9px;font-weight:600;color:#a8a8a8">(archivado)</span>':'')+' <span style="font-weight:400;color:#a8a8a8;font-size:10px">· '+feed.length+' registro'+(feed.length!==1?'s':'')+'</span></div>'
-      +(feed.length?feed.map(_segItemHtml).join(''):'<div style="color:#a8a8a8;font-size:10px;padding:2px 0 6px">Sin actividad registrada.</div>')
+    var collapsed=!!colMap[p.id];
+    return '<div ondragover="event.preventDefault()" ondrop="segProjDrop(event,'+p.id+')" style="margin-bottom:10px;border:.5px solid #e3e9f0;border-radius:8px;background:#fff;overflow:hidden">'
+      +'<div draggable="true" ondragstart="segProjDragStart(event,'+p.id+')" style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#f8fafc;border-bottom:'+(collapsed?'none':'1px solid #eef2f6')+';cursor:grab">'
+      +'<span title="Arrastra para ordenar" style="color:#c0c7d0;font-size:13px">⠿</span>'
+      +'<span onclick="toggleSegProj('+p.id+')" style="cursor:pointer;font-size:11px;color:#6990ab;font-weight:700;width:12px;flex-shrink:0">'+(collapsed?'▸':'▾')+'</span>'
+      +'<span onclick="toggleSegProj('+p.id+')" style="cursor:pointer;flex:1;font-size:12px;font-weight:800;color:#254467">'+String(p.nombre||'').replace(/</g,'&lt;')+(p.archivado?' <span style="font-size:9px;font-weight:600;color:#a8a8a8">(archivado)</span>':'')+'</span>'
+      +'<span style="font-weight:600;color:#a8a8a8;font-size:10px;flex-shrink:0">'+feed.length+' reg'+'</span>'
+      +'</div>'
+      +(collapsed?'':'<div style="padding:10px 12px">'+(feed.length?feed.map(_segItemHtml).join(''):'<div style="color:#a8a8a8;font-size:10px;padding:2px 0">Sin actividad registrada.</div>')+'</div>')
       +'</div>';
   };
-  var html='';
+  var html='<div style="font-size:10px;color:#a8a8a8;margin-bottom:10px">Arrastra los proyectos (⠿) para ordenarlos por prioridad · clic en el título para colapsar</div>';
   if(activos.length){html+='<div style="font-size:11px;font-weight:800;color:#3B6D11;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">🟢 Activos ('+activos.length+')</div>';activos.forEach(function(p){html+=projBlock(p);});}
   if(arch.length){html+='<div style="font-size:11px;font-weight:800;color:#a8a8a8;text-transform:uppercase;letter-spacing:.05em;margin:18px 0 10px;border-top:.5px dashed #d0d7de;padding-top:12px">📦 Archivados ('+arch.length+')</div>';arch.forEach(function(p){html+=projBlock(p);});}
   if(!activos.length&&!arch.length)html='<div style="color:#67727a;font-size:11px;padding:1rem;text-align:center">Sin proyectos para este cliente.</div>';
   document.getElementById('seg-feed').innerHTML=html;
 }
+function getSegCliOrder(cli){var m=ld('gh_seg_cli_order',{})||{};return m[cli]||[];}
+function _segCliSort(list,cli){var ord=getSegCliOrder(cli);var idx={};ord.forEach(function(id,i){idx[String(id)]=i;});return list.slice().sort(function(a,b){var ia=idx[String(a.id)],ib=idx[String(b.id)];if(ia==null&&ib==null)return (a.nombre||'').localeCompare(b.nombre||'');if(ia==null)return 1;if(ib==null)return -1;return ia-ib;});}
+function segProjDragStart(ev,pid){window.__segDragId=String(pid);try{ev.dataTransfer.effectAllowed='move';ev.dataTransfer.setData('text/plain',String(pid));}catch(e){}}
+function segProjDrop(ev,targetPid){
+  ev.preventDefault();
+  var cli=document.getElementById('seg-cliente')?document.getElementById('seg-cliente').value:'';
+  var dragId=String(window.__segDragId||(ev.dataTransfer?ev.dataTransfer.getData('text/plain'):'')||'');targetPid=String(targetPid);
+  if(!dragId||dragId===targetPid)return;
+  var allP=ld(K.proj,[]);var projs=allP.filter(function(p){return (p.cliente||'').trim()===cli;});
+  var ids=_segCliSort(projs,cli).map(function(p){return String(p.id);});
+  ids=ids.filter(function(x){return x!==dragId;});
+  var ti=ids.indexOf(targetPid);if(ti<0)ids.push(dragId);else ids.splice(ti,0,dragId);
+  var m=ld('gh_seg_cli_order',{})||{};m[cli]=ids;sv('gh_seg_cli_order',m);
+  window.__segDragId='';renderSeg();
+}
+function toggleSegProj(pid){var m=ld('gh_seg_collapsed',{})||{};if(m[pid])delete m[pid];else m[pid]=1;sv('gh_seg_collapsed',m);renderSeg();}
 function renderSeg(){
   if(ld('gh_seg_mode','proyecto')==='cliente'){renderSegCliente();return;}
   const pid=parseInt(document.getElementById('seg-sel').value);
