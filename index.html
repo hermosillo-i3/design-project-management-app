@@ -2897,6 +2897,12 @@ function renderSegCliente(){
   var projBlock=function(p){
     var feed=_segFeedFor(p.id,showArch,showDoneSeg);
     var collapsed=!!colMap[p.id];
+    var _vers=[p.entregaV1,p.entregaV2,p.entregaV3,p.entregaV4].filter(function(v){return v&&String(v).trim();});
+    var _prox=_vers.filter(function(v){return v>=todayStr;}).sort()[0]||'';
+    var _ult=_vers.length?_vers.slice().sort()[_vers.length-1]:'';
+    var entBadge=_prox
+      ?'<span title="Próxima entrega" style="font-size:9px;font-weight:700;background:#e0eaf2;color:#254467;border-radius:4px;padding:1px 6px;flex-shrink:0">📅 '+fmtD(_prox)+'</span>'
+      :(_ult?'<span title="Última entrega (ya pasó)" style="font-size:9px;font-weight:700;background:#f3eafe;color:#6D28D9;border-radius:4px;padding:1px 6px;flex-shrink:0">📅 '+fmtD(_ult)+'</span>':'');
     var badge=p.archivado
       ?'<span style="font-size:8px;font-weight:800;letter-spacing:.04em;background:#eceff3;color:#8a97a5;border-radius:4px;padding:1px 6px;flex-shrink:0">ARCHIVADO</span>'
       :'<span style="font-size:8px;font-weight:800;letter-spacing:.04em;background:#eaf3de;color:#3B6D11;border-radius:4px;padding:1px 6px;flex-shrink:0">ACTIVO</span>';
@@ -2906,6 +2912,7 @@ function renderSegCliente(){
       +'<span onclick="toggleSegProj('+p.id+')" style="cursor:pointer;font-size:11px;color:#6990ab;font-weight:700;width:12px;flex-shrink:0">'+(collapsed?'▸':'▾')+'</span>'
       +'<span onclick="toggleSegProj('+p.id+')" style="cursor:pointer;flex:1;font-size:12px;font-weight:800;color:#254467">'+String(p.nombre||'').replace(/</g,'&lt;')+'</span>'
       +badge
+      +entBadge
       +'<span style="font-weight:600;color:#a8a8a8;font-size:10px;flex-shrink:0">'+feed.length+' reg'+'</span>'
       +'<button class="btn btn-xs btn-primary no-print" onclick="event.stopPropagation();openAddTask('+p.id+')" style="flex-shrink:0">+ Tarea</button>'
       +'<button class="btn btn-xs no-print" onclick="event.stopPropagation();openAddComment('+p.id+')" style="flex-shrink:0">+ Coment.</button>'
