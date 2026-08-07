@@ -2907,6 +2907,8 @@ function renderSegCliente(){
       +'<span onclick="toggleSegProj('+p.id+')" style="cursor:pointer;flex:1;font-size:12px;font-weight:800;color:#254467">'+String(p.nombre||'').replace(/</g,'&lt;')+'</span>'
       +badge
       +'<span style="font-weight:600;color:#a8a8a8;font-size:10px;flex-shrink:0">'+feed.length+' reg'+'</span>'
+      +'<button class="btn btn-xs btn-primary no-print" onclick="event.stopPropagation();openAddTask('+p.id+')" style="flex-shrink:0">+ Tarea</button>'
+      +'<button class="btn btn-xs no-print" onclick="event.stopPropagation();openAddComment('+p.id+')" style="flex-shrink:0">+ Coment.</button>'
       +'</div>'
       +(collapsed?'':'<div style="padding:10px 12px">'+(feed.length?feed.map(_segItemHtml).join(''):'<div style="color:#a8a8a8;font-size:10px;padding:2px 0">Sin actividad registrada.</div>')+'</div>')
       +'</div>';
@@ -2979,10 +2981,11 @@ function _segItemHtml(item){
       </div>`;
     }
 }
-function openAddTask(){
-  const pid=parseInt(document.getElementById('seg-sel').value);
+function openAddTask(pidArg){
+  const pid=(pidArg!=null&&!isNaN(pidArg))?parseInt(pidArg):parseInt(document.getElementById('seg-sel').value);
+  const _pName=(projects.find(x=>x.id===pid)||{}).nombre||'';
   const personOpts=cat.personas.map(p=>`<option value="${p.nombre}">${p.nombre}</option>`).join('');
-  document.getElementById('modal-body').innerHTML=`<h3>Nueva tarea</h3>
+  document.getElementById('modal-body').innerHTML=`<h3>Nueva tarea${_pName?' — '+_pName:''}</h3>
     <div class="fg"><label>Tarea / instrucción</label><textarea id="tt" placeholder="Describe la tarea..."></textarea></div>
     <div class="frow"><div class="fg"><label>Asignado a</label><select id="ta"><option value="">—</option>${personOpts}</select></div><div class="fg"><label>Fecha en que se pidió</label><input type="date" id="tfp" value="${todayStr}"></div></div>
     <div class="frow"><div class="fg"><label>Fecha compromiso entrega</label><input type="date" id="tfc"></div><div class="fg"><label>¿Es bloqueante?</label><select id="tbl"><option value="0">No</option><option value="1">Sí</option></select></div></div>
@@ -3087,9 +3090,10 @@ function toggleTaskUrgente(id){
   if(typeof renderEquipo==='function')renderEquipo();
   if(typeof renderPendientes==='function')renderPendientes();
 }
-function openAddComment(){
-  const pid=parseInt(document.getElementById('seg-sel').value);
-  document.getElementById('modal-body').innerHTML=`<h3>Agregar comentario</h3>
+function openAddComment(pidArg){
+  const pid=(pidArg!=null&&!isNaN(pidArg))?parseInt(pidArg):parseInt(document.getElementById('seg-sel').value);
+  const _pName=(projects.find(x=>x.id===pid)||{}).nombre||'';
+  document.getElementById('modal-body').innerHTML=`<h3>Agregar comentario${_pName?' — '+_pName:''}</h3>
     <div class="fg"><label>Comentario</label><textarea id="ct" placeholder="Observación, nota o comentario..."></textarea></div>
     <div class="btn-row"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="saveComment(${pid})">Guardar</button></div>`;
   openModal();
