@@ -345,6 +345,7 @@ body.qas-env{padding-top:32px}
         <option value="avz">Por avance</option>
         <option value="prio">Por prioridad</option>
         <option value="cliente">Por cliente</option>
+        <option value="manual">Manual (mi orden) — arrastra</option>
       </select>
       <span id="filtro-lbl" style="font-size:10px;color:#254467;font-weight:700"></span>
       <button class="btn btn-sm" id="btn-cf" style="display:none" onclick="clearFilter()">✕ Quitar filtro</button>
@@ -1463,10 +1464,41 @@ function importProyectosCSV(input){
   reader.readAsText(file,'UTF-8');
 }
 // ─────────────────────────────────────────────────────────────
+function getProjOrder(tab){return ld('gh_proj_order_'+tab,[])||[];}
+function saveProjOrder(tab,arr){sv('gh_proj_order_'+tab,arr);}
+function _projTabList(tab){
+  var all=activeProjs();
+  return tab==='concurso'
+    ?all.filter(function(p){return p.etapa==='PRECON'||p.etapa==='INTERNO'||['Perdido','StandBy','Cancelado'].includes(p.estatusProy);})
+    :all.filter(function(p){return p.etapa==='EJECUTIVO'||p.etapa==='REVISIONES';});
+}
+function _manualSort(ps,tab){
+  var ord=getProjOrder(tab);var idx={};ord.forEach(function(id,i){idx[String(id)]=i;});
+  return ps.slice().sort(function(a,b){
+    var ia=idx[String(a.id)],ib=idx[String(b.id)];
+    if(ia==null&&ib==null)return a.num-b.num;
+    if(ia==null)return 1;if(ib==null)return -1;
+    return ia-ib;
+  });
+}
+function projRowDragStart(ev,pid){window.__projDragId=String(pid);try{ev.dataTransfer.effectAllowed='move';ev.dataTransfer.setData('text/plain',String(pid));}catch(e){}}
+function projRowDrop(ev,targetPid,tab){
+  ev.preventDefault();
+  var dragId=String(window.__projDragId||(ev.dataTransfer?ev.dataTransfer.getData('text/plain'):'')||'');
+  targetPid=String(targetPid);
+  if(!dragId||dragId===targetPid)return;
+  var ids=_manualSort(_projTabList(tab),tab).map(function(p){return String(p.id);});
+  ids=ids.filter(function(x){return x!==dragId;});
+  var ti=ids.indexOf(targetPid);
+  if(ti<0)ids.push(dragId);else ids.splice(ti,0,dragId);
+  saveProjOrder(tab,ids);window.__projDragId='';
+  renderProyectos();
+}
 function imprimirReporteDepto(){
   var all=activeProjs();
   var _sortSel=document.getElementById('proj-sort')?document.getElementById('proj-sort').value:'num';
-  var _sortRep=function(ps){
+  var _sortRep=function(ps,tab){
+    if(_sortSel==='manual')return _manualSort(ps,tab);
     if(_sortSel==='coord')return ps.slice().sort(function(a,b){return (a.coord||'').localeCompare(b.coord||'');});
     if(_sortSel==='sem'){var o={crit:0,risk:1,none:2,ok:3};return ps.slice().sort(function(a,b){return (o[sem(a).cls]||3)-(o[sem(b).cls]||3);});}
     if(_sortSel==='avz')return ps.slice().sort(function(a,b){return a.avance-b.avance;});
@@ -1474,9 +1506,9 @@ function imprimirReporteDepto(){
     if(_sortSel==='cliente')return ps.slice().sort(function(a,b){return (a.cliente||'').localeCompare(b.cliente||'');});
     return ps.slice().sort(function(a,b){return a.num-b.num;});
   };
-  var _sortLbl={num:'número',coord:'coordinador',sem:'semáforo',avz:'avance',prio:'prioridad',cliente:'cliente'}[_sortSel]||'número';
-  var concurso=_sortRep(all.filter(function(p){return p.etapa==='PRECON'||p.etapa==='INTERNO'||['Perdido','StandBy','Cancelado'].includes(p.estatusProy);}));
-  var ejec=_sortRep(all.filter(function(p){return p.etapa==='EJECUTIVO'||p.etapa==='REVISIONES';}));
+  var _sortLbl={num:'número',coord:'coordinador',sem:'semáforo',avz:'avance',prio:'prioridad',cliente:'cliente',manual:'mi orden'}[_sortSel]||'número';
+  var concurso=_sortRep(all.filter(function(p){return p.etapa==='PRECON'||p.etapa==='INTERNO'||['Perdido','StandBy','Cancelado'].includes(p.estatusProy);}),'concurso');
+  var ejec=_sortRep(all.filter(function(p){return p.etapa==='EJECUTIVO'||p.etapa==='REVISIONES';}),'ejecutivo');
   var esc=function(s){return String(s==null?'':s).replace(/</g,'&lt;');};
   var ult=function(p){var e=p.entregaV4||p.entregaV3||p.entregaV2||p.entregaV1||p.entrega||'';return e?fmtD(e):'—';};
   var eqTxt=function(p){return (p.equipo||[]).join(', ')||'—';};
@@ -1542,6 +1574,7 @@ function renderProyectos(){
 
   // Sort
   function sortPs(ps){
+    if(projSort==='manual') return _manualSort(ps,tab);
     if(projSort==='coord') return [...ps].sort((a,b)=>(a.coord||'').localeCompare(b.coord||''));
     if(projSort==='sem'){const o={crit:0,risk:1,none:2,ok:3};return[...ps].sort((a,b)=>(o[sem(a).cls]||3)-(o[sem(b).cls]||3));}
     if(projSort==='avz') return[...ps].sort((a,b)=>a.avance-b.avance);
@@ -1563,8 +1596,8 @@ function renderProyectos(){
     document.getElementById('tbody-proj').innerHTML=ps.map((p,idx)=>{
       const s=sem(p);const m=momentum(p);
       const esPrecon=p.etapa==='PRECON';
-      return`<tr>
-        <td style="color:#a8a8a8">${idx+1}</td>
+      return`<tr ${projSort==='manual'?`draggable="true" ondragstart="projRowDragStart(event,${p.id})" ondragover="event.preventDefault()" ondrop="projRowDrop(event,${p.id},'concurso')" style="cursor:grab"`:''}>
+        <td style="color:#a8a8a8">${projSort==='manual'?'⠿ ':''}${idx+1}</td>
         <td style="color:#bfd1e5;font-size:10px">${histNum(p)}</td>
         <td style="font-weight:700;max-width:150px">${p.nombre}${p.areaM2?`<div style="font-size:9px;color:#67727a;font-weight:400">${Number(p.areaM2).toLocaleString()} m²</div>`:''}</td>
         <td>${etapaBadge(p.etapa,p.interno)}</td>
@@ -1607,8 +1640,8 @@ function renderProyectos(){
       const pptoFmt=ppto?'$'+Math.round(ppto).toLocaleString('es-MX'):'<span style="color:#a8a8a8;font-size:9px">Sin definir</span>';
       const cobFmt=cobrado?'<span style="color:#639922;font-weight:700">$'+Math.round(cobrado).toLocaleString('es-MX')+'</span>':'—';
       const extFmt=extras.length?`<span style="color:#e65a27;font-weight:700">$${Math.round(extTotal).toLocaleString('es-MX')}</span> <span style="font-size:9px;color:#a8a8a8">(${extras.length})</span>`:'—';
-      return`<tr style="${p.etapa==='REVISIONES'?'background:#fffef8':''}">
-        <td style="color:#a8a8a8">${idx+1}</td>
+      return`<tr ${projSort==='manual'?`draggable="true" ondragstart="projRowDragStart(event,${p.id})" ondragover="event.preventDefault()" ondrop="projRowDrop(event,${p.id},'ejecutivo')" style="cursor:grab;${p.etapa==='REVISIONES'?'background:#fffef8':''}"`:`style="${p.etapa==='REVISIONES'?'background:#fffef8':''}"`}>
+        <td style="color:#a8a8a8">${projSort==='manual'?'⠿ ':''}${idx+1}</td>
         <td style="color:#bfd1e5;font-size:10px">${histNum(p)}</td>
         <td style="font-weight:700;max-width:140px">${p.nombre}${p.presupuestoControlCotId?'<span title="Presupuesto de control definido" style="color:#639922;margin-left:4px;font-size:10px">●</span>':''}</td>
         <td>${etapaBadge(p.etapa,p.interno)}</td>
