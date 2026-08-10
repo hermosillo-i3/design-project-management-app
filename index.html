@@ -1684,7 +1684,7 @@ function openFirmarContrato(projId){
   const eraPrecon=p.etapa==='PRECON';
   const coordOpts=cat.coordinadores.map(c=>`<option value="${c}" ${(p.coord||'')=== c?'selected':''}>${c}</option>`).join('');
   const jefeOpts=jefes.map(j=>`<option value="${j}" ${(p.jefe||'')=== j?'selected':''}>${j}</option>`).join('');
-  const personOpts=[...cat.personas].sort((a,b)=>a.nombre.localeCompare(b.nombre)).map(pe=>`<option value="${pe.nombre}">${pe.nombre} (${pe.rol})</option>`).join('');
+  const personOpts=[...cat.personas].filter(pe=>!pe.baja).sort((a,b)=>a.nombre.localeCompare(b.nombre)).map(pe=>`<option value="${pe.nombre}">${pe.nombre} (${pe.rol})</option>`).join('');
   const eqArr=p.equipo||[];
   const _tipoMapEjec={'PRE - Expansión':'EJEC - Expansión','PRE - Tenant Improvements':'EJEC - Tenant Improvements','PRE - Parque Industrial':'EJEC - Parque Industrial','PRE - Obra Nueva':'EJEC - Ejecución para obra','PRE - Obra Nueva con Diseño por Terceros':'EJEC - Ejecución Diseño'};
   const tipoActual=eraPrecon?(_tipoMapEjec[p.tipo]||p.tipo||''):(p.tipo||'');
@@ -2415,7 +2415,7 @@ function openProyecto(id,isInterno){
   const p=id?projects.find(x=>x.id===id):blank;
   const isInt=p.interno;
   const coordOpts=cat.coordinadores.map(c=>`<option ${p.coord===c?'selected':''}>${c}</option>`).join('');
-  const personOpts=[...cat.personas].sort((a,b)=>a.nombre.localeCompare(b.nombre)).map(pe=>`<option value="${pe.nombre}">${pe.nombre} (${pe.rol})</option>`).join('');
+  const personOpts=[...cat.personas].filter(pe=>!pe.baja).sort((a,b)=>a.nombre.localeCompare(b.nombre)).map(pe=>`<option value="${pe.nombre}">${pe.nombre} (${pe.rol})</option>`).join('');
   const consulOpts=cat.consultores.map(c=>`<option value="${c.nombre}">${c.nombre}</option>`).join('');
   const eqArr=p.equipo||[];
   const cArr=p.consultores||[];
@@ -2991,7 +2991,7 @@ function _segItemHtml(item){
 function openAddTask(pidArg){
   const pid=(pidArg!=null&&!isNaN(pidArg))?parseInt(pidArg):parseInt(document.getElementById('seg-sel').value);
   const _pName=(projects.find(x=>x.id===pid)||{}).nombre||'';
-  const personOpts=cat.personas.map(p=>`<option value="${p.nombre}">${p.nombre}</option>`).join('');
+  const personOpts=cat.personas.filter(p=>!p.baja).map(p=>`<option value="${p.nombre}">${p.nombre}</option>`).join('');
   document.getElementById('modal-body').innerHTML=`<h3>Nueva tarea${_pName?' — '+_pName:''}</h3>
     <div class="fg"><label>Tarea / instrucción</label><textarea id="tt" placeholder="Describe la tarea..."></textarea></div>
     <div class="frow"><div class="fg"><label>Asignado a</label><select id="ta"><option value="">—</option>${personOpts}</select></div><div class="fg"><label>Fecha en que se pidió</label><input type="date" id="tfp" value="${todayStr}"></div></div>
@@ -3603,7 +3603,8 @@ function renderEquipo(){
   if(view==='chart'){renderEquipoChart(allProjs);return;}
   if(view==='org'){renderEquipoOrg(allProjs);return;}
   if(view==='detalle'){renderEquipoDetalle(allProjs);return;}
-  let personas=[...cat.personas];
+  let personas=cat.personas.filter(p=>!p.baja);
+  let _bajas=cat.personas.filter(p=>p.baja);
   if(sortBy==='alpha') personas.sort((a,b)=>a.nombre.localeCompare(b.nombre));
   else if(sortBy==='saturation'){personas.sort((a,b)=>{
     const ta=allProjs.filter(p=>(p.equipo||[]).includes(a.nombre)).length;
@@ -3658,7 +3659,23 @@ function renderEquipo(){
       </div>
     </div>`;
   }).join('');
-  document.getElementById('equipo-list').innerHTML=_banner+'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px">'+_cards+'</div>';
+  var _bajasHtml='';
+  if(_bajas.length){
+    _bajasHtml='<div style="margin-top:20px;border-top:.5px dashed #d0d7de;padding-top:14px">'
+      +'<div style="font-size:11px;font-weight:700;color:#a8a8a8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">📦 Bajas ('+_bajas.length+') · historial conservado</div>'
+      +'<div style="display:flex;flex-direction:column;gap:6px">'
+      +_bajas.sort((a,b)=>a.nombre.localeCompare(b.nombre)).map(function(p){
+        return '<div style="display:flex;align-items:center;gap:10px;background:#fafbfc;border:.5px solid #e3e9f0;border-radius:8px;padding:8px 12px">'
+          +'<div style="width:28px;height:28px;border-radius:50%;background:#a8b3bf;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0">'+p.nombre.charAt(0)+'</div>'
+          +'<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:700;color:#67727a">'+p.nombre+'</div><div style="font-size:9px;color:#a8a8a8">'+(p.rol||'')+(p.fechaBaja?' · baja: '+fmtD(p.fechaBaja):'')+'</div></div>'
+          +'<button class="btn btn-sm no-print" onclick="openPersonDetail(\''+p.nombre.replace(/'/g,"\\'")+'\',\''+(p.rol||'').replace(/'/g,"\\'")+'\')">Ver detalle</button>'
+          +'<button class="btn btn-sm no-print" onclick="openEditPersona('+p.id+')">Editar</button>'
+          +'<button class="btn btn-sm no-print" style="background:#eaf3de;color:#3B6D11;border-color:#a9d18e" onclick="reactivarPersona('+p.id+')">Reactivar</button>'
+          +'</div>';
+      }).join('')
+      +'</div></div>';
+  }
+  document.getElementById('equipo-list').innerHTML=_banner+'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px">'+_cards+'</div>'+_bajasHtml;
 }
 function openAddPersona(){
   const coordOpts=cat.coordinadores.map(c=>`<option value="${c}">${c}</option>`).join('');
@@ -3675,7 +3692,10 @@ function openEditPersona(id){
     <div class="frow"><div class="fg"><label>Nombre</label><input id="pname" value="${p.nombre}"></div><div class="fg"><label>Rol</label><input id="prole" value="${p.rol}"></div></div>
     <div class="frow"><div class="fg"><label>Coordinador</label><select id="pcoord"><option value="">—</option>${coordOpts}</select></div><div class="fg"><label>Máx. proyectos simultáneos</label><input type="number" id="pcap" value="${p.capacidad||3}" min="1" max="20"></div></div>
     <div class="btn-row">
-      <button class="btn btn-danger btn-sm" onclick="removePersona(${id})" style="margin-right:auto">Eliminar</button>
+      ${p.baja
+        ? `<button class="btn btn-sm" onclick="reactivarPersona(${id})" style="margin-right:auto;background:#eaf3de;color:#3B6D11;border-color:#a9d18e">Reactivar</button>`
+        : `<button class="btn btn-sm" onclick="bajaPersona(${id})" style="margin-right:6px;background:#fff4e5;color:#854f0b;border-color:#f0c98a" title="Sale del equipo pero se conserva su historial">Dar de baja</button>`}
+      <button class="btn btn-danger btn-sm" onclick="removePersona(${id})"${p.baja?' style="margin-right:auto"':''}>Eliminar</button>
       <button class="btn" onclick="closeModal()">Cancelar</button>
       <button class="btn btn-primary" onclick="savePersona(${id})">Guardar</button>
     </div>`;
@@ -3690,7 +3710,9 @@ function savePersona(id){
   else cat.personas.push(dat);
   sv(K.cat,cat);closeModal();renderEquipo();
 }
-function removePersona(id){if(!confirm('¿Eliminar esta persona?'))return;cat.personas=cat.personas.filter(x=>x.id!==id);sv(K.cat,cat);closeModal();renderEquipo();}
+function removePersona(id){if(!confirm('¿Eliminar DEFINITIVAMENTE esta persona? Se perderá su ficha e historial administrativo. Si solo dejó el equipo, mejor usa "Dar de baja".'))return;cat.personas=cat.personas.filter(x=>x.id!==id);sv(K.cat,cat);closeModal();renderEquipo();}
+function bajaPersona(id){var p=cat.personas.find(function(x){return x.id===id;});if(!p)return;if(!confirm('¿Dar de baja a '+p.nombre+'?\n\nSe conserva TODO su historial (ficha, 1:1s, tareas y proyectos anteriores). Solo deja de aparecer como asignable en proyectos y tareas nuevas.'))return;p.baja=true;p.fechaBaja=todayStr;sv(K.cat,cat);closeModal();renderEquipo();}
+function reactivarPersona(id){var p=cat.personas.find(function(x){return x.id===id;});if(!p)return;p.baja=false;delete p.fechaBaja;sv(K.cat,cat);renderEquipo();}
 
 // ── NOTAS DE RETRO POR PERSONA ───────────────────────────────
 function openRetroNotes(nombre){
