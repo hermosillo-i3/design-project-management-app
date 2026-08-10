@@ -1036,9 +1036,24 @@ function docPct(docs){
 function saveNotes(){sv(K.notes,document.getElementById('quick-notes').value);}
 function loadNotes(){const n=document.getElementById('quick-notes');if(n)n.value=ld(K.notes,'');}
 
+// ── FOTO SEMANAL DE ASIGNACIONES (para historial de cargas) ──
+function _isoWeek(d){d=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));var day=d.getUTCDay()||7;d.setUTCDate(d.getUTCDate()+4-day);var yStart=new Date(Date.UTC(d.getUTCFullYear(),0,1));var wk=Math.ceil((((d-yStart)/86400000)+1)/7);return d.getUTCFullYear()+'-W'+String(wk).padStart(2,'0');}
+function captureWeeklySnapshot(){
+  try{
+    var wk=_isoWeek(new Date());
+    var snaps=ld('gh_weekly_snapshots',[])||[];
+    if(snaps.some(function(s){return s.week===wk;}))return;
+    var proj=ld(K.proj,[]);
+    var snap={week:wk,date:todayStr,projs:proj.filter(function(p){return !p.archivado&&!p.interno;}).map(function(p){return {id:p.id,nombre:p.nombre,etapa:p.etapa,jefe:p.jefe||'',coord:p.coord||'',equipo:(p.equipo||[]).slice(),estatusProy:p.estatusProy||''};})};
+    snaps.push(snap);
+    if(snaps.length>80)snaps=snaps.slice(-80);
+    sv('gh_weekly_snapshots',snaps);
+  }catch(e){}
+}
 // ── DASHBOARD ────────────────────────────────────────────────
 function renderDashboard(){
   loadNotes();loadExecNotes();
+  captureWeeklySnapshot();
   const ps=activeProjs();
   const nPre=ps.filter(p=>p.etapa==='PRECON').length;
   const nEj=ps.filter(p=>p.etapa==='EJECUTIVO').length;
@@ -10936,6 +10951,14 @@ function renderEstadisticas(){
     _cargaData.ejec[m]=le.map(function(p){return p.nombre;});
     _cargaData.ambos[m]=la.map(function(p){return p.nombre;});
   });
+  var _perEnProj=function(p,nombre){if(!p||!nombre)return false;if(p.jefe===nombre||p.coord===nombre)return true;return Array.isArray(p.equipo)&&p.equipo.indexOf(nombre)>=0;};
+  var _perSet={};(cat.personas||[]).forEach(function(pe){if(pe.nombre)_perSet[pe.nombre]=1;});
+  allP.forEach(function(p){if(p.jefe)_perSet[p.jefe]=1;if(p.coord)_perSet[p.coord]=1;(p.equipo||[]).forEach(function(n){if(n)_perSet[n]=1;});});
+  var _perList=Object.keys(_perSet).sort(function(a,b){return a.localeCompare(b);});
+  var _selPer=ld('gh_stats_carga_persona','');
+  var _serPer={};_cargaData.persona={};
+  if(_selPer){months.forEach(function(m){var l=_activosMes(m,function(p){return _perEnProj(p,_selPer);});_serPer[m]=l.length;_cargaData.persona[m]=l.map(function(p){return p.nombre;});});}
+  var _perOpts='<option value="">— Elige persona —</option>'+_perList.map(function(n){return '<option value="'+n.replace(/"/g,'&quot;')+'"'+(n===_selPer?' selected':'')+'>'+String(n).replace(/</g,'&lt;')+'</option>';}).join('');
   window.__cargaData=_cargaData;
   var _cargaChart=function(group,ser,color){
     var maxV=Math.max.apply(null,[1].concat(months.map(function(m){return ser[m]||0;})));
@@ -10954,6 +10977,11 @@ function renderEstadisticas(){
     +'<div style="font-size:11px;font-weight:800;color:#254467;margin-bottom:4px">🟦 Ambos (PRECON + Ejecutivo)</div>'+_cargaChart('ambos',_serA,'#254467')
     +'<div style="font-size:11px;font-weight:800;color:#0369A1;margin:16px 0 4px">🏆 PRECON</div>'+_cargaChart('precon',_serP,'#0369A1')
     +'<div style="font-size:11px;font-weight:800;color:#6990ab;margin:16px 0 4px">⚙ Ejecutivo (Ejecutivo + Revisiones)</div>'+_cargaChart('ejec',_serE,'#6990ab')
+    +'<div style="border-top:.5px dashed #e2e8f0;margin-top:16px;padding-top:12px"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px"><span style="font-size:11px;font-weight:800;color:#3B6D11">👤 Carga por persona (mensual)</span>'
+    +'<select onchange="sv(\'gh_stats_carga_persona\',this.value);renderEstadisticas()" style="font-size:11px;padding:4px 8px;border-radius:6px;border:.5px solid #bfd1e5;font-family:Arial">'+_perOpts+'</select>'
+    +'<span style="font-size:9px;color:#a8a8a8">según asignación actual (equipo/jefe/coord)</span></div>'
+    +(_selPer?_cargaChart('persona',_serPer,'#3B6D11'):'<div style="font-size:11px;color:#a8a8a8;padding:8px 0">Elige una persona para ver su carga mes a mes.</div>')
+    +'</div>'
     +'</div>';
   var execHtml='<div style="background:#fff;border-radius:12px;border:.5px solid #bfd1e5;padding:16px 18px;margin-bottom:1.25rem">'
     +'<div class="sec" style="margin-top:0;margin-bottom:14px">💰 Resumen financiero y ejecutivo</div>'
