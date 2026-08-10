@@ -269,7 +269,6 @@ body.qas-env{padding-top:32px}
 
 <div class="tabs no-print">
   <button class="tab active" onclick="goTab('dashboard',this)">Dashboard</button>
-  <button class="tab" onclick="goTab('pendientes',this)">Pendientes</button>
   <button class="tab" onclick="goTab('proyectos',this)">Proyectos</button>
   <button class="tab" onclick="goTab('seguimiento',this)">Seguimiento</button>
   <button class="tab" onclick="goTab('documentos',this)">Entregables</button>
@@ -1048,7 +1047,7 @@ function renderDashboard(){
   const nRisk=ps.filter(p=>sem(p).cls==='risk').length;
   const nOk=ps.filter(p=>sem(p).cls==='ok').length;
   const avgAvz=ps.length?Math.round(ps.reduce((a,p)=>a+p.avance,0)/ps.length):0;
-  const pendOpen=tasks.filter(t=>!t.done).length;
+  const pendOpen=tasks.filter(t=>!t.done&&!t.archivado).length;
   const consulPend=ps.reduce((a,p)=>a+(p.consultores||[]).filter(c=>c.fechaCompromiso&&Math.round((new Date(c.fechaCompromiso)-today)/86400000)<=5).length,0);
 
   const kpis=[
