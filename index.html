@@ -310,10 +310,6 @@ body.qas-env{padding-top:32px}
     <div id="sem-summary"></div>
     <div class="sec no-print">Proyectos que requieren atención</div>
     <div id="dash-alerts" class="no-print"></div>
-    <div class="sec">Pendientes con consultor</div>
-    <div id="consul-dash"></div>
-    <div class="sec no-print">Comentarios ejecutivos por proyecto <span style="font-size:9px;color:#a8a8a8;font-weight:400">(van al Resumen Ejecutivo)</span></div>
-    <div id="exec-proj-comments" class="no-print"></div>
     <div class="sec no-print">Calendario de compromisos</div>
     <div id="dash-calendar" class="no-print"></div>
   </div>
@@ -1159,48 +1155,12 @@ function renderDashboard(){
     </div>`;
   }).join(''):'<div class="alert-box"><span style="color:#67727a;font-size:11px">Sin tareas pendientes de Diana o Carlos. ✓</span></div>';
 
-  // Consul compromisos próximos — from tasks assigned to consultores
-  const consulNames=new Set(cat.consultores.map(c=>c.nombre));
-  const consulItems=[];
-  // From p.consultores with fechaCompromiso
-  ps.forEach(p=>(p.consultores||[]).forEach(c=>{
-    if(c.fechaCompromiso&&c.fechaCompromiso.trim()){
-      const d=Math.round((new Date(c.fechaCompromiso)-today)/86400000);
-      consulItems.push({proj:p.nombre,consul:c.nombre,fecha:c.fechaCompromiso,days:d,comentario:c.comentario||'',source:'compromiso'});
-    }
-  }));
-  // From tasks assigned to consultores
-  tasks.filter(t=>!t.done&&!t.archivado&&t.fechaCompromiso&&consulNames.has(t.asignado)).forEach(t=>{
-    const p=[...ps,...internos()].find(x=>x.id===t.projId);
-    const d=Math.round((new Date(t.fechaCompromiso)-today)/86400000);
-    consulItems.push({proj:p?p.nombre:'Sin proyecto',consul:t.asignado,fecha:t.fechaCompromiso,days:d,comentario:t.texto,source:'tarea'});
-  });
-  consulItems.sort((a,b)=>a.days-b.days);
-  document.getElementById('consul-dash').innerHTML=consulItems.length?consulItems.map(i=>{
-    const ov=i.days<0;const warn=!ov&&i.days<=5;
-    return`<div class="alert-box ${ov?'red':warn?'yellow':''}">
-      <div style="flex:1">
-        <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
-          <span class="alert-name" style="margin:0">${i.consul}</span>
-          <span style="font-size:9px;background:#eef3f7;color:#6990ab;border-radius:3px;padding:1px 5px">${i.source==='tarea'?'Tarea':'Compromiso'}</span>
-        </div>
-        <div class="alert-det">${i.proj} · ${fmtD(i.fecha)} · <span style="${ov?'color:#e65a27;font-weight:700':warn?'color:#6990ab;font-weight:700':''}">${ov?'Vencido '+Math.abs(i.days)+'d':i.days===0?'Hoy':i.days+'d restantes'}</span></div>
-        ${i.comentario?`<div class="alert-det" style="margin-top:2px;font-style:italic;color:#374151">${i.comentario.substring(0,80)}${i.comentario.length>80?'…':''}</div>`:''}
-      </div>
-    </div>`;
-  }).join(''):'<div class="alert-box"><span style="color:#67727a;font-size:11px">Sin compromisos próximos con consultores. ✓</span></div>';
-
   // Alertas y red flags
   const alertItems=[];
   // Tasks vencidas (más de 3 días)
   const tareasVenc=tasks.filter(t=>!t.done&&!t.archivado&&t.fechaCompromiso&&Math.round((new Date(t.fechaCompromiso)-today)/86400000)<-3);
   if(tareasVenc.length){
     alertItems.push({cls:'red',title:'Tareas vencidas (>3 días)',items:tareasVenc.slice(0,5).map(t=>{const p=[...ps,...internos()].find(x=>x.id===t.projId);return(p?p.nombre+' · ':'')+t.texto.substring(0,60)+(t.texto.length>60?'…':'');})});
-  }
-  // Proyectos sin entrega definida
-  const sinEntrega=ps.filter(p=>!p.entregaV1&&!p.entrega&&!p.interno&&p.etapa!=='REVISIONES');
-  if(sinEntrega.length){
-    alertItems.push({cls:'yellow',title:'Proyectos sin fecha de entrega ('+sinEntrega.length+')',items:sinEntrega.slice(0,5).map(p=>p.nombre)});
   }
   // Consultores sin respuesta >14 días
   const sinResp=[];
