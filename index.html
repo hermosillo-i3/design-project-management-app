@@ -7422,11 +7422,15 @@ function saveRetroNotesConsultor(nombre){
 }
 
 function _retroBar(){
-  return '<style>.retro-row.done{opacity:.5;text-decoration:line-through}</style>'
+  return '<style>.retro-row.done{opacity:.5;text-decoration:line-through}'
+    +'.retro-cmt{margin:3px 0 9px 34px;font-size:10px;color:#1A1A2E;border-left:2px solid #cddbe8;padding:4px 8px;background:#fbfdff;border-radius:0 5px 5px 0;min-height:17px;outline:none;line-height:1.5}'
+    +'.retro-cmt:empty:before{content:attr(data-ph);color:#b9c2cc}'
+    +'@media print{.retro-cmt{background:transparent}.retro-cmt:empty{display:none}}'
+    +'</style>'
     +'<div class="no-print" style="display:flex;gap:10px;align-items:center;margin-bottom:14px;background:#eef3f7;border:.5px solid #cddbe8;border-radius:8px;padding:9px 12px;flex-wrap:wrap">'
-    +'<span style="font-size:11px;font-weight:700;color:#254467">✅ Marca lo que vayas cumpliendo — se guarda solo</span>'
+    +'<span style="font-size:11px;font-weight:700;color:#254467">✅ Marca lo cumplido y ✍️ escribe tus comentarios — se guarda solo</span>'
     +'<span id="prog" style="font-size:11px;font-weight:700;color:#3B6D11"></span>'
-    +'<button onclick="_descargar()" style="margin-left:auto;padding:6px 12px;background:#254467;color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:Arial;font-size:11px;font-weight:700">⬇ Descargar para enviar</button>'
+    +'<button onclick="window.print()" style="margin-left:auto;padding:6px 12px;background:#254467;color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:Arial;font-size:11px;font-weight:700">🖨 Imprimir mi guión</button>'
     +'<button onclick="_reiniciar()" style="padding:6px 12px;background:#fff;color:#67727a;border:.5px solid #bfd1e5;border-radius:6px;cursor:pointer;font-family:Arial;font-size:11px">Reiniciar</button>'
     +'</div>';
 }
@@ -7436,19 +7440,24 @@ function _retroScript(nombre){
     +'function load(){try{return JSON.parse(localStorage.getItem(KEY)||"{}")||{};}catch(e){return {};}}'
     +'function save(s){try{localStorage.setItem(KEY,JSON.stringify(s));}catch(e){}}'
     +'var st=load();var boxes=[];'
-    +'document.querySelectorAll(".card-checkable").forEach(function(card){Array.prototype.forEach.call(card.children,function(ch){'
-    +'if(ch.nodeType!==1||(ch.classList&&(ch.classList.contains("card-title")||ch.classList.contains("empty"))))return;'
+    +'document.querySelectorAll(".card-checkable").forEach(function(card){'
+    +'var kids=Array.prototype.slice.call(card.children);'
+    +'kids.forEach(function(ch){'
+    +'if(ch.nodeType!==1||(ch.classList&&(ch.classList.contains("card-title")||ch.classList.contains("empty")||ch.classList.contains("retro-cmt"))))return;'
     +'ch.classList.add("retro-row");'
-    +'var cb=ch.querySelector("input.chk");'
     +'var key=(card.getAttribute("data-ck")||"")+"_"+(ch.textContent||"").replace(/\\s+/g," ").trim().slice(0,60);'
+    +'var cb=ch.querySelector("input.chk");'
     +'if(!cb){cb=document.createElement("input");cb.type="checkbox";cb.className="chk";cb.setAttribute("data-k",key);cb.style.cssText="margin-right:8px;margin-top:2px;flex-shrink:0;width:15px;height:15px;cursor:pointer";ch.insertBefore(cb,ch.firstChild);}'
     +'if(cb.checked||st[key]){cb.checked=true;ch.classList.add("done");}'
     +'cb.addEventListener("change",function(){ch.classList.toggle("done",cb.checked);if(cb.checked)st[key]=1;else delete st[key];save(st);upd();});'
-    +'boxes.push(cb);});});'
+    +'boxes.push(cb);'
+    +'var nx=ch.nextSibling;var cmt=(nx&&nx.nodeType===1&&nx.classList&&nx.classList.contains("retro-cmt"))?nx:null;'
+    +'if(!cmt){cmt=document.createElement("div");cmt.className="retro-cmt";cmt.setAttribute("data-k","c_"+key);cmt.setAttribute("data-ph","✍️ Escribe aquí tu comentario / avance para la junta…");cmt.setAttribute("contenteditable","true");ch.parentNode.insertBefore(cmt,ch.nextSibling);}'
+    +'var cv=st["c_"+key];if(cv!=null&&cmt.textContent.trim()==="")cmt.textContent=cv;'
+    +'cmt.addEventListener("input",function(){var v=cmt.textContent.trim();if(v)st["c_"+key]=v;else delete st["c_"+key];save(st);});'
+    +'});});'
     +'function upd(){var d=0;boxes.forEach(function(b){if(b.checked)d++;});var el=document.getElementById("prog");if(el)el.textContent=d+" / "+boxes.length+" completados";}upd();'
-    +'window._reiniciar=function(){if(!confirm("¿Desmarcar todo?"))return;st={};save(st);boxes.forEach(function(b){b.checked=false;var r=b.closest(".retro-row");if(r)r.classList.remove("done");});upd();};'
-    +'window._descargar=function(){document.querySelectorAll("input.chk").forEach(function(b){if(b.checked)b.setAttribute("checked","checked");else b.removeAttribute("checked");});'
-    +'var html="<!DOCTYPE html>\\n"+document.documentElement.outerHTML;var blob=new Blob([html],{type:"text/html"});var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="Cargas y Compromisos - "+NAME+".html";document.body.appendChild(a);a.click();a.remove();};'
+    +'window._reiniciar=function(){if(!confirm("¿Desmarcar todo? (tus comentarios se conservan)"))return;boxes.forEach(function(b){b.checked=false;var r=b.closest(".retro-row");if(r)r.classList.remove("done");var k=b.getAttribute("data-k");if(k)delete st[k];});save(st);upd();};'
     +'})();<\/scr'+'ipt>';
 }
 function exportRetroConsultor(nombre){
