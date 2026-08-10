@@ -10940,7 +10940,21 @@ function renderEstadisticas(){
   margenPorProy.sort(function(a,b){return b.margen-a.margen;});
   var mpTop=margenPorProy.slice(0,8);var maxMp=mpTop.length?Math.max.apply(null,[1].concat(mpTop.map(function(x){return Math.abs(x.margen);}))):1;
   // ── CARGAS LABORALES: carga por mes (PRECON / Ejecutivo / Ambos) ──
-  var _activosMes=function(m,filt){var mS=m+'-01',mE=m+'-31';return allP.filter(function(p){if(p.interno)return false;if(filt&&!filt(p))return false;var ini=p.arranque||'';var fin=p.entregaV4||p.entregaV3||p.entregaV2||p.entregaV1||p.entrega||'';if(!ini)return false;if(ini>mE)return false;if(fin){if(fin<mS)return false;}else{if(m>_nowM)return false;}return true;});};
+  var _activosMes=function(m,filt){
+    return allP.filter(function(p){
+      if(p.interno)return false;
+      if(filt&&!filt(p))return false;
+      if(['Perdido','Cancelado'].indexOf(p.estatusProy||'')>=0)return false;
+      var ult=p.entregaV4||p.entregaV3||p.entregaV2||p.entregaV1||p.entrega||'';
+      var arr=p.arranque||'';
+      var startM=arr?arr.slice(0,7):(ult?ult.slice(0,7):_nowM);
+      var endM;
+      if(p.archivado){endM=(p.archivedAt?p.archivedAt.slice(0,7):(ult?ult.slice(0,7):_nowM));}
+      else{endM=ult?(ult.slice(0,7)>_nowM?ult.slice(0,7):_nowM):_nowM;}
+      if(startM>endM)startM=endM;
+      return m>=startM&&m<=endM;
+    });
+  };
   var _serP={},_serE={},_serA={},_cargaData={precon:{},ejec:{},ambos:{}};
   months.forEach(function(m){
     var lp=_activosMes(m,function(p){return p.etapa==='PRECON';});
@@ -10973,7 +10987,7 @@ function renderEstadisticas(){
   };
   var cargaHtml='<div style="background:#fff;border-radius:12px;border:.5px solid #bfd1e5;padding:16px 18px;margin-bottom:1.25rem">'
     +'<div class="sec" style="margin-top:0;margin-bottom:6px">📊 Cargas laborales — carga por mes</div>'
-    +'<div style="font-size:10px;color:#67727a;margin-bottom:12px">Proyectos activos por mes (según arranque y última entrega). Haz clic en una barra para ver qué proyectos incluye.</div>'
+    +'<div style="font-size:10px;color:#67727a;margin-bottom:12px">Proyectos en curso por mes (no archivados ni Perdidos/Cancelados; se consideran activos hasta hoy aunque su entrega ya haya pasado). Haz clic en una barra para ver qué proyectos incluye.</div>'
     +'<div style="font-size:11px;font-weight:800;color:#254467;margin-bottom:4px">🟦 Ambos (PRECON + Ejecutivo)</div>'+_cargaChart('ambos',_serA,'#254467')
     +'<div style="font-size:11px;font-weight:800;color:#0369A1;margin:16px 0 4px">🏆 PRECON</div>'+_cargaChart('precon',_serP,'#0369A1')
     +'<div style="font-size:11px;font-weight:800;color:#6990ab;margin:16px 0 4px">⚙ Ejecutivo (Ejecutivo + Revisiones)</div>'+_cargaChart('ejec',_serE,'#6990ab')
