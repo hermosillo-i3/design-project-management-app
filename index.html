@@ -7430,7 +7430,8 @@ function _retroBar(){
     +'<div class="no-print" style="display:flex;gap:10px;align-items:center;margin-bottom:14px;background:#eef3f7;border:.5px solid #cddbe8;border-radius:8px;padding:9px 12px;flex-wrap:wrap">'
     +'<span style="font-size:11px;font-weight:700;color:#254467">✅ Marca lo cumplido y ✍️ escribe tus comentarios — se guarda solo</span>'
     +'<span id="prog" style="font-size:11px;font-weight:700;color:#3B6D11"></span>'
-    +'<button onclick="window.print()" style="margin-left:auto;padding:6px 12px;background:#254467;color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:Arial;font-size:11px;font-weight:700">🖨 Imprimir mi guión</button>'
+    +'<button onclick="_descargar()" style="margin-left:auto;padding:6px 12px;background:#254467;color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:Arial;font-size:11px;font-weight:700" title="Descarga el archivo editable para enviárselo a tu equipo">⬇ Guardar archivo (enviar)</button>'
+    +'<button onclick="window.print()" style="padding:6px 12px;background:#6990ab;color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:Arial;font-size:11px;font-weight:700">🖨 Imprimir / PDF</button>'
     +'<button onclick="_reiniciar()" style="padding:6px 12px;background:#fff;color:#67727a;border:.5px solid #bfd1e5;border-radius:6px;cursor:pointer;font-family:Arial;font-size:11px">Reiniciar</button>'
     +'</div>';
 }
@@ -7458,6 +7459,8 @@ function _retroScript(nombre){
     +'});});'
     +'function upd(){var d=0;boxes.forEach(function(b){if(b.checked)d++;});var el=document.getElementById("prog");if(el)el.textContent=d+" / "+boxes.length+" completados";}upd();'
     +'window._reiniciar=function(){if(!confirm("¿Desmarcar todo? (tus comentarios se conservan)"))return;boxes.forEach(function(b){b.checked=false;var r=b.closest(".retro-row");if(r)r.classList.remove("done");var k=b.getAttribute("data-k");if(k)delete st[k];});save(st);upd();};'
+    +'window._descargar=function(){document.querySelectorAll("input.chk").forEach(function(b){if(b.checked)b.setAttribute("checked","checked");else b.removeAttribute("checked");});'
+    +'var html="<!DOCTYPE html>\\n"+document.documentElement.outerHTML;var blob=new Blob([html],{type:"text/html;charset=utf-8"});var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="Cargas y Compromisos - "+NAME+".html";document.body.appendChild(a);a.click();a.remove();};'
     +'})();<\/scr'+'ipt>';
 }
 function exportRetroConsultor(nombre){
