@@ -306,10 +306,6 @@ body.qas-env{padding-top:32px}
     <div class="kpi-grid" id="kpi-grid"></div>
     <div class="sec">Alertas y red flags</div>
     <div id="alert-list"></div>
-    <div class="sec">Resumen semáforo</div>
-    <div id="sem-summary"></div>
-    <div class="sec no-print">Proyectos que requieren atención</div>
-    <div id="dash-alerts" class="no-print"></div>
     <div class="sec no-print">Calendario de compromisos</div>
     <div id="dash-calendar" class="no-print"></div>
   </div>
@@ -1108,60 +1104,8 @@ function renderDashboard(){
     }).join('')
   + '</div></div>';
 
-  // Flags - proyectos que requieren atención
-  // Condición 1: tarea abierta asignada a Diana o Carlos de Regules
-  const ATENCION_PERSONAS=['Diana Gasca','Carlos de Regules'];
-  const projConTarea=new Set(tasks.filter(t=>!t.done&&!t.archivado&&t.projId&&ATENCION_PERSONAS.includes(t.asignado)).map(t=>t.projId));
-  // Condición 2: toggle manual activado
-  const projManualAttn=new Set(ps.filter(p=>p.requiereAtencion).map(p=>p.id));
-  const flags=ps.filter(p=>projConTarea.has(p.id)||projManualAttn.has(p.id))
-    .sort((a,b)=>{
-      const execOrder=ld('gh_exec_proj_order',[]);
-      const ia=execOrder.indexOf(a.id),ib=execOrder.indexOf(b.id);
-      if(ia>-1&&ib>-1) return ia-ib;
-      if(ia>-1) return -1; if(ib>-1) return 1;
-      const o={crit:0,risk:1,none:2,ok:3};
-      return(o[sem(a).cls]||2)-(o[sem(b).cls]||2);
-    });
-  document.getElementById('dash-alerts').innerHTML=flags.length?flags.map(p=>{
-    const s=sem(p);
-    const comment=ld('exec_proj_'+p.id,'').trim();
-    const myTasks=tasks.filter(t=>!t.done&&!t.archivado&&t.projId===p.id&&ATENCION_PERSONAS.includes(t.asignado));
-    const isManual=projManualAttn.has(p.id);
-    return`<div class="alert-box ${s.cls==='crit'?'red':s.cls==='risk'?'yellow':''}">
-      <div style="flex:1">
-        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:3px">
-          <span class="alert-name" style="margin:0">${p.nombre}</span>
-          <span class="badge ${p.etapa==='PRECON'?'b-pre':p.etapa==='EJECUTIVO'?'b-ej':'b-rev'}" style="font-size:8px">${p.etapa}</span>
-          <span class="sem ${s.cls}" style="font-size:8px">${s.label}</span>
-          ${isManual?'<span style="font-size:9px;background:#eef3f7;color:#6990ab;border-radius:4px;padding:1px 6px">📌 marcado</span>':''}
-        </div>
-        <div class="alert-det">${p.coord||'—'} · ${p.avance}% avance</div>
-        ${myTasks.length?`<div style="margin-top:5px;display:flex;flex-direction:column;gap:3px">
-          ${myTasks.slice(0,3).map(t=>`<div style="font-size:10px;color:#374151;display:flex;gap:5px;align-items:baseline">
-            <span style="color:#254467;font-weight:700;flex-shrink:0">${t.asignado==='Diana Gasca'?'Diana':'Carlos'}:</span>
-            <span>${t.texto.substring(0,80)}${t.texto.length>80?'…':''}</span>
-            ${t.fechaCompromiso?`<span style="flex-shrink:0;color:${t.fechaCompromiso<todayStr?'#e65a27':'#67727a'}">${fmtD(t.fechaCompromiso)}</span>`:''}
-          </div>`).join('')}
-          ${myTasks.length>3?`<div style="font-size:10px;color:#a8a8a8">+${myTasks.length-3} más...</div>`:''}
-        </div>`:''}
-        ${comment?`<div style="font-size:11px;color:#374151;margin-top:5px;padding-top:5px;border-top:.5px dashed #bfd1e5;line-height:1.4">${comment}</div>`:''}
-        <div style="margin-top:6px">
-          <button onclick="toggleAtencion(${p.id})" style="font-size:9px;padding:2px 8px;border:.5px solid ${isManual?'#6990ab':'#bfd1e5'};border-radius:4px;background:${isManual?'#eef3f7':'#fff'};color:${isManual?'#6990ab':'#67727a'};cursor:pointer;font-family:Arial">
-            ${isManual?'✓ Marcado':'+ Marcar manualmente'}
-          </button>
-        </div>
-      </div>
-    </div>`;
-  }).join(''):'<div class="alert-box"><span style="color:#67727a;font-size:11px">Sin tareas pendientes de Diana o Carlos. ✓</span></div>';
-
   // Alertas y red flags
   const alertItems=[];
-  // Tasks vencidas (más de 3 días)
-  const tareasVenc=tasks.filter(t=>!t.done&&!t.archivado&&t.fechaCompromiso&&Math.round((new Date(t.fechaCompromiso)-today)/86400000)<-3);
-  if(tareasVenc.length){
-    alertItems.push({cls:'red',title:'Tareas vencidas (>3 días)',items:tareasVenc.slice(0,5).map(t=>{const p=[...ps,...internos()].find(x=>x.id===t.projId);return(p?p.nombre+' · ':'')+t.texto.substring(0,60)+(t.texto.length>60?'…':'');})});
-  }
   // Consultores sin respuesta >14 días
   const sinResp=[];
   ps.forEach(p=>(p.consultores||[]).filter(c=>c.diasSinResp>14).forEach(c=>sinResp.push(c.nombre+' · '+p.nombre+' ('+c.diasSinResp+'d)')));
