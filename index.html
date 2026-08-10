@@ -10806,6 +10806,12 @@ function toggleConsulComment(cmId, consulNombre, cumplido){
 
 
 function toggleAseProjs(id){var d=document.getElementById(id);if(d)d.style.display=d.style.display==='none'?'block':'none';}
+function cargaShow(group,month){
+  var d=(window.__cargaData||{})[group]||{};var list=d[month]||[];
+  var el=document.getElementById('carga-det-'+group);if(!el)return;
+  var mLbl=function(m){var p=m.split('-');var n=['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];return n[parseInt(p[1])]+' '+p[0].slice(2);};
+  el.innerHTML='<div style="background:#f8fafc;border:.5px solid #e2e8f0;border-radius:6px;padding:8px 11px;font-size:10px;color:#67727a"><strong style="color:#254467">'+mLbl(month)+' · '+list.length+' proyecto'+(list.length!==1?'s':'')+'</strong>'+(list.length?': '+list.map(function(n){return String(n).replace(/</g,"&lt;");}).join(' · '):' — sin proyectos')+'</div>';
+}
 function renderEstadisticas(){
   // Get all projects including archived
   const allP=[...ld(K.proj,[])];
@@ -10918,6 +10924,37 @@ function renderEstadisticas(){
   var maxCli=cliSorted.length?cliSorted[0][1]:1;
   margenPorProy.sort(function(a,b){return b.margen-a.margen;});
   var mpTop=margenPorProy.slice(0,8);var maxMp=mpTop.length?Math.max.apply(null,[1].concat(mpTop.map(function(x){return Math.abs(x.margen);}))):1;
+  // ── CARGAS LABORALES: carga por mes (PRECON / Ejecutivo / Ambos) ──
+  var _activosMes=function(m,filt){var mS=m+'-01',mE=m+'-31';return allP.filter(function(p){if(p.interno)return false;if(filt&&!filt(p))return false;var ini=p.arranque||'';var fin=p.entregaV4||p.entregaV3||p.entregaV2||p.entregaV1||p.entrega||'';if(!ini)return false;if(ini>mE)return false;if(fin){if(fin<mS)return false;}else{if(m>_nowM)return false;}return true;});};
+  var _serP={},_serE={},_serA={},_cargaData={precon:{},ejec:{},ambos:{}};
+  months.forEach(function(m){
+    var lp=_activosMes(m,function(p){return p.etapa==='PRECON';});
+    var le=_activosMes(m,function(p){return p.etapa==='EJECUTIVO'||p.etapa==='REVISIONES';});
+    var la=_activosMes(m,null);
+    _serP[m]=lp.length;_serE[m]=le.length;_serA[m]=la.length;
+    _cargaData.precon[m]=lp.map(function(p){return p.nombre;});
+    _cargaData.ejec[m]=le.map(function(p){return p.nombre;});
+    _cargaData.ambos[m]=la.map(function(p){return p.nombre;});
+  });
+  window.__cargaData=_cargaData;
+  var _cargaChart=function(group,ser,color){
+    var maxV=Math.max.apply(null,[1].concat(months.map(function(m){return ser[m]||0;})));
+    var bars=months.map(function(m){var v=ser[m]||0;var h=Math.round(v/maxV*92);
+      return '<div onclick="cargaShow(\''+group+'\',\''+m+'\')" title="Clic para ver proyectos" style="flex:1;min-width:28px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;cursor:pointer">'
+        +'<div style="font-size:9px;color:#67727a;font-weight:700;margin-bottom:2px">'+v+'</div>'
+        +'<div style="width:62%;background:'+color+';border-radius:3px 3px 0 0;height:'+Math.max(h,2)+'px"></div>'
+        +'<div style="font-size:8px;color:#8a98a8;margin-top:3px;white-space:nowrap">'+mLbl(m)+'</div>'
+        +'</div>';}).join('');
+    return '<div style="overflow-x:auto"><div style="display:flex;align-items:flex-end;gap:3px;height:130px;min-width:'+(months.length*32)+'px;border-bottom:1px solid #e2e8f0">'+bars+'</div></div>'
+      +'<div id="carga-det-'+group+'" style="margin-top:8px"></div>';
+  };
+  var cargaHtml='<div style="background:#fff;border-radius:12px;border:.5px solid #bfd1e5;padding:16px 18px;margin-bottom:1.25rem">'
+    +'<div class="sec" style="margin-top:0;margin-bottom:6px">📊 Cargas laborales — carga por mes</div>'
+    +'<div style="font-size:10px;color:#67727a;margin-bottom:12px">Proyectos activos por mes (según arranque y última entrega). Haz clic en una barra para ver qué proyectos incluye.</div>'
+    +'<div style="font-size:11px;font-weight:800;color:#254467;margin-bottom:4px">🟦 Ambos (PRECON + Ejecutivo)</div>'+_cargaChart('ambos',_serA,'#254467')
+    +'<div style="font-size:11px;font-weight:800;color:#0369A1;margin:16px 0 4px">🏆 PRECON</div>'+_cargaChart('precon',_serP,'#0369A1')
+    +'<div style="font-size:11px;font-weight:800;color:#6990ab;margin:16px 0 4px">⚙ Ejecutivo (Ejecutivo + Revisiones)</div>'+_cargaChart('ejec',_serE,'#6990ab')
+    +'</div>';
   var execHtml='<div style="background:#fff;border-radius:12px;border:.5px solid #bfd1e5;padding:16px 18px;margin-bottom:1.25rem">'
     +'<div class="sec" style="margin-top:0;margin-bottom:14px">💰 Resumen financiero y ejecutivo</div>'
     +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px;margin-bottom:18px">'
@@ -10930,8 +10967,6 @@ function renderEstadisticas(){
     +'</div>'
     +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:8px"><span style="font-size:12px;font-weight:700;color:#254467">Cobrado vs Pagado por mes</span><span style="font-size:10px;color:#67727a"><span style="display:inline-block;width:9px;height:9px;background:#639922;border-radius:2px"></span> Cobrado &nbsp; <span style="display:inline-block;width:9px;height:9px;background:#BA7517;border-radius:2px"></span> Pagado</span></div>'
     +'<div style="overflow-x:auto">'+groupedChart(cobMes,pagMes,'#639922','#BA7517')+'</div>'
-    +'<div style="font-size:12px;font-weight:700;color:#254467;margin:16px 0 6px">Carga por mes <span style="font-weight:400;color:#a8a8a8">(proyectos activos)</span></div>'
-    +'<div style="overflow-x:auto">'+singleChart(cargaMes,'#6990ab')+'</div>'
     +'</div>'
     +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem;margin-bottom:1.25rem">'
     +'<div style="background:#fff;border-radius:12px;border:.5px solid #bfd1e5;padding:16px 18px"><div class="sec" style="margin-top:0;margin-bottom:12px">Top clientes por $ generado</div>'
@@ -11074,6 +11109,7 @@ function renderEstadisticas(){
       </div>
     </div>
 
+    ${cargaHtml}
     ${execHtml}
     ${aseHtml}
 
