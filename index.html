@@ -3891,14 +3891,15 @@ function exportRetro(nombre){
     </div>
   </div>
 
+  ${_retroBar()}
   <div class="sec">Proyectos (Backlog) por prioridad</div>
-  <div class="card">
+  <div class="card card-checkable" data-ck="proj">
     ${myProjs.length?`<div class="card-title">${myProjs.length} proyecto(s) — cliente + internos</div>${projRows}`
     :'<div class="empty">Sin proyectos asignados.</div>'}
   </div>
 
   <div class="sec">Objetivos (To Do's) por prioridad</div>
-  <div class="card">
+  <div class="card card-checkable" data-ck="obj">
     ${myTasks.length?`<div class="card-title">${myTasks.length} objetivo(s) abierto(s)</div>${taskRows}`
     :'<div class="empty">Sin objetivos pendientes.</div>'}
   </div>
@@ -3926,6 +3927,7 @@ function exportRetro(nombre){
   <div class="no-print" style="margin-top:1rem">
     <button onclick="window.print()" style="padding:7px 16px;background:#6990ab;color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:Arial;font-size:12px;font-weight:700">Imprimir / PDF</button>
   </div>
+  ${_retroScript(nombre)}
   </body></html>`);
   win.document.close();
 }
@@ -7419,6 +7421,36 @@ function saveRetroNotesConsultor(nombre){
   closeModal();
 }
 
+function _retroBar(){
+  return '<style>.retro-row.done{opacity:.5;text-decoration:line-through}</style>'
+    +'<div class="no-print" style="display:flex;gap:10px;align-items:center;margin-bottom:14px;background:#eef3f7;border:.5px solid #cddbe8;border-radius:8px;padding:9px 12px;flex-wrap:wrap">'
+    +'<span style="font-size:11px;font-weight:700;color:#254467">✅ Marca lo que vayas cumpliendo — se guarda solo</span>'
+    +'<span id="prog" style="font-size:11px;font-weight:700;color:#3B6D11"></span>'
+    +'<button onclick="_descargar()" style="margin-left:auto;padding:6px 12px;background:#254467;color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:Arial;font-size:11px;font-weight:700">⬇ Descargar para enviar</button>'
+    +'<button onclick="_reiniciar()" style="padding:6px 12px;background:#fff;color:#67727a;border:.5px solid #bfd1e5;border-radius:6px;cursor:pointer;font-family:Arial;font-size:11px">Reiniciar</button>'
+    +'</div>';
+}
+function _retroScript(nombre){
+  var nm=JSON.stringify(String(nombre||''));
+  return '<scr'+'ipt>(function(){var NAME='+nm+';var KEY="retrochk_"+NAME;'
+    +'function load(){try{return JSON.parse(localStorage.getItem(KEY)||"{}")||{};}catch(e){return {};}}'
+    +'function save(s){try{localStorage.setItem(KEY,JSON.stringify(s));}catch(e){}}'
+    +'var st=load();var boxes=[];'
+    +'document.querySelectorAll(".card-checkable").forEach(function(card){Array.prototype.forEach.call(card.children,function(ch){'
+    +'if(ch.nodeType!==1||(ch.classList&&(ch.classList.contains("card-title")||ch.classList.contains("empty"))))return;'
+    +'ch.classList.add("retro-row");'
+    +'var cb=ch.querySelector("input.chk");'
+    +'var key=(card.getAttribute("data-ck")||"")+"_"+(ch.textContent||"").replace(/\\s+/g," ").trim().slice(0,60);'
+    +'if(!cb){cb=document.createElement("input");cb.type="checkbox";cb.className="chk";cb.setAttribute("data-k",key);cb.style.cssText="margin-right:8px;margin-top:2px;flex-shrink:0;width:15px;height:15px;cursor:pointer";ch.insertBefore(cb,ch.firstChild);}'
+    +'if(cb.checked||st[key]){cb.checked=true;ch.classList.add("done");}'
+    +'cb.addEventListener("change",function(){ch.classList.toggle("done",cb.checked);if(cb.checked)st[key]=1;else delete st[key];save(st);upd();});'
+    +'boxes.push(cb);});});'
+    +'function upd(){var d=0;boxes.forEach(function(b){if(b.checked)d++;});var el=document.getElementById("prog");if(el)el.textContent=d+" / "+boxes.length+" completados";}upd();'
+    +'window._reiniciar=function(){if(!confirm("¿Desmarcar todo?"))return;st={};save(st);boxes.forEach(function(b){b.checked=false;var r=b.closest(".retro-row");if(r)r.classList.remove("done");});upd();};'
+    +'window._descargar=function(){document.querySelectorAll("input.chk").forEach(function(b){if(b.checked)b.setAttribute("checked","checked");else b.removeAttribute("checked");});'
+    +'var html="<!DOCTYPE html>\\n"+document.documentElement.outerHTML;var blob=new Blob([html],{type:"text/html"});var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="Cargas y Compromisos - "+NAME+".html";document.body.appendChild(a);a.click();a.remove();};'
+    +'})();<\/scr'+'ipt>';
+}
 function exportRetroConsultor(nombre){
   const consul=cat.consultores.find(c=>c.nombre===nombre);
   if(!consul) return;
@@ -7537,6 +7569,7 @@ function exportRetroConsultor(nombre){
     </div>
   </div>
 
+  ${_retroBar()}
   <!-- Resumen ejecutivo -->
   <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:1.5rem">
     <div style="border:.5px solid #bfd1e5;border-radius:8px;padding:10px 12px;text-align:center;-webkit-print-color-adjust:exact;print-color-adjust:exact">
@@ -7558,13 +7591,13 @@ function exportRetroConsultor(nombre){
   </div>
 
   <div class="sec">Objetivos (To Do's) por prioridad</div>
-  <div class="card">
+  <div class="card card-checkable" data-ck="obj">
     ${myTasks.length?`<div class="card-title">${myTasks.length} objetivo(s) abierto(s)</div>${taskRows}`
     :'<div class="empty">Sin objetivos pendientes asignados.</div>'}
   </div>
 
   <div class="sec">Proyectos (Backlog) asignados por prioridad</div>
-  <div class="card">
+  <div class="card card-checkable" data-ck="proj">
     ${myProjs.length
       ? (retro_projsConTarea.length
           ? `<div class="card-title" style="background:#fff8f6;color:#e65a27;border-bottom:.5px solid #fdd">Con objetivos activos (${retro_projsConTarea.length})</div>`
@@ -7597,6 +7630,7 @@ function exportRetroConsultor(nombre){
   <div class="no-print" style="margin-top:1rem">
     <button onclick="window.print()" style="padding:7px 16px;background:#6990ab;color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:Arial;font-size:12px;font-weight:700">Imprimir / PDF</button>
   </div>
+  ${_retroScript(nombre)}
   </body></html>`);
   win.document.close();
 }
