@@ -387,6 +387,7 @@ body.qas-env{padding-top:32px}
     <select id="seg-cliente" onchange="renderSeg()" style="display:none;font-size:11px;padding:5px 8px;border-radius:6px;border:.5px solid #bfd1e5;font-family:Arial,sans-serif;min-width:200px"></select>
     <button id="seg-btn-tarea" class="btn btn-primary btn-sm" onclick="openAddTask()">+ Tarea</button>
     <button id="seg-btn-com" class="btn btn-sm" onclick="openAddComment()">+ Comentario</button>
+    <button class="btn btn-sm" onclick="imprimirReporteDesarrollo()" style="border:.5px solid #254a8b;color:#254a8b;font-weight:700">📌 Reporte Gerencia Desarrollo</button>
     <label style="font-size:10px;color:#67727a;display:flex;align-items:center;gap:4px"><input type="checkbox" id="show-arch" onchange="renderSeg()"> Ver archivados</label>
     <label style="font-size:10px;color:#67727a;display:flex;align-items:center;gap:4px"><input type="checkbox" id="show-done-seg" onchange="renderSeg()"> Ver completadas</label>
   </div>
@@ -2895,9 +2896,11 @@ function _segItemHtml(item){
               ${ov&&!item.done?'<span style="font-size:9px;font-weight:700;color:#e65a27">VENCIDA</span>':''}
               ${item.bloqueante?'<span class="badge b-crit">Bloqueante</span>':''}
               ${item.revTaller?`<span class="badge" style="background:#fff4e5;color:#854f0b;border:.5px solid #f0c98a">🔧 Revisar${item.revTallerCon?' con '+item.revTallerCon:' con taller/consultor'}</span>`:''}
+              ${item.gerDesarrollo?`<span class="badge" style="background:#eef3ff;color:#254a8b;border:.5px solid #b9c9ee">📌 Desarrollo${item.gerDesarrolloDe?' ('+item.gerDesarrolloDe+')':''}</span>`:''}
               <button class="btn btn-xs no-print" onclick="openEditTask(${item.id})">Editar</button>
               <button class="btn btn-xs no-print" style="background:#EEF2FF;color:#4338CA;border-color:#C7D2FE" onclick="openTaskNota(${item.id})">+ Nota</button>
               <button class="btn btn-xs no-print" style="${item.revTaller?'background:#fff4e5;color:#854f0b;border-color:#f0c98a':''}" onclick="toggleRevTaller(${item.id})" title="Marcar para revisar con jefe de taller / consultor">🔧 Taller</button>
+              <button class="btn btn-xs no-print" style="${item.gerDesarrollo?'background:#eef3ff;color:#254a8b;border-color:#b9c9ee':''}" onclick="toggleGerDesarrollo(${item.id})" title="Instrucción de Gerencia de Desarrollo para el equipo">📌 Desarrollo</button>
               <button class="btn btn-xs no-print" onclick="archTask(${item.id})">${item.archivado?'Restaurar':'Archivar'}</button>
               <button class="btn btn-xs btn-danger no-print" onclick="deleteTask(${item.id})">Eliminar</button>
             </div>
@@ -8574,6 +8577,12 @@ function openEditTask(id){
       <input id="t-revcon" list="revcon-dl" value="${(t.revTallerCon||'').replace(/"/g,'&quot;')}" placeholder="¿Con quién? (Ernesto Muñoz, Luis Macías, Jesús Portillo…)" style="width:100%;font-family:Arial;font-size:12px;padding:6px 8px;border:.5px solid #bfd1e5;border-radius:6px">
       <datalist id="revcon-dl">${revconOpts}</datalist>
     </div>
+    <div class="fg" style="background:#eef3ff;border:.5px solid #b9c9ee;border-radius:8px;padding:8px 10px">
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:700;color:#254a8b"><input type="checkbox" id="t-gerdes" ${t.gerDesarrollo?'checked':''} style="width:14px;height:14px"> 📌 Instrucción de Gerencia de Desarrollo</label>
+      <div style="font-size:9px;color:#a8a8a8;margin:3px 0 5px">Sale en el Reporte Gerencia Desarrollo para bajarlo al equipo.</div>
+      <input id="t-gerdesde" list="gerdes-dl" value="${(t.gerDesarrolloDe||'').replace(/"/g,'&quot;')}" placeholder="¿Quién lo solicitó? (Paulina Castellanos / Miriam Gutiérrez)" style="width:100%;font-family:Arial;font-size:12px;padding:6px 8px;border:.5px solid #bfd1e5;border-radius:6px">
+      <datalist id="gerdes-dl"><option value="Paulina Castellanos"><option value="Miriam Gutiérrez"></datalist>
+    </div>
     <div class="btn-row">
       <button class="btn btn-danger btn-sm" onclick="deleteTask(${id})" style="margin-right:auto">Eliminar</button>
       <button class="btn" onclick="closeModal()">Cancelar</button>
@@ -8590,9 +8599,42 @@ function updateTask(id){
   t.bloqueante=document.getElementById('tbl').value==='1';
   t.revTaller=document.getElementById('t-revtaller')?document.getElementById('t-revtaller').checked:false;
   t.revTallerCon=document.getElementById('t-revcon')?document.getElementById('t-revcon').value.trim():'';
+  t.gerDesarrollo=document.getElementById('t-gerdes')?document.getElementById('t-gerdes').checked:false;
+  t.gerDesarrolloDe=document.getElementById('t-gerdesde')?document.getElementById('t-gerdesde').value.trim():'';
   sv(K.tasks,tasks);closeModal();renderSeg();renderPendientes();if(typeof renderConsultores==='function')renderConsultores();
 }
 function toggleRevTaller(id){var t=tasks.find(function(x){return x.id===id;});if(!t)return;t.revTaller=!t.revTaller;sv(K.tasks,tasks);renderSeg();if(typeof renderConsultores==='function')renderConsultores();}
+function toggleGerDesarrollo(id){var t=tasks.find(function(x){return x.id===id;});if(!t)return;t.gerDesarrollo=!t.gerDesarrollo;sv(K.tasks,tasks);renderSeg();if(typeof renderConsultores==='function')renderConsultores();}
+function imprimirReporteDesarrollo(){
+  var list=tasks.filter(function(t){return t.gerDesarrollo&&!t.done&&!t.archivado;});
+  var esc=function(s){return String(s==null?'':s).replace(/</g,'&lt;');};
+  var pName=function(pid){var p=projects.find(function(x){return x.id===pid;});return p?p.nombre:'—';};
+  var byPer={};
+  list.forEach(function(t){var k=t.asignado||'— Sin asignar —';if(!byPer[k])byPer[k]=[];byPer[k].push(t);});
+  var pers=Object.keys(byPer).sort(function(a,b){return a.localeCompare(b);});
+  var secciones=pers.map(function(k){
+    var items=byPer[k].slice().sort(function(a,b){return (a.fechaCompromiso||'z').localeCompare(b.fechaCompromiso||'z');});
+    return '<div class="sec">'+esc(k)+' <span style="font-weight:400;color:#888;font-size:11px">· '+items.length+'</span></div>'
+      +'<table><thead><tr><th>Instrucción</th><th>Solicitó</th><th>Proyecto</th><th class="nw">Compromiso</th></tr></thead><tbody>'
+      +items.map(function(t){return '<tr><td>'+esc(t.texto)+'</td><td>'+(t.gerDesarrolloDe?'<strong>'+esc(t.gerDesarrolloDe)+'</strong>':'—')+'</td><td>'+esc(pName(t.projId))+'</td><td class="nw">'+(t.fechaCompromiso?fmtD(t.fechaCompromiso):'—')+'</td></tr>';}).join('')
+      +'</tbody></table>';
+  }).join('');
+  var win=window.open('','_blank');
+  win.document.write('<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Reporte Gerencia Desarrollo</title><style>'
+    +'*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;color:#1A1A2E;font-size:12px;padding:1.5rem;max-width:900px;margin:0 auto}'
+    +'.hdr{background:#254467;color:#fff;border-radius:8px;padding:12px 16px;margin-bottom:14px}'
+    +'.hdr-t{font-size:16px;font-weight:700}.hdr-s{font-size:10px;color:#bfd1e5;margin-top:3px}'
+    +'.sec{font-size:12px;font-weight:700;color:#254a8b;margin:16px 0 6px;padding-bottom:3px;border-bottom:2px solid #b9c9ee}'
+    +'table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:8px}'
+    +'th{background:#eef3ff;color:#254a8b;padding:5px 7px;text-align:left;font-size:9px;font-weight:700;border:.5px solid #b9c9ee}'
+    +'td{padding:5px 7px;border:.5px solid #cbd5e1;vertical-align:top}.nw{white-space:nowrap}'
+    +'@media print{body{padding:.3rem}}</style></head><body>'
+    +'<div class="hdr"><div class="hdr-t">📌 Reporte Gerencia de Desarrollo</div><div class="hdr-s">Instrucciones a bajar al equipo · Gerencia de Diseño CDMX — Grupo Hermosillo · '+today.toLocaleDateString('es-MX',{day:'2-digit',month:'long',year:'numeric'})+'</div></div>'
+    +(list.length?secciones:'<div style="font-size:12px;color:#888;padding:1rem">Sin instrucciones de Gerencia de Desarrollo pendientes. Marca tareas con el botón 📌 Desarrollo.</div>')
+    +'<div style="margin-top:16px;font-size:9px;color:#999">Generado el '+fmtDY(todayStr)+'</div>'
+    +'</body></html>');
+  win.document.close();
+}
 function archTask(id){const t=tasks.find(x=>x.id===id);if(t){t.archivado=!t.archivado;sv(K.tasks,tasks);}renderSeg();}
 function deleteTask(id){if(!confirm('¿Eliminar esta tarea?'))return;tasks=tasks.filter(x=>x.id!==id);sv(K.tasks,tasks);renderSeg();renderPendientes();}
 function openEditComment(id){
