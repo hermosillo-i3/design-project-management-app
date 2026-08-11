@@ -8547,7 +8547,10 @@ function renderAll(){
 
 function openEditTask(id){
   const t=tasks.find(x=>x.id===id);
-  const personOpts=cat.personas.map(p=>`<option ${p.nombre===t.asignado?'selected':''} value="${p.nombre}">${p.nombre}</option>`).join('');
+  const _asigNames=Array.from(new Set([...cat.personas.map(p=>p.nombre),...(cat.consultores||[]).map(c=>c.nombre)].filter(Boolean)));
+  if(t.asignado&&_asigNames.indexOf(t.asignado)<0)_asigNames.push(t.asignado);
+  _asigNames.sort((a,b)=>a.localeCompare(b));
+  const personOpts=_asigNames.map(n=>`<option ${n===t.asignado?'selected':''} value="${String(n).replace(/"/g,'&quot;')}">${n}</option>`).join('');
   const revconNames=Array.from(new Set([...(cat.consultores||[]).map(c=>c.nombre),...(cat.personas||[]).map(p=>p.nombre),'Ernesto Muñoz','Luis Macías','Jesús Portillo'].filter(Boolean))).sort((a,b)=>a.localeCompare(b));
   const revconOpts=revconNames.map(n=>`<option value="${String(n).replace(/"/g,'&quot;')}">`).join('');
   document.getElementById('modal-body').innerHTML=`<h3>Editar tarea</h3>
