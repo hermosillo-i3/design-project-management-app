@@ -1440,7 +1440,14 @@ function imprimirReporteDepto(){
       var pr=p.prioridad||'—';var prC=pr==='Alta'?'#991B1B':pr==='Media'?'#92400E':pr==='Baja'?'#14532D':'#666';
       var ubi=[p.areaProyecto,p.ubicacion].filter(Boolean).join(' · ')||'—';
       var revT=tasks.filter(function(t){return t.projId===p.id&&t.revTaller&&!t.done&&!t.archivado;});
-      var comCell=revT.map(function(t){return '<div style="margin-bottom:3px">🔧 '+(t.revTallerCon?'<strong>'+esc(t.revTallerCon)+':</strong> ':'')+esc(t.texto)+'</div>';}).join('');
+      var comCell=revT.map(function(t){
+        var meta=[];
+        if(t.asignado)meta.push('con '+esc(t.asignado));
+        if(t.fechaCompromiso)meta.push('📅 '+fmtD(t.fechaCompromiso));
+        return '<div style="margin-bottom:5px">🔧 '+(t.revTallerCon?'<strong>'+esc(t.revTallerCon)+':</strong> ':'')+esc(t.texto)
+          +(meta.length?'<div style="font-size:8px;color:#888;margin-top:1px">'+meta.join(' · ')+'</div>':'')
+          +'</div>';
+      }).join('');
       return '<tr>'
         +'<td class="b">'+esc(p.nombre)+'</td>'
         +'<td>'+esc(p.cliente||'—')+'</td>'
