@@ -1439,6 +1439,8 @@ function imprimirReporteDepto(){
     return list.map(function(p){
       var pr=p.prioridad||'—';var prC=pr==='Alta'?'#991B1B':pr==='Media'?'#92400E':pr==='Baja'?'#14532D':'#666';
       var ubi=[p.areaProyecto,p.ubicacion].filter(Boolean).join(' · ')||'—';
+      var revT=tasks.filter(function(t){return t.projId===p.id&&t.revTaller&&!t.done&&!t.archivado;});
+      var comCell=revT.map(function(t){return '<div style="margin-bottom:3px">🔧 '+(t.revTallerCon?'<strong>'+esc(t.revTallerCon)+':</strong> ':'')+esc(t.texto)+'</div>';}).join('');
       return '<tr>'
         +'<td class="b">'+esc(p.nombre)+'</td>'
         +'<td>'+esc(p.cliente||'—')+'</td>'
@@ -1450,7 +1452,7 @@ function imprimirReporteDepto(){
         +'<td>'+esc(p.estructurista||'—')+'</td>'
         +'<td class="nw">'+ult(p)+'</td>'
         +'<td style="font-weight:700;color:'+prC+'">'+esc(pr)+'</td>'
-        +'<td class="com"></td>'
+        +'<td class="com">'+comCell+'</td>'
         +'</tr>';
     }).join('');
   };
@@ -2881,8 +2883,10 @@ function _segItemHtml(item){
               ${item.fechaCompromiso?`<span class="badge ${ov?'b-crit':'b-blue'}">Compromiso: ${fmtD(item.fechaCompromiso)}</span>`:''}
               ${ov&&!item.done?'<span style="font-size:9px;font-weight:700;color:#e65a27">VENCIDA</span>':''}
               ${item.bloqueante?'<span class="badge b-crit">Bloqueante</span>':''}
+              ${item.revTaller?`<span class="badge" style="background:#fff4e5;color:#854f0b;border:.5px solid #f0c98a">🔧 Revisar${item.revTallerCon?' con '+item.revTallerCon:' con taller/consultor'}</span>`:''}
               <button class="btn btn-xs no-print" onclick="openEditTask(${item.id})">Editar</button>
               <button class="btn btn-xs no-print" style="background:#EEF2FF;color:#4338CA;border-color:#C7D2FE" onclick="openTaskNota(${item.id})">+ Nota</button>
+              <button class="btn btn-xs no-print" style="${item.revTaller?'background:#fff4e5;color:#854f0b;border-color:#f0c98a':''}" onclick="toggleRevTaller(${item.id})" title="Marcar para revisar con jefe de taller / consultor">🔧 Taller</button>
               <button class="btn btn-xs no-print" onclick="archTask(${item.id})">${item.archivado?'Restaurar':'Archivar'}</button>
               <button class="btn btn-xs btn-danger no-print" onclick="deleteTask(${item.id})">Eliminar</button>
             </div>
@@ -8544,10 +8548,18 @@ function renderAll(){
 function openEditTask(id){
   const t=tasks.find(x=>x.id===id);
   const personOpts=cat.personas.map(p=>`<option ${p.nombre===t.asignado?'selected':''} value="${p.nombre}">${p.nombre}</option>`).join('');
+  const revconNames=Array.from(new Set([...(cat.consultores||[]).map(c=>c.nombre),...(cat.personas||[]).map(p=>p.nombre),'Ernesto Muñoz','Luis Macías','Jesús Portillo'].filter(Boolean))).sort((a,b)=>a.localeCompare(b));
+  const revconOpts=revconNames.map(n=>`<option value="${String(n).replace(/"/g,'&quot;')}">`).join('');
   document.getElementById('modal-body').innerHTML=`<h3>Editar tarea</h3>
     <div class="fg"><label>Tarea</label><textarea id="tt">${t.texto}</textarea></div>
     <div class="frow"><div class="fg"><label>Asignado a</label><select id="ta"><option value="">—</option>${personOpts}</select></div><div class="fg"><label>Fecha pedido</label><input type="date" id="tfp" value="${t.fechaPedido||''}"></div></div>
     <div class="frow"><div class="fg"><label>Fecha compromiso</label><input type="date" id="tfc" value="${t.fechaCompromiso||''}"></div><div class="fg"><label>Bloqueante</label><select id="tbl"><option value="0" ${!t.bloqueante?'selected':''}>No</option><option value="1" ${t.bloqueante?'selected':''}>Sí</option></select></div></div>
+    <div class="fg" style="background:#fff8f0;border:.5px solid #f0c98a;border-radius:8px;padding:8px 10px">
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:700;color:#854f0b"><input type="checkbox" id="t-revtaller" ${t.revTaller?'checked':''} style="width:14px;height:14px"> 🔧 Revisar con jefe de taller / consultor</label>
+      <div style="font-size:9px;color:#a8a8a8;margin:3px 0 5px">Aparecerá en la columna Comentarios del Reporte Departamento de Diseño.</div>
+      <input id="t-revcon" list="revcon-dl" value="${(t.revTallerCon||'').replace(/"/g,'&quot;')}" placeholder="¿Con quién? (Ernesto Muñoz, Luis Macías, Jesús Portillo…)" style="width:100%;font-family:Arial;font-size:12px;padding:6px 8px;border:.5px solid #bfd1e5;border-radius:6px">
+      <datalist id="revcon-dl">${revconOpts}</datalist>
+    </div>
     <div class="btn-row">
       <button class="btn btn-danger btn-sm" onclick="deleteTask(${id})" style="margin-right:auto">Eliminar</button>
       <button class="btn" onclick="closeModal()">Cancelar</button>
@@ -8562,8 +8574,11 @@ function updateTask(id){
   t.fechaPedido=document.getElementById('tfp').value;
   t.fechaCompromiso=document.getElementById('tfc').value;
   t.bloqueante=document.getElementById('tbl').value==='1';
-  sv(K.tasks,tasks);closeModal();renderSeg();renderPendientes();
+  t.revTaller=document.getElementById('t-revtaller')?document.getElementById('t-revtaller').checked:false;
+  t.revTallerCon=document.getElementById('t-revcon')?document.getElementById('t-revcon').value.trim():'';
+  sv(K.tasks,tasks);closeModal();renderSeg();renderPendientes();if(typeof renderConsultores==='function')renderConsultores();
 }
+function toggleRevTaller(id){var t=tasks.find(function(x){return x.id===id;});if(!t)return;t.revTaller=!t.revTaller;sv(K.tasks,tasks);renderSeg();if(typeof renderConsultores==='function')renderConsultores();}
 function archTask(id){const t=tasks.find(x=>x.id===id);if(t){t.archivado=!t.archivado;sv(K.tasks,tasks);}renderSeg();}
 function deleteTask(id){if(!confirm('¿Eliminar esta tarea?'))return;tasks=tasks.filter(x=>x.id!==id);sv(K.tasks,tasks);renderSeg();renderPendientes();}
 function openEditComment(id){
