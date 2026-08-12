@@ -335,6 +335,7 @@ body.qas-env{padding-top:32px}
         <option value="sem">Por semáforo</option>
         <option value="avz">Por avance</option>
         <option value="prio">Por prioridad</option>
+        <option value="entrega">Por fecha de entrega</option>
         <option value="cliente">Por cliente</option>
         <option value="manual">Manual (mi orden) — arrastra</option>
       </select>
@@ -1424,10 +1425,11 @@ function imprimirReporteDepto(){
     if(_sortSel==='sem'){var o={crit:0,risk:1,none:2,ok:3};return ps.slice().sort(function(a,b){return (o[sem(a).cls]||3)-(o[sem(b).cls]||3);});}
     if(_sortSel==='avz')return ps.slice().sort(function(a,b){return a.avance-b.avance;});
     if(_sortSel==='prio'){var po={'Alta':0,'Media':1,'Baja':2};return ps.slice().sort(function(a,b){return (po[a.prioridad]!=null?po[a.prioridad]:1)-(po[b.prioridad]!=null?po[b.prioridad]:1);});}
+    if(_sortSel==='entrega'){var _u=function(p){var vs=[p.entregaV1,p.entregaV2,p.entregaV3,p.entregaV4,p.entrega].filter(function(v){return v&&String(v).trim();});return vs.length?vs[vs.length-1]:'';};return ps.slice().sort(function(a,b){var ea=_u(a),eb=_u(b);if(!ea&&!eb)return a.num-b.num;if(!ea)return 1;if(!eb)return -1;return ea.localeCompare(eb);});}
     if(_sortSel==='cliente')return ps.slice().sort(function(a,b){return (a.cliente||'').localeCompare(b.cliente||'');});
     return ps.slice().sort(function(a,b){return a.num-b.num;});
   };
-  var _sortLbl={num:'número',coord:'coordinador',sem:'semáforo',avz:'avance',prio:'prioridad',cliente:'cliente',manual:'mi orden'}[_sortSel]||'número';
+  var _sortLbl={num:'número',coord:'coordinador',sem:'semáforo',avz:'avance',prio:'prioridad',entrega:'fecha de entrega',cliente:'cliente',manual:'mi orden'}[_sortSel]||'número';
   var concurso=_sortRep(all.filter(function(p){return p.etapa==='PRECON'||p.etapa==='INTERNO'||['Perdido','StandBy','Cancelado'].includes(p.estatusProy);}),'concurso');
   var ejec=_sortRep(all.filter(function(p){return p.etapa==='EJECUTIVO'||p.etapa==='REVISIONES';}),'ejecutivo');
   var esc=function(s){return String(s==null?'':s).replace(/</g,'&lt;');};
@@ -1509,6 +1511,7 @@ function renderProyectos(){
     if(projSort==='sem'){const o={crit:0,risk:1,none:2,ok:3};return[...ps].sort((a,b)=>(o[sem(a).cls]||3)-(o[sem(b).cls]||3));}
     if(projSort==='avz') return[...ps].sort((a,b)=>a.avance-b.avance);
     if(projSort==='prio'){const po={'Alta':0,'Media':1,'Baja':2};return[...ps].sort((a,b)=>(po[a.prioridad]||1)-(po[b.prioridad]||1));}
+    if(projSort==='entrega'){const _ult=p=>{const vs=[p.entregaV1,p.entregaV2,p.entregaV3,p.entregaV4,p.entrega].filter(v=>v&&String(v).trim());return vs.length?vs[vs.length-1]:'';};return[...ps].sort((a,b)=>{const ea=_ult(a),eb=_ult(b);if(!ea&&!eb)return a.num-b.num;if(!ea)return 1;if(!eb)return -1;return ea.localeCompare(eb);});}
     if(projSort==='cliente') return[...ps].sort((a,b)=>(a.cliente||'').localeCompare(b.cliente||''));
     return[...ps].sort((a,b)=>a.num-b.num);
   }
