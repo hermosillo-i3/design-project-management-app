@@ -2924,6 +2924,31 @@ function _segItemHtml(item){
       </div>`;
     }
 }
+function _taskFlagsBox(t){
+  t=t||{};
+  var revconNames=Array.from(new Set([...(cat.consultores||[]).map(function(c){return c.nombre;}),...(cat.personas||[]).map(function(p){return p.nombre;}),'Ernesto Muñoz','Luis Macías','Jesús Portillo'].filter(Boolean))).sort(function(a,b){return a.localeCompare(b);});
+  var revconOpts=revconNames.map(function(n){return '<option value="'+String(n).replace(/"/g,'&quot;')+'">';}).join('');
+  return '<div class="fg" style="background:#fff8f0;border:.5px solid #f0c98a;border-radius:8px;padding:8px 10px">'
+    +'<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:700;color:#854f0b"><input type="checkbox" id="t-revtaller" '+(t.revTaller?'checked':'')+' style="width:14px;height:14px"> 🔧 Revisar con jefe de taller / consultor</label>'
+    +'<div style="font-size:9px;color:#a8a8a8;margin:3px 0 5px">Aparecerá en la columna Comentarios del Reporte Departamento de Diseño.</div>'
+    +'<input id="t-revcon" list="revcon-dl" value="'+String(t.revTallerCon||'').replace(/"/g,'&quot;')+'" placeholder="¿Con quién? (Ernesto Muñoz, Luis Macías, Jesús Portillo…)" style="width:100%;font-family:Arial;font-size:12px;padding:6px 8px;border:.5px solid #bfd1e5;border-radius:6px">'
+    +'<datalist id="revcon-dl">'+revconOpts+'</datalist>'
+    +'</div>'
+    +'<div class="fg" style="background:#eef3ff;border:.5px solid #b9c9ee;border-radius:8px;padding:8px 10px">'
+    +'<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:700;color:#254a8b"><input type="checkbox" id="t-gerdes" '+(t.gerDesarrollo?'checked':'')+' style="width:14px;height:14px"> 📌 Instrucción de Gerencia de Desarrollo</label>'
+    +'<div style="font-size:9px;color:#a8a8a8;margin:3px 0 5px">Sale en el Reporte Gerencia Desarrollo para bajarlo al equipo.</div>'
+    +'<input id="t-gerdesde" list="gerdes-dl" value="'+String(t.gerDesarrolloDe||'').replace(/"/g,'&quot;')+'" placeholder="¿Quién lo solicitó? (Paulina Castellanos / Miriam Gutiérrez)" style="width:100%;font-family:Arial;font-size:12px;padding:6px 8px;border:.5px solid #bfd1e5;border-radius:6px">'
+    +'<datalist id="gerdes-dl"><option value="Paulina Castellanos"><option value="Miriam Gutiérrez"></datalist>'
+    +'</div>';
+}
+function _readTaskFlags(){
+  return {
+    revTaller:document.getElementById('t-revtaller')?document.getElementById('t-revtaller').checked:false,
+    revTallerCon:document.getElementById('t-revcon')?document.getElementById('t-revcon').value.trim():'',
+    gerDesarrollo:document.getElementById('t-gerdes')?document.getElementById('t-gerdes').checked:false,
+    gerDesarrolloDe:document.getElementById('t-gerdesde')?document.getElementById('t-gerdesde').value.trim():''
+  };
+}
 function openAddTask(pidArg){
   const pid=(pidArg!=null&&!isNaN(pidArg))?parseInt(pidArg):parseInt(document.getElementById('seg-sel').value);
   const _pName=(projects.find(x=>x.id===pid)||{}).nombre||'';
@@ -2932,12 +2957,14 @@ function openAddTask(pidArg){
     <div class="fg"><label>Tarea / instrucción</label><textarea id="tt" placeholder="Describe la tarea..."></textarea></div>
     <div class="frow"><div class="fg"><label>Asignado a</label><select id="ta"><option value="">—</option>${personOpts}</select></div><div class="fg"><label>Fecha en que se pidió</label><input type="date" id="tfp" value="${todayStr}"></div></div>
     <div class="frow"><div class="fg"><label>Fecha compromiso entrega</label><input type="date" id="tfc"></div><div class="fg"><label>¿Es bloqueante?</label><select id="tbl"><option value="0">No</option><option value="1">Sí</option></select></div></div>
+    ${_taskFlagsBox()}
     <div class="btn-row"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="saveTask(${pid})">Guardar tarea</button></div>`;
   openModal();
 }
 function saveTask(pid){
-  tasks.push({id:Date.now(),projId:pid,tipo:'task',texto:document.getElementById('tt').value,asignado:document.getElementById('ta').value,fechaPedido:document.getElementById('tfp').value,fechaCompromiso:document.getElementById('tfc').value,bloqueante:document.getElementById('tbl').value==='1',done:false,fecha:todayStr});
-  sv(K.tasks,tasks);closeModal();renderSeg();renderPendientes();
+  var f=_readTaskFlags();
+  tasks.push(Object.assign({id:Date.now(),projId:pid,tipo:'task',texto:document.getElementById('tt').value,asignado:document.getElementById('ta').value,fechaPedido:document.getElementById('tfp').value,fechaCompromiso:document.getElementById('tfc').value,bloqueante:document.getElementById('tbl').value==='1',done:false,fecha:todayStr},f));
+  sv(K.tasks,tasks);closeModal();renderSeg();renderPendientes();if(typeof renderConsultores==='function')renderConsultores();
 }
 
 function addTaskNote(taskId){
@@ -2997,6 +3024,7 @@ function addPersonTask(nombre){
     +_projOpts
     +'</select></div>'
     +'</div>'
+    +_taskFlagsBox()
     +'<div class="btn-row"><button class="btn" onclick="closeModal()">Cancelar</button>'
     +'<input type="hidden" id="pt-nombre" value="'+nombre.replace(/"/g,'&quot;')+'">'
     +'<button class="btn btn-primary" onclick="savePersonTask(document.getElementById(\'pt-nombre\').value)">Guardar</button></div>';
@@ -3009,12 +3037,13 @@ function savePersonTask(nombre){
   var fecha=document.getElementById('pt-fecha').value;
   var projEl=document.getElementById('pt-proj');
   var projId=projEl&&projEl.value?parseInt(projEl.value):null;
-  tasks.push({
+  var f=_readTaskFlags();
+  tasks.push(Object.assign({
     id:Date.now(),texto:txt.value.trim(),
     asignado:nombre,projId:projId,
     fechaPedido:todayStr,fechaCompromiso:fecha||'',
     done:false,archivado:false,notas:[]
-  });
+  },f));
   sv(K.tasks,tasks);
   closeModal();
   renderEquipo();
@@ -10416,6 +10445,7 @@ function addTaskFromTable(projId){
     <div class="fg"><label>Tarea</label><textarea id="tt" placeholder="Describe la tarea..."></textarea></div>
     <div class="frow"><div class="fg"><label>Asignado a</label><select id="ta"><option value="">—</option>${personOpts}</select></div><div class="fg"><label>Fecha pedido</label><input type="date" id="tfp" value="${todayStr}"></div></div>
     <div class="frow"><div class="fg"><label>Fecha compromiso</label><input type="date" id="tfc"></div><div class="fg"><label>Bloqueante</label><select id="tbl"><option value="0">No</option><option value="1">Sí</option></select></div></div>
+    ${_taskFlagsBox()}
     <div class="btn-row">
       <button class="btn" onclick="abrirSeguimientoProyecto(${projId})">Cancelar</button>
       <button class="btn btn-primary" onclick="saveTaskFromTable(${projId})">Guardar</button>
@@ -10423,7 +10453,8 @@ function addTaskFromTable(projId){
   openModal();
 }
 function saveTaskFromTable(projId){
-  tasks.push({id:Date.now(),projId,tipo:'task',texto:document.getElementById('tt').value,asignado:document.getElementById('ta').value,fechaPedido:document.getElementById('tfp').value,fechaCompromiso:document.getElementById('tfc').value,bloqueante:document.getElementById('tbl').value==='1',done:false,archivado:false,fecha:todayStr});
+  var f=_readTaskFlags();
+  tasks.push(Object.assign({id:Date.now(),projId,tipo:'task',texto:document.getElementById('tt').value,asignado:document.getElementById('ta').value,fechaPedido:document.getElementById('tfp').value,fechaCompromiso:document.getElementById('tfc').value,bloqueante:document.getElementById('tbl').value==='1',done:false,archivado:false,fecha:todayStr},f));
   sv(K.tasks,tasks);renderPendientes();abrirSeguimientoProyecto(projId);
 }
 function addCommentFromTable(projId){
