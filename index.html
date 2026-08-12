@@ -368,8 +368,7 @@ body.qas-env{padding-top:32px}
             <th style="color:#639922">Ppto. Control</th>
             <th style="color:#639922">Cobrado</th>
             <th style="color:#6990ab">Firma contrato</th>
-            <th style="color:#6990ab">Inicio obra</th>
-            <th style="color:#6990ab">Fin obra</th>
+            <th>Últ. entrega</th>
             <th style="color:#e65a27">Extras</th>
             <th>Semáforo</th><th>% Avz</th><th>Estatus</th><th class="no-print"></th>
           </tr></thead>
@@ -1585,8 +1584,7 @@ function renderProyectos(){
         <td style="font-size:11px;font-weight:700;color:#254467">${pptoFmt}</td>
         <td style="font-size:11px">${cobFmt}</td>
         <td style="font-size:10px;white-space:nowrap;color:#6990ab">${fmtD(p.fechaFirma||'')}</td>
-        <td style="font-size:10px;white-space:nowrap;color:#6990ab">${fmtD(p.fechaInicioObra||'')}</td>
-        <td style="font-size:10px;white-space:nowrap;color:#6990ab">${fmtD(p.fechaFinObra||'')}</td>
+        <td style="font-size:10px;white-space:nowrap">${(function(){var e=p.entregaV4||p.entregaV3||p.entregaV2||p.entregaV1||p.entrega||'';return e?fmtD(e):'—';})()}</td>
         <td style="font-size:10px">${extFmt}</td>
         <td><span class="sem ${s.cls}">${s.label}</span></td>
         <td><div style="display:flex;align-items:center;gap:2px"><div class="pbar"><div class="pfill" style="width:${p.avance}%"></div></div><span style="font-size:9px">${p.avance}%</span></div></td>
