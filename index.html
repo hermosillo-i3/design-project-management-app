@@ -331,6 +331,7 @@ body.qas-env{padding-top:32px}
       <button class="btn btn-sm" onclick="imprimirReporteDepto()" style="border:.5px solid #254467;color:#254467;font-weight:700">🖨 Reporte Depto. Diseño</button>
       <select id="proj-sort" onchange="renderProyectos()" style="font-size:11px;padding:4px 8px;border-radius:6px;border:.5px solid #bfd1e5;font-family:Arial">
         <option value="num">Orden #</option>
+        <option value="jefe">Por jefe</option>
         <option value="coord">Por coordinador</option>
         <option value="sem">Por semáforo</option>
         <option value="avz">Por avance</option>
@@ -1420,6 +1421,7 @@ function imprimirReporteDepto(){
   var _sortSel=document.getElementById('proj-sort')?document.getElementById('proj-sort').value:'num';
   var _sortRep=function(ps,tab){
     if(_sortSel==='manual')return _manualSort(ps,tab);
+    if(_sortSel==='jefe')return ps.slice().sort(function(a,b){var ja=(a.jefe||'').trim(),jb=(b.jefe||'').trim();if(!ja&&!jb)return a.num-b.num;if(!ja)return 1;if(!jb)return -1;return ja.localeCompare(jb)||a.num-b.num;});
     if(_sortSel==='coord')return ps.slice().sort(function(a,b){return (a.coord||'').localeCompare(b.coord||'');});
     if(_sortSel==='sem'){var o={crit:0,risk:1,none:2,ok:3};return ps.slice().sort(function(a,b){return (o[sem(a).cls]||3)-(o[sem(b).cls]||3);});}
     if(_sortSel==='avz')return ps.slice().sort(function(a,b){return a.avance-b.avance;});
@@ -1428,7 +1430,7 @@ function imprimirReporteDepto(){
     if(_sortSel==='cliente')return ps.slice().sort(function(a,b){return (a.cliente||'').localeCompare(b.cliente||'');});
     return ps.slice().sort(function(a,b){return a.num-b.num;});
   };
-  var _sortLbl={num:'número',coord:'coordinador',sem:'semáforo',avz:'avance',prio:'prioridad',entrega:'fecha de entrega',cliente:'cliente',manual:'mi orden'}[_sortSel]||'número';
+  var _sortLbl={num:'número',jefe:'jefe',coord:'coordinador',sem:'semáforo',avz:'avance',prio:'prioridad',entrega:'fecha de entrega',cliente:'cliente',manual:'mi orden'}[_sortSel]||'número';
   var concurso=_sortRep(all.filter(function(p){return p.etapa==='PRECON'||p.etapa==='INTERNO'||['Perdido','StandBy','Cancelado'].includes(p.estatusProy);}),'concurso');
   var ejec=_sortRep(all.filter(function(p){return p.etapa==='EJECUTIVO'||p.etapa==='REVISIONES';}),'ejecutivo');
   var esc=function(s){return String(s==null?'':s).replace(/</g,'&lt;');};
@@ -1506,6 +1508,7 @@ function renderProyectos(){
   // Sort
   function sortPs(ps){
     if(projSort==='manual') return _manualSort(ps,tab);
+    if(projSort==='jefe') return [...ps].sort((a,b)=>{const ja=(a.jefe||'').trim(),jb=(b.jefe||'').trim();if(!ja&&!jb)return a.num-b.num;if(!ja)return 1;if(!jb)return -1;return ja.localeCompare(jb)||a.num-b.num;});
     if(projSort==='coord') return [...ps].sort((a,b)=>(a.coord||'').localeCompare(b.coord||''));
     if(projSort==='sem'){const o={crit:0,risk:1,none:2,ok:3};return[...ps].sort((a,b)=>(o[sem(a).cls]||3)-(o[sem(b).cls]||3));}
     if(projSort==='avz') return[...ps].sort((a,b)=>a.avance-b.avance);
