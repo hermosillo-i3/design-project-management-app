@@ -8634,10 +8634,10 @@ function updateTask(id){
   t.revTallerCon=document.getElementById('t-revcon')?document.getElementById('t-revcon').value.trim():'';
   t.gerDesarrollo=document.getElementById('t-gerdes')?document.getElementById('t-gerdes').checked:false;
   t.gerDesarrolloDe=document.getElementById('t-gerdesde')?document.getElementById('t-gerdesde').value.trim():'';
-  sv(K.tasks,tasks);closeModal();renderSeg();renderPendientes();if(typeof renderConsultores==='function')renderConsultores();
+  sv(K.tasks,tasks);closeModal();renderSeg();renderPendientes();if(typeof renderConsultores==='function')renderConsultores();if(typeof renderGerencia==='function')renderGerencia();
 }
-function toggleRevTaller(id){var t=tasks.find(function(x){return x.id===id;});if(!t)return;t.revTaller=!t.revTaller;sv(K.tasks,tasks);renderSeg();if(typeof renderConsultores==='function')renderConsultores();}
-function toggleGerDesarrollo(id){var t=tasks.find(function(x){return x.id===id;});if(!t)return;t.gerDesarrollo=!t.gerDesarrollo;sv(K.tasks,tasks);renderSeg();if(typeof renderConsultores==='function')renderConsultores();}
+function toggleRevTaller(id){var t=tasks.find(function(x){return x.id===id;});if(!t)return;t.revTaller=!t.revTaller;sv(K.tasks,tasks);renderSeg();if(typeof renderConsultores==='function')renderConsultores();if(typeof renderGerencia==='function')renderGerencia();}
+function toggleGerDesarrollo(id){var t=tasks.find(function(x){return x.id===id;});if(!t)return;t.gerDesarrollo=!t.gerDesarrollo;sv(K.tasks,tasks);renderSeg();if(typeof renderConsultores==='function')renderConsultores();if(typeof renderGerencia==='function')renderGerencia();}
 function imprimirReporteDesarrollo(){
   var list=tasks.filter(function(t){return t.gerDesarrollo&&!t.done&&!t.archivado;});
   var esc=function(s){return String(s==null?'':s).replace(/</g,'&lt;');};
@@ -8669,7 +8669,7 @@ function imprimirReporteDesarrollo(){
   win.document.close();
 }
 function archTask(id){const t=tasks.find(x=>x.id===id);if(t){t.archivado=!t.archivado;sv(K.tasks,tasks);}renderSeg();}
-function deleteTask(id){if(!confirm('¿Eliminar esta tarea?'))return;tasks=tasks.filter(x=>x.id!==id);sv(K.tasks,tasks);renderSeg();renderPendientes();}
+function deleteTask(id){if(!confirm('¿Eliminar esta tarea?'))return;tasks=tasks.filter(x=>x.id!==id);sv(K.tasks,tasks);renderSeg();renderPendientes();if(typeof renderConsultores==='function')renderConsultores();if(typeof renderGerencia==='function')renderGerencia();}
 function openEditComment(id){
   const c=comments.find(x=>x.id===id);
   document.getElementById('modal-body').innerHTML=`<h3>Editar comentario</h3>
@@ -9613,6 +9613,15 @@ function renderGerencia(){
           +'<input type="checkbox" onchange="doneGerGenTask('+t.id+')" style="margin-top:2px;flex-shrink:0;cursor:pointer">'
           +'<div style="flex:1"><div style="font-size:11px;color:#1A1A2E;line-height:1.4;margin-bottom:2px">'+t.texto+'</div>'
           +(t.fechaCompromiso?'<div style="font-size:10px;font-weight:700;color:'+(ov?'#e65a27':'#67727a')+'">'+fmtDY(t.fechaCompromiso)+'</div>':'')
+          +((t.revTaller||t.gerDesarrollo)?'<div style="margin-top:3px">'
+            +(t.revTaller?'<span style="font-size:8px;font-weight:700;background:#fff4e5;color:#854f0b;border:.5px solid #f0c98a;border-radius:4px;padding:1px 6px;margin-right:3px">🔧 '+(t.revTallerCon||'taller/consultor')+'</span>':'')
+            +(t.gerDesarrollo?'<span style="font-size:8px;font-weight:700;background:#eef3ff;color:#254a8b;border:.5px solid #b9c9ee;border-radius:4px;padding:1px 6px">📌 '+(t.gerDesarrolloDe||'Desarrollo')+'</span>':'')
+            +'</div>':'')
+          +'<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:5px">'
+            +'<button onclick="openEditTask('+t.id+')" style="font-size:9px;padding:2px 7px;border:.5px solid #bfd1e5;border-radius:4px;background:#fff;cursor:pointer;font-family:Arial;color:#67727a">Editar</button>'
+            +'<button onclick="toggleRevTaller('+t.id+')" style="font-size:9px;padding:2px 7px;border:.5px solid '+(t.revTaller?'#f0c98a':'#bfd1e5')+';border-radius:4px;background:'+(t.revTaller?'#fff4e5':'#fff')+';cursor:pointer;font-family:Arial;color:'+(t.revTaller?'#854f0b':'#67727a')+'">🔧 Taller</button>'
+            +'<button onclick="toggleGerDesarrollo('+t.id+')" style="font-size:9px;padding:2px 7px;border:.5px solid '+(t.gerDesarrollo?'#b9c9ee':'#bfd1e5')+';border-radius:4px;background:'+(t.gerDesarrollo?'#eef3ff':'#fff')+';cursor:pointer;font-family:Arial;color:'+(t.gerDesarrollo?'#254a8b':'#67727a')+'">📌 Desarrollo</button>'
+          +'</div>'
           +'</div>'
           +'<button onclick="archiveTask('+t.id+')" style="background:none;border:none;color:#bfd1e5;cursor:pointer;font-size:13px;padding:0;flex-shrink:0">✕</button>'
           +'</div></div>';
