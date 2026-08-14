@@ -9615,6 +9615,7 @@ function renderGerencia(){
         +'<div style="display:flex;gap:5px;align-items:center">'
         +'<input id="ger-gen-fecha" type="date" style="font-size:10px;padding:3px 5px;border:.5px solid #bfd1e5;border-radius:5px;font-family:Arial;flex:1">'
         +'<button onclick="addGerGenTask()" class="btn btn-primary btn-sm" style="font-size:10px;white-space:nowrap">+ Agregar</button>'
+        +'<button onclick="openAddGerGen()" class="btn btn-sm" style="font-size:10px;white-space:nowrap">+ Con detalle</button>'
         +'</div></div>';
       genTasks.forEach(function(t){
         const ov=t.fechaCompromiso&&t.fechaCompromiso<todayStr;
@@ -9675,6 +9676,20 @@ function gerVerMas(nombreKey){
 }
 
 
+function openAddGerGen(){
+  document.getElementById('modal-body').innerHTML=`<h3>Nueva tarea general</h3>
+    <div class="fg"><label>Tarea</label><textarea id="tt" placeholder="Describe la tarea..."></textarea></div>
+    <div class="frow"><div class="fg"><label>Asignado a</label><input id="ta" value="Diana Gasca" readonly style="background:#f0f5fa;width:100%;font-family:Arial;font-size:12px;padding:6px 8px;border:.5px solid #bfd1e5;border-radius:6px"></div><div class="fg"><label>Fecha compromiso</label><input type="date" id="tfc" style="width:100%;font-family:Arial;font-size:12px;padding:6px 8px;border:.5px solid #bfd1e5;border-radius:6px"></div></div>
+    ${_taskFlagsBox()}
+    <div class="btn-row"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="saveGerGenDetail()">Guardar</button></div>`;
+  openModal();
+}
+function saveGerGenDetail(){
+  var texto=document.getElementById('tt').value.trim();if(!texto)return;
+  var f=_readTaskFlags();
+  tasks.push(Object.assign({id:Date.now(),texto:texto,projId:null,asignado:document.getElementById('ta')?document.getElementById('ta').value:'Diana Gasca',fechaPedido:todayStr,fechaCompromiso:document.getElementById('tfc').value||'',done:false,archivado:false,gerGeneral:true,eqTaskPrio:null,notas:[]},f));
+  sv(K.tasks,tasks);closeModal();renderGerencia();renderSeg();if(typeof renderConsultores==='function')renderConsultores();
+}
 function addGerGenTask(){
   const texto=document.getElementById('ger-gen-texto').value.trim();
   if(!texto) return;
