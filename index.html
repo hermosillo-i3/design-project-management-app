@@ -4078,6 +4078,13 @@ function renderCotPorTipo(el,cots,allProjs,catCot){
     +'<span style="font-size:11px;color:#a8a8a8">'+selCots.length+' cotización(es)</span></div>';
   if(!selCots.length){el.innerHTML+=html+'<div style="text-align:center;padding:3rem;color:#a8a8a8;font-size:13px">Sin cotizaciones de tipo "'+sel+'".</div>';return;}
   var mets=selCots.map(function(c){return {c:c,m:calcCotMetrics(c),proj:allProjs.find(function(p){return String(p.id)===String(c.projId);})};});
+  var _hidden=window.__cotTipoHidden||{};var _hiddenN=mets.filter(function(x){return _hidden[x.c.id];}).length;
+  mets=mets.filter(function(x){return !_hidden[x.c.id];});
+  var _ord=window.__cotTipoOrder||[];
+  if(_ord.length)mets.sort(function(a,b){var ia=_ord.indexOf(String(a.c.id)),ib=_ord.indexOf(String(b.c.id));if(ia<0&&ib<0)return 0;if(ia<0)return 1;if(ib<0)return -1;return ia-ib;});
+  var _idsCsv=mets.map(function(x){return String(x.c.id);}).join(',');
+  html+='<div style="font-size:10px;color:#a8a8a8;margin-bottom:8px">Clic en un monto para ver con quién cotizaste y a quién elegiste · arrastra los encabezados (⠿) para reordenar · ✕ para ocultar'+(_hiddenN?' · <a href="#" onclick="cotTipoShowAll();return false" style="color:#6990ab;font-weight:700">👁 mostrar '+_hiddenN+' oculta(s)</a>':'')+'</div>';
+  if(!mets.length){el.innerHTML+=html+'<div style="text-align:center;padding:2rem;color:#a8a8a8;font-size:12px">Todas ocultas. <a href="#" onclick="cotTipoShowAll();return false" style="color:#6990ab">Mostrar todas</a></div>';return;}
   mets.forEach(function(x){x.espVal={};Object.keys(x.m.bySection).forEach(function(cat){(x.m.bySection[cat].esps||[]).forEach(function(e){x.espVal[e.nombre]=(x.espVal[e.nombre]||0)+e.withInd;});});});
   var espCat={};selCots.forEach(function(c){(c.especialidades||[]).forEach(function(e){if(e.nombre)espCat[e.nombre]=e.categoria||'Otros';});});
   var espByCat={};Object.keys(espCat).forEach(function(en){var cat=espCat[en];if(!espByCat[cat])espByCat[cat]=[];espByCat[cat].push(en);});
@@ -4087,14 +4094,16 @@ function renderCotPorTipo(el,cots,allProjs,catCot){
   var stL='position:sticky;left:0;z-index:1;';
   var t='<div style="overflow-x:auto"><table style="border-collapse:collapse;font-size:11px;min-width:520px">';
   t+='<thead><tr><th style="'+stL+'background:#254467;color:#fff;text-align:left;padding:6px 8px;min-width:150px">Partida / especialidad</th>';
-  mets.forEach(function(x){t+='<th style="background:#254467;color:#fff;padding:6px 8px;text-align:right;min-width:120px">'+(x.proj?x.proj.nombre:'—')+'<div style="font-size:8px;font-weight:400;color:#bfd1e5">'+x.c.nombre+' · '+fmtDY(x.c.fecha)+'</div></th>';});
+  mets.forEach(function(x){t+='<th draggable="true" ondragstart="cotTipoDragStart(event,\''+x.c.id+'\')" ondragover="event.preventDefault()" ondrop="cotTipoDrop(event,\''+x.c.id+'\',\''+_idsCsv+'\')" style="background:#254467;color:#fff;padding:6px 8px;text-align:right;min-width:120px;cursor:grab">'
+    +'<div style="display:flex;justify-content:flex-end;align-items:center;gap:5px;margin-bottom:2px"><span title="Arrastra para reordenar" style="color:#8ba3c0;font-size:10px">⠿</span><button onclick="event.stopPropagation();cotTipoHide(\''+x.c.id+'\')" title="Ocultar esta columna" style="background:none;border:none;color:#8ba3c0;cursor:pointer;font-size:11px;padding:0;line-height:1">✕</button></div>'
+    +(x.proj?x.proj.nombre:'—')+'<div style="font-size:8px;font-weight:400;color:#bfd1e5">'+x.c.nombre+' · '+fmtDY(x.c.fecha)+'</div></th>';});
   t+='</tr>';
   t+='<tr><td style="'+stL+'background:#f0f5fa;font-weight:700;color:#67727a;padding:4px 8px">m² construcción</td>'+mets.map(function(x){return '<td style="text-align:right;padding:4px 8px;background:#f0f5fa;color:#67727a">'+(x.m.m2?Number(x.m.m2).toLocaleString():'—')+'</td>';}).join('')+'</tr></thead><tbody>';
   catsOrdered.forEach(function(cat){
     t+='<tr><td colspan="'+(mets.length+1)+'" style="'+stL+'background:#e0eaf2;font-weight:700;color:#254467;padding:4px 8px">'+cat+'</td></tr>';
     espByCat[cat].sort(function(a,b){return a.localeCompare(b);}).forEach(function(en){
       t+='<tr><td style="'+stL+'background:#fff;padding:4px 8px;border-bottom:.5px solid #eef2f6">'+en+'</td>'
-        +mets.map(function(x){var v=x.espVal[en];return '<td style="text-align:right;padding:4px 8px;border-bottom:.5px solid #eef2f6;color:#254467">'+fmt(v)+'</td>';}).join('')+'</tr>';
+        +mets.map(function(x){var v=x.espVal[en];return '<td onclick="cotTipoDetalle(\''+x.c.id+'\',\''+encodeURIComponent(en)+'\')" title="Ver asesores / elegido" style="text-align:right;padding:4px 8px;border-bottom:.5px solid #eef2f6;color:#254467;cursor:pointer">'+fmt(v)+'</td>';}).join('')+'</tr>';
     });
   });
   t+='<tr><td style="'+stL+'background:#f8fafc;font-weight:700;color:#3a6080;padding:5px 8px">Indirectos</td>'+mets.map(function(x){return '<td style="text-align:right;padding:5px 8px;background:#f8fafc;color:#3a6080;font-weight:600">'+fmt(x.m.indTotal)+'</td>';}).join('')+'</tr>';
@@ -4103,6 +4112,37 @@ function renderCotPorTipo(el,cots,allProjs,catCot){
   t+='<tr><td style="'+stL+'background:#eef3f7;font-weight:700;color:#254467;padding:4px 8px">$/m² USD</td>'+mets.map(function(x){return '<td style="text-align:right;padding:4px 8px;background:#eef3f7;color:#254467">'+(x.m.usdM2?'$'+x.m.usdM2.toFixed(2):'—')+'</td>';}).join('')+'</tr>';
   t+='</tbody></table></div>';
   el.innerHTML+=html+t;
+}
+function cotTipoHide(id){window.__cotTipoHidden=window.__cotTipoHidden||{};window.__cotTipoHidden[String(id)]=1;renderCotizaciones();}
+function cotTipoShowAll(){window.__cotTipoHidden={};renderCotizaciones();}
+function cotTipoDragStart(ev,id){window.__cotTipoDrag=String(id);try{ev.dataTransfer.effectAllowed='move';ev.dataTransfer.setData('text/plain',String(id));}catch(e){}}
+function cotTipoDrop(ev,targetId,idsCsv){
+  ev.preventDefault();
+  var drag=String(window.__cotTipoDrag||(ev.dataTransfer?ev.dataTransfer.getData('text/plain'):'')||'');targetId=String(targetId);
+  if(!drag||drag===targetId)return;
+  var ids=(idsCsv||'').split(',').filter(Boolean);
+  ids=ids.filter(function(x){return x!==drag;});
+  var ti=ids.indexOf(targetId);if(ti<0)ids.push(drag);else ids.splice(ti,0,drag);
+  window.__cotTipoOrder=ids;window.__cotTipoDrag='';renderCotizaciones();
+}
+function cotTipoDetalle(cotId,espEnc){
+  var esp=decodeURIComponent(espEnc);
+  var c=getCots().find(function(x){return String(x.id)===String(cotId);});if(!c)return;
+  var e=(c.especialidades||[]).find(function(x){return x.nombre===esp;});
+  var proj=ld(K.proj,[]).find(function(p){return String(p.id)===String(c.projId);});
+  var esc=function(s){return String(s==null?'':s).replace(/</g,'&lt;');};
+  var ases=(e&&e.asesores)?e.asesores:[];
+  var rows=ases.length?ases.map(function(a){var elg=!!a.elegido;var mxn=parseFloat(a.costoMXN)||0;
+    return '<div style="display:flex;justify-content:space-between;gap:10px;padding:7px 10px;border-bottom:.5px solid #eef2f6;background:'+(elg?'#eaf3de':'#fff')+'">'
+      +'<span style="font-weight:'+(elg?'700':'500')+';color:#254467">'+(elg?'★ ':'')+esc(a.empresa||'—')+(a.contacto?' <span style="font-size:9px;color:#a8a8a8">'+esc(a.contacto)+'</span>':'')+'</span>'
+      +'<span style="font-weight:700;color:#254467;white-space:nowrap">'+(mxn?'$'+Math.round(mxn).toLocaleString('es-MX'):'—')+'</span></div>';
+  }).join(''):'<div style="padding:10px;color:#a8a8a8;font-size:11px">Sin asesores capturados para esta especialidad.</div>';
+  document.getElementById('modal-body').innerHTML='<h3 style="margin-bottom:2px">'+esc(esp)+'</h3>'
+    +'<div style="font-size:11px;color:#67727a;margin-bottom:10px">'+(proj?esc(proj.nombre):'')+' · '+esc(c.nombre)+'</div>'
+    +'<div style="border:.5px solid #bfd1e5;border-radius:8px;overflow:hidden">'+rows+'</div>'
+    +'<div style="font-size:9px;color:#a8a8a8;margin-top:6px">★ = asesor elegido</div>'
+    +'<div class="btn-row" style="margin-top:12px"><button class="btn btn-primary" onclick="closeModal()">Cerrar</button> <button class="btn" onclick="openEspModal(\''+cotId+'\',\''+esp.replace(/'/g,"\\'")+'\')">Editar asesores</button></div>';
+  openModal();
 }
 
 // ─── VISTA TABLA ─────────────────────────────────────────────
