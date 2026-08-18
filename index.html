@@ -4179,7 +4179,7 @@ function renderCotTabla(el,cots,allProjs,filterProj,catCot){
       var tc=parseFloat(cot.tipoCambio)||18;
       var m2=parseFloat(cot.areaM2)||0;
       var cats=Object.keys(catCot).sort();
-      var grandTotMXN=0,grandTotConInd=0,grandTotCob=0;
+      var grandTotMXN=0,grandTotConInd=0,grandTotCob=0,grandTotNeto=0;
 
       // ── Versión minimizada ──
       if(_collMap[cot.id]){
@@ -4241,7 +4241,7 @@ function renderCotTabla(el,cots,allProjs,filterProj,catCot){
         var espsEnCot=(cot.especialidades||[]).filter(function(e){return e.categoria===cat;});
         if(!espsEnCot.length) return;
         var ind_cat=cat==='Estudios Preliminares'?cot.indEst:cot.indDis;
-        var catTotMXN=0,catTotUSD=0,catTotIndir=0,catTotConInd=0,catTotCob=0;
+        var catTotMXN=0,catTotUSD=0,catTotIndir=0,catTotConInd=0,catTotCob=0,catTotNeto=0;
 
         html+='<div style="margin-bottom:10px">'
           +'<div style="font-size:9px;font-weight:700;color:#67727a;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;padding-bottom:4px;border-bottom:.5px solid #eef2f6">'+cat+'</div>'
@@ -4261,6 +4261,8 @@ function renderCotTabla(el,cots,allProjs,filterProj,catCot){
           +'<th style="text-align:left;padding:4px 8px;font-size:9px;font-weight:700;color:#67727a;border-bottom:.5px solid #bfd1e5;min-width:100px">Comentario</th>'
           +'<th style="text-align:center;padding:4px 8px;font-size:9px;font-weight:700;color:#67727a;border-bottom:.5px solid #bfd1e5" title="Costo paramétrico = promedio histórico × m²">Param.</th>'
           +'<th style="padding:4px 8px;border-bottom:.5px solid #bfd1e5"></th>'
+          +'<th style="text-align:right;padding:4px 8px;font-size:9px;font-weight:700;color:#BA7517;border-bottom:.5px solid #bfd1e5" title="% del costo de diseño reembolsable si se adjudica el proyecto">% Reemb. adj.</th>'
+          +'<th style="text-align:right;padding:4px 8px;font-size:9px;font-weight:700;color:#BA7517;border-bottom:.5px solid #bfd1e5" title="Costo neto que sí pagarías si se adjudica = MXN × (1 − % reembolso)">Neto si adjudica</th>'
           +'</tr></thead><tbody>';
 
         espsEnCot.forEach(function(esp){
@@ -4278,8 +4280,10 @@ function renderCotTabla(el,cots,allProjs,filterProj,catCot){
           var usdm2=m2&&usd?usd/m2:0;
           var hasCob=elegido&&elegido.cobradoMXN;
           var over=hasCob&&cob>conInd;
-          catTotMXN+=mxn;catTotUSD+=usd;catTotIndir+=indir$;catTotConInd+=conInd;catTotCob+=cob;
-          grandTotMXN+=mxn;grandTotConInd+=conInd;grandTotCob+=cob;
+          var reembPct=parseFloat(esp.reembolsoPct)||0;
+          var netoAdj=mxn*(1-reembPct/100);
+          catTotMXN+=mxn;catTotUSD+=usd;catTotIndir+=indir$;catTotConInd+=conInd;catTotCob+=cob;catTotNeto+=netoAdj;
+          grandTotMXN+=mxn;grandTotConInd+=conInd;grandTotCob+=cob;grandTotNeto+=netoAdj;
           var vsHistColor='#6990ab';
           var vsHistTxt=histAvg?'$'+histAvg.toFixed(2):'-';
           var vsHistDelta='';
@@ -4304,6 +4308,8 @@ function renderCotTabla(el,cots,allProjs,filterProj,catCot){
             +'<td style="padding:5px 8px;font-size:10px;color:#67727a;max-width:130px;word-break:break-word">'+(esp.comentario||'')+'</td>'
             +'<td style="padding:5px 8px;text-align:center"><input type="checkbox" '+(esp.parametrico?'checked':'')+' onchange="toggleParam(\''+cotIdEsc+'\',\''+espNombreEsc+'\',this.checked)" title="Costo paramétrico"></td>'
             +'<td style="padding:5px 8px"><button onclick="openEspModal(\''+cotIdEsc+'\',\''+espNombreEsc+'\')" style="font-size:9px;padding:2px 7px;border:.5px solid #bfd1e5;border-radius:4px;background:#fff;cursor:pointer;font-family:Arial">Ver</button></td>'
+            +'<td style="padding:5px 8px;text-align:right"><input type="number" min="0" max="100" value="'+(esp.reembolsoPct!=null&&esp.reembolsoPct!==''?esp.reembolsoPct:'')+'" placeholder="0" onchange="setReembolso(\''+cotIdEsc+'\',\''+espNombreEsc+'\',this.value)" style="width:48px;font-size:10px;padding:2px 4px;border:.5px solid #bfd1e5;border-radius:4px;font-family:Arial;text-align:right">%</td>'
+            +'<td style="padding:5px 8px;text-align:right;font-weight:700;color:#BA7517">'+(mxn?'$'+Math.round(netoAdj).toLocaleString('es-MX'):'-')+'</td>'
             +'</tr>';
         });
 
@@ -4316,7 +4322,8 @@ function renderCotTabla(el,cots,allProjs,filterProj,catCot){
           +'<td colspan="2" style="padding:5px 8px;text-align:right;color:#3a6080">'+(catTotIndir?'$'+catTotIndir.toLocaleString('es-MX',{maximumFractionDigits:0}):'-')+'</td>'
           +'<td style="padding:5px 8px;text-align:right;color:#254467">'+(catTotConInd?'$'+catTotConInd.toLocaleString('es-MX',{maximumFractionDigits:0}):'-')+'</td>'
           +'<td style="padding:5px 8px;text-align:right;color:'+(catTotCob>catTotConInd?'#e65a27':'#639922')+'">'+(catTotCob?'$'+catTotCob.toLocaleString('es-MX',{maximumFractionDigits:0}):'-')+'</td>'
-          +'<td colspan="3"></td></tr>'
+          +'<td colspan="4"></td>'
+          +'<td style="padding:5px 8px;text-align:right;color:#BA7517">'+(catTotNeto?'$'+Math.round(catTotNeto).toLocaleString('es-MX'):'-')+'</td></tr>'
           +'</tbody></table></div></div>';
       });
 
@@ -4398,6 +4405,7 @@ function renderCotTabla(el,cots,allProjs,filterProj,catCot){
         +(descAmt>0?'<div style="text-align:right"><div style="font-size:9px;color:#9be7a0">Descuento</div><div style="font-size:13px;font-weight:700;color:#9be7a0">−$'+descAmt.toLocaleString('es-MX',{maximumFractionDigits:0})+'</div></div>':'')
         +(descAmt>0?'<div style="text-align:right"><div style="font-size:9px;color:#FCD34D">TOTAL con desc.</div><div style="font-size:14px;font-weight:700;color:#FCD34D">$'+totalFinal.toLocaleString('es-MX',{maximumFractionDigits:0})+'</div></div>':'')
         +(grandTotCob?'<div style="text-align:right"><div style="font-size:9px;color:#6990ab">Cobrado</div><div style="font-size:13px;font-weight:700;color:'+(grandTotCob>grandTotConInd?'#f5b89b':'#6EE7B7')+'">'+'$'+grandTotCob.toLocaleString('es-MX',{maximumFractionDigits:0})+'</div></div>':'')
+        +(grandTotNeto&&Math.round(grandTotNeto)!==Math.round(grandTotMXN)?'<div style="text-align:right"><div style="font-size:9px;color:#FBBF77">Neto si adjudicamos</div><div style="font-size:14px;font-weight:700;color:#FBBF77">$'+Math.round(grandTotNeto).toLocaleString('es-MX')+'</div></div>':'')
         +'</div></div>';
 
       if(cot.notas) html+='<div style="font-size:10px;color:#67727a;font-style:italic;background:#fff8f6;border-radius:6px;padding:6px 10px;margin-top:8px">'+cot.notas+'</div>';
@@ -9302,6 +9310,18 @@ function toggleParam(cotId,espNombre,checked){
   var esp=cot.especialidades.find(function(e){return e.nombre===espNombre;});
   if(!esp) return;
   esp.parametrico=checked;
+  saveCots(cots);
+  renderCotizaciones();
+}
+function setReembolso(cotId,espNombre,val){
+  var cots=getCots();
+  var cot=cots.find(function(c){return String(c.id)===String(cotId);});
+  if(!cot) return;
+  var esp=(cot.especialidades||[]).find(function(e){return e.nombre===espNombre;});
+  if(!esp) return;
+  var v=val===''?'':(parseFloat(val)||0);
+  if(v!==''){if(v<0)v=0;if(v>100)v=100;}
+  esp.reembolsoPct=v;
   saveCots(cots);
   renderCotizaciones();
 }
