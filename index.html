@@ -4446,8 +4446,8 @@ function renderCotTabla(el,cots,allProjs,filterProj,catCot){
         +'<div style="font-size:11px;font-weight:700;color:#fff">TOTAL GENERAL</div>'
         +'<div style="display:flex;gap:16px;margin-left:auto;flex-wrap:wrap;align-items:center">'
         +'<div style="text-align:right"><div style="font-size:9px;color:#6990ab">MXN cotizado</div><div style="font-size:13px;font-weight:700;color:#fff">'+(grandTotMXN?'$'+grandTotMXN.toLocaleString('es-MX',{maximumFractionDigits:0}):'-')+'</div></div>'
-        +(m2?'<div style="text-align:right"><div style="font-size:9px;color:#6990ab">MXN/m²</div><div style="font-size:13px;font-weight:700;color:#fff">'+(grandTotMXN?'$'+(grandTotMXN/m2).toFixed(2):'-')+'</div></div>':'')
-        +(m2&&tc?'<div style="text-align:right"><div style="font-size:9px;color:#6990ab">USD/m²</div><div style="font-size:13px;font-weight:700;color:#fff">'+(grandTotMXN?'$'+(grandTotMXN/m2/tc).toFixed(2):'-')+'</div></div>':'')
+        +(m2?'<div style="text-align:right"><div style="font-size:9px;color:#6990ab">MXN/m²</div><div style="font-size:13px;font-weight:700;color:#fff">'+(grandTotMXN?'$'+(grandTotMXN/m2).toFixed(2):'-')+' <span style="font-size:8px;color:#9fb4c9;font-weight:400">dir</span></div>'+(grandTotConInd?'<div style="font-size:10px;font-weight:700;color:#FCD34D">$'+(grandTotConInd/m2).toFixed(2)+' <span style="font-size:8px;color:#c9a94b;font-weight:400">c/ind</span></div>':'')+'</div>':'')
+        +(m2&&tc?'<div style="text-align:right"><div style="font-size:9px;color:#6990ab">USD/m²</div><div style="font-size:13px;font-weight:700;color:#fff">'+(grandTotMXN?'$'+(grandTotMXN/m2/tc).toFixed(2):'-')+' <span style="font-size:8px;color:#9fb4c9;font-weight:400">dir</span></div>'+(grandTotConInd?'<div style="font-size:10px;font-weight:700;color:#FCD34D">$'+(grandTotConInd/m2/tc).toFixed(2)+' <span style="font-size:8px;color:#c9a94b;font-weight:400">c/ind</span></div>':'')+'</div>':'')
         +'<div style="text-align:right"><div style="font-size:9px;color:#6990ab">MXN+indirecto'+(descAmt>0?' (subtotal)':'')+'</div><div style="font-size:13px;font-weight:700;color:'+(descAmt>0?'#9fb4c9':'#FCD34D')+';'+(descAmt>0?'text-decoration:line-through':'')+'">'+(grandTotConInd?'$'+grandTotConInd.toLocaleString('es-MX',{maximumFractionDigits:0}):'-')+'</div></div>'
         +(descAmt>0?'<div style="text-align:right"><div style="font-size:9px;color:#9be7a0">Descuento</div><div style="font-size:13px;font-weight:700;color:#9be7a0">−$'+descAmt.toLocaleString('es-MX',{maximumFractionDigits:0})+'</div></div>':'')
         +(descAmt>0?'<div style="text-align:right"><div style="font-size:9px;color:#FCD34D">TOTAL con desc.</div><div style="font-size:14px;font-weight:700;color:#FCD34D">$'+totalFinal.toLocaleString('es-MX',{maximumFractionDigits:0})+'</div></div>':'')
@@ -9425,8 +9425,9 @@ function openEscenarios(cotId){
       savedHtml+='<div style="margin-bottom:8px">'
         +'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:2px">'
         +'<span style="font-size:11px;font-weight:700;color:'+col+'">'+esc(r.nombre)+(isMin?' 💚 más bajo':isMax?' 🔺 más alto':'')+'</span>'
-        +'<span style="font-size:12px;font-weight:800;color:'+col+'">'+fmt(r.total)+(m2?' <span style="font-size:9px;color:#a8a8a8;font-weight:400">$'+(r.total/m2).toFixed(2)+'/m²'+(tc?' · $'+(r.total/m2/tc).toFixed(2)+' USD/m²':'')+'</span>':'')+'</span></div>'
+        +'<span style="font-size:12px;font-weight:800;color:'+col+'">'+fmt(r.total)+'</span></div>'
         +'<div style="font-size:9px;color:#67727a;margin-bottom:2px">Directo (asesores) '+fmt(r.directo)+' · Indirectos '+fmt(r.total-r.directo)+(r.indPct!=null&&r.indPct!==''?' <span style="color:#BA7517;font-weight:700">(ind '+r.indPct+'%)</span>':'')+' · <strong>Total '+fmt(r.total)+'</strong></div>'
+        +(m2?'<div style="font-size:9px;color:#8a97a3;margin-bottom:2px">$/m²: directo $'+(r.directo/m2).toFixed(2)+' · con indirecto $'+(r.total/m2).toFixed(2)+(tc?' &nbsp;·&nbsp; USD/m²: directo $'+(r.directo/m2/tc).toFixed(2)+' · con indirecto $'+(r.total/m2/tc).toFixed(2):'')+'</div>':'')
         +'<div style="height:11px;background:#eef2f6;border-radius:4px;overflow:hidden"><div style="width:'+pct+'%;height:100%;background:'+col+';border-radius:4px"></div></div>'
         +'<div style="margin-top:3px;display:flex;gap:6px"><button onclick="cargarEscenario(\''+cotId+'\',\''+r.id+'\')" style="font-size:9px;padding:1px 7px;border:.5px solid #bfd1e5;border-radius:4px;background:#fff;cursor:pointer;font-family:Arial;color:#6990ab">Cargar</button>'
         +'<button onclick="borrarEscenario(\''+cotId+'\',\''+r.id+'\')" style="font-size:9px;padding:1px 7px;border:.5px solid #FECACA;border-radius:4px;background:#fff;cursor:pointer;font-family:Arial;color:#e65a27">✕</button></div>'
@@ -9444,7 +9445,7 @@ function openEscenarios(cotId){
     +(indOv!==''?'<button onclick="escIndSet(\'\')" style="font-size:9px;padding:2px 8px;border:.5px solid #bfd1e5;border-radius:4px;background:#fff;cursor:pointer;font-family:Arial;color:#6990ab">↺ default</button>':'')+'</div>'
     +'<div style="background:#254467;border-radius:8px;padding:10px 14px;display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px"><span style="font-size:11px;font-weight:700;color:#fff;padding-top:3px">TOTAL del escenario</span>'
     +'<div style="text-align:right"><span id="esc-total" style="font-size:18px;font-weight:800;color:#FCD34D">'+fmt(tot)+(m2?' <span style="font-size:10px;color:#bfd1e5;font-weight:400">· $'+(tot/m2).toFixed(2)+'/m²</span>':'')+'</span>'
-    +'<div id="esc-sub" style="font-size:9px;color:#bfd1e5;margin-top:2px">Directo (asesores) '+fmt(dir)+' · Indirectos '+fmt(tot-dir)+(indOv!==''?' · ind '+indOv+'%':'')+'</div></div></div>'
+    +'<div id="esc-sub" style="font-size:9px;color:#bfd1e5;margin-top:2px">Directo (asesores) '+fmt(dir)+' · Indirectos '+fmt(tot-dir)+(indOv!==''?' · ind '+indOv+'%':'')+(m2?'<br><span style="color:#dce6f0">$/m²:</span> directo $'+(dir/m2).toFixed(2)+' · con indirecto $'+(tot/m2).toFixed(2)+(tc?' · <span style="color:#dce6f0">USD/m²:</span> directo $'+(dir/m2/tc).toFixed(2)+' · con indirecto $'+(tot/m2/tc).toFixed(2):''):'')+'</div></div></div>'
     +(rows||'<div style="color:#a8a8a8;font-size:11px">Esta cotización no tiene partidas con asesores capturados.</div>')
     +savedHtml
     +'<div class="btn-row" style="margin-top:14px"><button class="btn" onclick="closeModal()">Cerrar</button>'+(espsA.length?'<button class="btn btn-primary" onclick="escAplicar(\''+cotId+'\')">Aplicar como elegidos</button>':'')+'</div>';
@@ -9458,10 +9459,10 @@ function escIndSet(val){window.__escInd=(val==null?'':String(val).trim());
 function escUpdate(){
   var cot=getCots().find(function(c){return String(c.id)===String(window.__escCot);});if(!cot)return;
   var indOv=window.__escInd||'';
-  var m2=parseFloat(cot.areaM2)||0;var mt=_escMetrics(cot,window.__escSel||{},indOv);var tot=mt.grandTotal;var dir=mt.grandDirect;
+  var m2=parseFloat(cot.areaM2)||0;var tc=parseFloat(cot.tipoCambio)||18;var mt=_escMetrics(cot,window.__escSel||{},indOv);var tot=mt.grandTotal;var dir=mt.grandDirect;
   var fmt=function(n){return '$'+Math.round(n||0).toLocaleString('es-MX');};
   var el=document.getElementById('esc-total');if(el)el.innerHTML=fmt(tot)+(m2?' <span style="font-size:10px;color:#bfd1e5;font-weight:400">· $'+(tot/m2).toFixed(2)+'/m²</span>':'');
-  var sub=document.getElementById('esc-sub');if(sub)sub.innerHTML='Directo (asesores) '+fmt(dir)+' · Indirectos '+fmt(tot-dir)+(indOv!==''?' · ind '+indOv+'%':'');
+  var sub=document.getElementById('esc-sub');if(sub)sub.innerHTML='Directo (asesores) '+fmt(dir)+' · Indirectos '+fmt(tot-dir)+(indOv!==''?' · ind '+indOv+'%':'')+(m2?'<br><span style="color:#dce6f0">$/m²:</span> directo $'+(dir/m2).toFixed(2)+' · con indirecto $'+(tot/m2).toFixed(2)+(tc?' · <span style="color:#dce6f0">USD/m²:</span> directo $'+(dir/m2/tc).toFixed(2)+' · con indirecto $'+(tot/m2/tc).toFixed(2):''):'');
 }
 function escPreset(cotId,which){
   var cot=getCots().find(function(c){return String(c.id)===String(cotId);});if(!cot)return;
@@ -9541,8 +9542,10 @@ function imprimirEscenarios(cotId){
     +rowLine('% Indirecto',data.map(function(d){return (d.indPct!=null&&d.indPct!==''?d.indPct:indBase)+'%';}))
     +rowLine('Indirectos',data.map(function(d){return fmt(d.indir);}))
     +totRow
-    +(m2?rowLine('$/m² MXN',data.map(function(d){return '$'+(d.total/m2).toFixed(2);})):'')
-    +((m2&&tc)?rowLine('$/m² USD',data.map(function(d){return '$'+(d.total/m2/tc).toFixed(2);})):'')
+    +(m2?rowLine('$/m² MXN (directo)',data.map(function(d){return '$'+(d.directo/m2).toFixed(2);})):'')
+    +(m2?rowLine('$/m² MXN (con indirecto)',data.map(function(d){return '$'+(d.total/m2).toFixed(2);})):'')
+    +((m2&&tc)?rowLine('$/m² USD (directo)',data.map(function(d){return '$'+(d.directo/m2/tc).toFixed(2);})):'')
+    +((m2&&tc)?rowLine('$/m² USD (con indirecto)',data.map(function(d){return '$'+(d.total/m2/tc).toFixed(2);})):'')
     +'</tbody></table>'
     +'<div style="margin-top:14px;font-size:9px;color:#999">💚 más bajo · 🔺 más alto · T.C. $'+tc+' · Generado el '+fmtDY(todayStr)+'</div>'
     +'</body></html>');
