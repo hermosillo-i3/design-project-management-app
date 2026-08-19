@@ -9373,7 +9373,7 @@ function setReembolso(cotId,espNombre,val){
   renderCotizaciones();
 }
 // ─── ESCENARIOS (armar opciones rápido) ──────────────────────
-function _escClone(cot,sel){
+function _escClone(cot,sel,indPct){
   sel=sel||{};
   var clone=JSON.parse(JSON.stringify(cot));
   (clone.especialidades||[]).forEach(function(e){
@@ -9381,20 +9381,29 @@ function _escClone(cot,sel){
     var idx=(e.nombre in sel)?parseInt(sel[e.nombre]):e.asesores.findIndex(function(a){return a.elegido;});
     e.asesores.forEach(function(a,i){a.elegido=(i===idx);});
   });
+  if(indPct!=null&&indPct!==''){
+    var p=parseFloat(indPct);
+    if(!isNaN(p)){
+      clone.indDis=p;clone.indEst=p;
+      (clone.especialidades||[]).forEach(function(e){e.indirecto=null;});
+    }
+  }
   return clone;
 }
-function _escMetrics(cot,sel){return calcCotMetrics(_escClone(cot,sel));}
-function _escComputeTotal(cot,sel){return _escMetrics(cot,sel).grandTotal;}
-function _escDirecto(cot,sel){return _escMetrics(cot,sel).grandDirect;}
+function _escMetrics(cot,sel,indPct){return calcCotMetrics(_escClone(cot,sel,indPct));}
+function _escComputeTotal(cot,sel,indPct){return _escMetrics(cot,sel,indPct).grandTotal;}
+function _escDirecto(cot,sel,indPct){return _escMetrics(cot,sel,indPct).grandDirect;}
 function openEscenarios(cotId){
   var cot=getCots().find(function(c){return String(c.id)===String(cotId);});if(!cot)return;
   var m2=parseFloat(cot.areaM2)||0;var tc=parseFloat(cot.tipoCambio)||18;
   var espsA=(cot.especialidades||[]).filter(function(e){return e.asesores&&e.asesores.length;});
   if(!window.__escSel||window.__escCot!==String(cotId)){
-    window.__escCot=String(cotId);window.__escSel={};
+    window.__escCot=String(cotId);window.__escSel={};window.__escInd='';
     espsA.forEach(function(e){window.__escSel[e.nombre]=e.asesores.findIndex(function(a){return a.elegido;});});
   }
-  var sel=window.__escSel;
+  if(window.__escInd==null)window.__escInd='';
+  var sel=window.__escSel;var indOv=window.__escInd;
+  var indBase=(function(){var v=parseFloat(cot.indDis);return isNaN(v)?35:v;})();
   var fmt=function(n){return '$'+Math.round(n||0).toLocaleString('es-MX');};
   var esc=function(s){return String(s==null?'':s).replace(/</g,'&lt;');};
   var rows=espsA.map(function(e){
@@ -9402,9 +9411,9 @@ function openEscenarios(cotId){
     return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:.5px solid #eef2f6"><span style="flex:1;font-size:11px;font-weight:600;color:#254467">'+esc(e.nombre)+'</span>'
       +'<select data-esp="'+esc(e.nombre).replace(/"/g,'&quot;')+'" onchange="escSet(this)" style="font-size:11px;padding:4px 7px;border-radius:5px;border:.5px solid #bfd1e5;font-family:Arial;min-width:210px">'+opts+'</select></div>';
   }).join('');
-  var _mt=_escMetrics(cot,sel);var tot=_mt.grandTotal;var dir=_mt.grandDirect;
+  var _mt=_escMetrics(cot,sel,indOv);var tot=_mt.grandTotal;var dir=_mt.grandDirect;
   // Escenarios guardados (comparativa)
-  var saved=(cot.escenarios||[]).map(function(s){var mt=_escMetrics(cot,s.sel||{});return {id:s.id,nombre:s.nombre,fecha:s.fecha,total:mt.grandTotal,directo:mt.grandDirect};});
+  var saved=(cot.escenarios||[]).map(function(s){var mt=_escMetrics(cot,s.sel||{},s.indPct);return {id:s.id,nombre:s.nombre,fecha:s.fecha,total:mt.grandTotal,directo:mt.grandDirect,indPct:s.indPct};});
   var savedHtml='';
   if(saved.length){
     var tvals=saved.map(function(r){return r.total;});var minV=Math.min.apply(null,tvals),maxV=Math.max.apply(null,tvals);
@@ -9417,7 +9426,7 @@ function openEscenarios(cotId){
         +'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:2px">'
         +'<span style="font-size:11px;font-weight:700;color:'+col+'">'+esc(r.nombre)+(isMin?' 💚 más bajo':isMax?' 🔺 más alto':'')+'</span>'
         +'<span style="font-size:12px;font-weight:800;color:'+col+'">'+fmt(r.total)+(m2?' <span style="font-size:9px;color:#a8a8a8;font-weight:400">$'+(r.total/m2).toFixed(2)+'/m²'+(tc?' · $'+(r.total/m2/tc).toFixed(2)+' USD/m²':'')+'</span>':'')+'</span></div>'
-        +'<div style="font-size:9px;color:#67727a;margin-bottom:2px">Directo (asesores) '+fmt(r.directo)+' · Indirectos '+fmt(r.total-r.directo)+' · <strong>Total '+fmt(r.total)+'</strong></div>'
+        +'<div style="font-size:9px;color:#67727a;margin-bottom:2px">Directo (asesores) '+fmt(r.directo)+' · Indirectos '+fmt(r.total-r.directo)+(r.indPct!=null&&r.indPct!==''?' <span style="color:#BA7517;font-weight:700">(ind '+r.indPct+'%)</span>':'')+' · <strong>Total '+fmt(r.total)+'</strong></div>'
         +'<div style="height:11px;background:#eef2f6;border-radius:4px;overflow:hidden"><div style="width:'+pct+'%;height:100%;background:'+col+';border-radius:4px"></div></div>'
         +'<div style="margin-top:3px;display:flex;gap:6px"><button onclick="cargarEscenario(\''+cotId+'\',\''+r.id+'\')" style="font-size:9px;padding:1px 7px;border:.5px solid #bfd1e5;border-radius:4px;background:#fff;cursor:pointer;font-family:Arial;color:#6990ab">Cargar</button>'
         +'<button onclick="borrarEscenario(\''+cotId+'\',\''+r.id+'\')" style="font-size:9px;padding:1px 7px;border:.5px solid #FECACA;border-radius:4px;background:#fff;cursor:pointer;font-family:Arial;color:#e65a27">✕</button></div>'
@@ -9428,9 +9437,14 @@ function openEscenarios(cotId){
   document.getElementById('modal-body').innerHTML='<h3 style="margin-bottom:2px">🎚️ Escenarios — '+esc(cot.nombre)+'</h3>'
     +'<div style="font-size:11px;color:#67727a;margin-bottom:10px">Elige el asesor por partida y ve el total al instante. Guarda las opciones que te gusten para compararlas.</div>'
     +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px"><button class="btn btn-sm" onclick="escPreset(\''+cotId+'\',\'min\')">💚 Mínimo</button><button class="btn btn-sm" onclick="escPreset(\''+cotId+'\',\'max\')">🔺 Máximo</button><button class="btn btn-sm" onclick="escPreset(\''+cotId+'\',\'actual\')">↺ Actual</button>'+(espsA.length?'<button class="btn btn-sm" style="border:.5px solid #BA7517;color:#BA7517;font-weight:700" onclick="guardarEscenario(\''+cotId+'\')">💾 Guardar escenario</button>':'')+'</div>'
+    +'<div style="display:flex;align-items:center;gap:8px;background:#f1f6fb;border:.5px solid #d5e3f0;border-radius:8px;padding:8px 12px;margin-bottom:10px"><span style="font-size:11px;font-weight:700;color:#254467">% Indirecto del escenario</span>'
+    +'<input id="esc-ind" type="number" step="1" min="0" value="'+esc(indOv)+'" placeholder="'+indBase+'" oninput="escIndSet(this.value)" style="width:70px;font-size:12px;padding:4px 7px;border-radius:5px;border:.5px solid #bfd1e5;font-family:Arial;text-align:right">'
+    +'<span style="font-size:10px;color:#8a97a3">%</span>'
+    +'<span style="font-size:10px;color:#8a97a3">— vacío = usa el de la cotización ('+indBase+'%). No cambia tu cotización.</span>'
+    +(indOv!==''?'<button onclick="escIndSet(\'\')" style="font-size:9px;padding:2px 8px;border:.5px solid #bfd1e5;border-radius:4px;background:#fff;cursor:pointer;font-family:Arial;color:#6990ab">↺ default</button>':'')+'</div>'
     +'<div style="background:#254467;border-radius:8px;padding:10px 14px;display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px"><span style="font-size:11px;font-weight:700;color:#fff;padding-top:3px">TOTAL del escenario</span>'
     +'<div style="text-align:right"><span id="esc-total" style="font-size:18px;font-weight:800;color:#FCD34D">'+fmt(tot)+(m2?' <span style="font-size:10px;color:#bfd1e5;font-weight:400">· $'+(tot/m2).toFixed(2)+'/m²</span>':'')+'</span>'
-    +'<div id="esc-sub" style="font-size:9px;color:#bfd1e5;margin-top:2px">Directo (asesores) '+fmt(dir)+' · Indirectos '+fmt(tot-dir)+'</div></div></div>'
+    +'<div id="esc-sub" style="font-size:9px;color:#bfd1e5;margin-top:2px">Directo (asesores) '+fmt(dir)+' · Indirectos '+fmt(tot-dir)+(indOv!==''?' · ind '+indOv+'%':'')+'</div></div></div>'
     +(rows||'<div style="color:#a8a8a8;font-size:11px">Esta cotización no tiene partidas con asesores capturados.</div>')
     +savedHtml
     +'<div class="btn-row" style="margin-top:14px"><button class="btn" onclick="closeModal()">Cerrar</button>'+(espsA.length?'<button class="btn btn-primary" onclick="escAplicar(\''+cotId+'\')">Aplicar como elegidos</button>':'')+'</div>';
@@ -9438,12 +9452,16 @@ function openEscenarios(cotId){
   openModal();
 }
 function escSet(selEl){var espn=selEl.getAttribute('data-esp');window.__escSel=window.__escSel||{};window.__escSel[espn]=parseInt(selEl.value);escUpdate();}
+function escIndSet(val){window.__escInd=(val==null?'':String(val).trim());
+  var inp=document.getElementById('esc-ind');if(inp&&val==='')inp.value='';
+  escUpdate();}
 function escUpdate(){
   var cot=getCots().find(function(c){return String(c.id)===String(window.__escCot);});if(!cot)return;
-  var m2=parseFloat(cot.areaM2)||0;var mt=_escMetrics(cot,window.__escSel||{});var tot=mt.grandTotal;var dir=mt.grandDirect;
+  var indOv=window.__escInd||'';
+  var m2=parseFloat(cot.areaM2)||0;var mt=_escMetrics(cot,window.__escSel||{},indOv);var tot=mt.grandTotal;var dir=mt.grandDirect;
   var fmt=function(n){return '$'+Math.round(n||0).toLocaleString('es-MX');};
   var el=document.getElementById('esc-total');if(el)el.innerHTML=fmt(tot)+(m2?' <span style="font-size:10px;color:#bfd1e5;font-weight:400">· $'+(tot/m2).toFixed(2)+'/m²</span>':'');
-  var sub=document.getElementById('esc-sub');if(sub)sub.innerHTML='Directo (asesores) '+fmt(dir)+' · Indirectos '+fmt(tot-dir);
+  var sub=document.getElementById('esc-sub');if(sub)sub.innerHTML='Directo (asesores) '+fmt(dir)+' · Indirectos '+fmt(tot-dir)+(indOv!==''?' · ind '+indOv+'%':'');
 }
 function escPreset(cotId,which){
   var cot=getCots().find(function(c){return String(c.id)===String(cotId);});if(!cot)return;
@@ -9461,13 +9479,13 @@ function guardarEscenario(cotId){
   if(!nombre||!nombre.trim())return;
   var cots=getCots();var cot=cots.find(function(c){return String(c.id)===String(cotId);});if(!cot)return;
   if(!cot.escenarios)cot.escenarios=[];
-  cot.escenarios.push({id:'esc_'+Date.now(),nombre:nombre.trim(),sel:Object.assign({},window.__escSel||{}),fecha:todayStr});
+  cot.escenarios.push({id:'esc_'+Date.now(),nombre:nombre.trim(),sel:Object.assign({},window.__escSel||{}),indPct:(window.__escInd==null||window.__escInd===''?null:window.__escInd),fecha:todayStr});
   saveCots(cots);openEscenarios(cotId);
 }
 function cargarEscenario(cotId,escId){
   var cot=getCots().find(function(c){return String(c.id)===String(cotId);});if(!cot)return;
   var s=(cot.escenarios||[]).find(function(x){return String(x.id)===String(escId);});if(!s)return;
-  window.__escCot=String(cotId);window.__escSel=Object.assign({},s.sel||{});
+  window.__escCot=String(cotId);window.__escSel=Object.assign({},s.sel||{});window.__escInd=(s.indPct==null?'':String(s.indPct));
   openEscenarios(cotId);
 }
 function borrarEscenario(cotId,escId){
@@ -9495,7 +9513,8 @@ function imprimirEscenarios(cotId){
   var proj=allProjs.find(function(p){return String(p.id)===String(cot.projId);});
   var esc=function(s){return String(s==null?'':s).replace(/</g,'&lt;');};
   var fmt=function(n){return n?'$'+Math.round(n).toLocaleString('es-MX'):'—';};
-  var data=escs.map(function(s){var mt=_escMetrics(cot,s.sel||{});return {nombre:s.nombre,sel:s.sel||{},total:mt.grandTotal,directo:mt.grandDirect,indir:mt.grandTotal-mt.grandDirect};});
+  var indBase=(function(){var v=parseFloat(cot.indDis);return isNaN(v)?35:v;})();
+  var data=escs.map(function(s){var mt=_escMetrics(cot,s.sel||{},s.indPct);return {nombre:s.nombre,sel:s.sel||{},total:mt.grandTotal,directo:mt.grandDirect,indir:mt.grandTotal-mt.grandDirect,indPct:s.indPct};});
   var totals=data.map(function(d){return d.total;});var minV=Math.min.apply(null,totals),maxV=Math.max.apply(null,totals);
   var espsA=(cot.especialidades||[]).filter(function(e){return e.asesores&&e.asesores.length;});
   var espRows=espsA.map(function(e){
@@ -9519,6 +9538,7 @@ function imprimirEscenarios(cotId){
     +'<table><thead>'+head+'</thead><tbody>'
     +espRows
     +rowLine('Directo (asesores)',data.map(function(d){return fmt(d.directo);}))
+    +rowLine('% Indirecto',data.map(function(d){return (d.indPct!=null&&d.indPct!==''?d.indPct:indBase)+'%';}))
     +rowLine('Indirectos',data.map(function(d){return fmt(d.indir);}))
     +totRow
     +(m2?rowLine('$/m² MXN',data.map(function(d){return '$'+(d.total/m2).toFixed(2);})):'')
