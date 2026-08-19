@@ -9404,7 +9404,7 @@ function openEscenarios(cotId){
   }).join('');
   var _mt=_escMetrics(cot,sel);var tot=_mt.grandTotal;var dir=_mt.grandDirect;
   // Escenarios guardados (comparativa)
-  var saved=(cot.escenarios||[]).map(function(s){var mt=_escMetrics(cot,s.sel||{});return {id:s.id,nombre:s.nombre,fecha:s.fecha,total:mt.grandTotal};});
+  var saved=(cot.escenarios||[]).map(function(s){var mt=_escMetrics(cot,s.sel||{});return {id:s.id,nombre:s.nombre,fecha:s.fecha,total:mt.grandTotal,directo:mt.grandDirect};});
   var savedHtml='';
   if(saved.length){
     var tvals=saved.map(function(r){return r.total;});var minV=Math.min.apply(null,tvals),maxV=Math.max.apply(null,tvals);
@@ -9417,6 +9417,7 @@ function openEscenarios(cotId){
         +'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:2px">'
         +'<span style="font-size:11px;font-weight:700;color:'+col+'">'+esc(r.nombre)+(isMin?' 💚 más bajo':isMax?' 🔺 más alto':'')+'</span>'
         +'<span style="font-size:12px;font-weight:800;color:'+col+'">'+fmt(r.total)+(m2?' <span style="font-size:9px;color:#a8a8a8;font-weight:400">$'+(r.total/m2).toFixed(2)+'/m²'+(tc?' · $'+(r.total/m2/tc).toFixed(2)+' USD/m²':'')+'</span>':'')+'</span></div>'
+        +'<div style="font-size:9px;color:#67727a;margin-bottom:2px">Directo (asesores) '+fmt(r.directo)+' · Indirectos '+fmt(r.total-r.directo)+' · <strong>Total '+fmt(r.total)+'</strong></div>'
         +'<div style="height:11px;background:#eef2f6;border-radius:4px;overflow:hidden"><div style="width:'+pct+'%;height:100%;background:'+col+';border-radius:4px"></div></div>'
         +'<div style="margin-top:3px;display:flex;gap:6px"><button onclick="cargarEscenario(\''+cotId+'\',\''+r.id+'\')" style="font-size:9px;padding:1px 7px;border:.5px solid #bfd1e5;border-radius:4px;background:#fff;cursor:pointer;font-family:Arial;color:#6990ab">Cargar</button>'
         +'<button onclick="borrarEscenario(\''+cotId+'\',\''+r.id+'\')" style="font-size:9px;padding:1px 7px;border:.5px solid #FECACA;border-radius:4px;background:#fff;cursor:pointer;font-family:Arial;color:#e65a27">✕</button></div>'
