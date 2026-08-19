@@ -9403,13 +9403,35 @@ function openEscenarios(cotId){
       +'<select data-esp="'+esc(e.nombre).replace(/"/g,'&quot;')+'" onchange="escSet(this)" style="font-size:11px;padding:4px 7px;border-radius:5px;border:.5px solid #bfd1e5;font-family:Arial;min-width:210px">'+opts+'</select></div>';
   }).join('');
   var _mt=_escMetrics(cot,sel);var tot=_mt.grandTotal;var dir=_mt.grandDirect;
+  // Escenarios guardados (comparativa)
+  var saved=(cot.escenarios||[]).map(function(s){var mt=_escMetrics(cot,s.sel||{});return {id:s.id,nombre:s.nombre,fecha:s.fecha,total:mt.grandTotal};});
+  var savedHtml='';
+  if(saved.length){
+    var tvals=saved.map(function(r){return r.total;});var minV=Math.min.apply(null,tvals),maxV=Math.max.apply(null,tvals);
+    savedHtml='<div style="margin-top:16px;border-top:.5px solid #e2e8f0;padding-top:12px"><div style="font-size:11px;font-weight:800;color:#254467;margin-bottom:8px">📊 Escenarios guardados</div>';
+    saved.slice().sort(function(a,b){return a.total-b.total;}).forEach(function(r){
+      var isMin=r.total===minV,isMax=r.total===maxV&&maxV!==minV;
+      var col=isMin?'#3B6D11':isMax?'#c0392b':'#254467';
+      var pct=maxV?Math.max(4,Math.round(r.total/maxV*100)):0;
+      savedHtml+='<div style="margin-bottom:8px">'
+        +'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:2px">'
+        +'<span style="font-size:11px;font-weight:700;color:'+col+'">'+esc(r.nombre)+(isMin?' 💚 más bajo':isMax?' 🔺 más alto':'')+'</span>'
+        +'<span style="font-size:12px;font-weight:800;color:'+col+'">'+fmt(r.total)+(m2?' <span style="font-size:9px;color:#a8a8a8;font-weight:400">$'+(r.total/m2).toFixed(2)+'/m²</span>':'')+'</span></div>'
+        +'<div style="height:11px;background:#eef2f6;border-radius:4px;overflow:hidden"><div style="width:'+pct+'%;height:100%;background:'+col+';border-radius:4px"></div></div>'
+        +'<div style="margin-top:3px;display:flex;gap:6px"><button onclick="cargarEscenario(\''+cotId+'\',\''+r.id+'\')" style="font-size:9px;padding:1px 7px;border:.5px solid #bfd1e5;border-radius:4px;background:#fff;cursor:pointer;font-family:Arial;color:#6990ab">Cargar</button>'
+        +'<button onclick="borrarEscenario(\''+cotId+'\',\''+r.id+'\')" style="font-size:9px;padding:1px 7px;border:.5px solid #FECACA;border-radius:4px;background:#fff;cursor:pointer;font-family:Arial;color:#e65a27">✕</button></div>'
+        +'</div>';
+    });
+    savedHtml+='</div>';
+  }
   document.getElementById('modal-body').innerHTML='<h3 style="margin-bottom:2px">🎚️ Escenarios — '+esc(cot.nombre)+'</h3>'
-    +'<div style="font-size:11px;color:#67727a;margin-bottom:10px">Elige el asesor por partida y ve el total al instante. Cuando te guste, "Aplicar como elegidos".</div>'
-    +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px"><button class="btn btn-sm" onclick="escPreset(\''+cotId+'\',\'min\')">💚 Mínimo</button><button class="btn btn-sm" onclick="escPreset(\''+cotId+'\',\'max\')">🔺 Máximo</button><button class="btn btn-sm" onclick="escPreset(\''+cotId+'\',\'actual\')">↺ Actual</button></div>'
+    +'<div style="font-size:11px;color:#67727a;margin-bottom:10px">Elige el asesor por partida y ve el total al instante. Guarda las opciones que te gusten para compararlas.</div>'
+    +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px"><button class="btn btn-sm" onclick="escPreset(\''+cotId+'\',\'min\')">💚 Mínimo</button><button class="btn btn-sm" onclick="escPreset(\''+cotId+'\',\'max\')">🔺 Máximo</button><button class="btn btn-sm" onclick="escPreset(\''+cotId+'\',\'actual\')">↺ Actual</button>'+(espsA.length?'<button class="btn btn-sm" style="border:.5px solid #BA7517;color:#BA7517;font-weight:700" onclick="guardarEscenario(\''+cotId+'\')">💾 Guardar escenario</button>':'')+'</div>'
     +'<div style="background:#254467;border-radius:8px;padding:10px 14px;display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px"><span style="font-size:11px;font-weight:700;color:#fff;padding-top:3px">TOTAL del escenario</span>'
     +'<div style="text-align:right"><span id="esc-total" style="font-size:18px;font-weight:800;color:#FCD34D">'+fmt(tot)+(m2?' <span style="font-size:10px;color:#bfd1e5;font-weight:400">· $'+(tot/m2).toFixed(2)+'/m²</span>':'')+'</span>'
     +'<div id="esc-sub" style="font-size:9px;color:#bfd1e5;margin-top:2px">Directo (asesores) '+fmt(dir)+' · Indirectos '+fmt(tot-dir)+'</div></div></div>'
     +(rows||'<div style="color:#a8a8a8;font-size:11px">Esta cotización no tiene partidas con asesores capturados.</div>')
+    +savedHtml
     +'<div class="btn-row" style="margin-top:14px"><button class="btn" onclick="closeModal()">Cerrar</button>'+(espsA.length?'<button class="btn btn-primary" onclick="escAplicar(\''+cotId+'\')">Aplicar como elegidos</button>':'')+'</div>';
   var mm=document.querySelector('.modal');if(mm)mm.classList.add('wide');
   openModal();
@@ -9432,6 +9454,26 @@ function escPreset(cotId,which){
     window.__escSel[e.nombre]=best;
   });
   openEscenarios(cotId);
+}
+function guardarEscenario(cotId){
+  var nombre=prompt('Nombre del escenario (ej. Opción A):');
+  if(!nombre||!nombre.trim())return;
+  var cots=getCots();var cot=cots.find(function(c){return String(c.id)===String(cotId);});if(!cot)return;
+  if(!cot.escenarios)cot.escenarios=[];
+  cot.escenarios.push({id:'esc_'+Date.now(),nombre:nombre.trim(),sel:Object.assign({},window.__escSel||{}),fecha:todayStr});
+  saveCots(cots);openEscenarios(cotId);
+}
+function cargarEscenario(cotId,escId){
+  var cot=getCots().find(function(c){return String(c.id)===String(cotId);});if(!cot)return;
+  var s=(cot.escenarios||[]).find(function(x){return String(x.id)===String(escId);});if(!s)return;
+  window.__escCot=String(cotId);window.__escSel=Object.assign({},s.sel||{});
+  openEscenarios(cotId);
+}
+function borrarEscenario(cotId,escId){
+  if(!confirm('¿Eliminar este escenario guardado?'))return;
+  var cots=getCots();var cot=cots.find(function(c){return String(c.id)===String(cotId);});if(!cot)return;
+  cot.escenarios=(cot.escenarios||[]).filter(function(x){return String(x.id)!==String(escId);});
+  saveCots(cots);openEscenarios(cotId);
 }
 function escAplicar(cotId){
   var cots=getCots();var cot=cots.find(function(c){return String(c.id)===String(cotId);});if(!cot)return;
