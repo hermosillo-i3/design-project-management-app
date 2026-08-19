@@ -9388,7 +9388,7 @@ function _escComputeTotal(cot,sel){return _escMetrics(cot,sel).grandTotal;}
 function _escDirecto(cot,sel){return _escMetrics(cot,sel).grandDirect;}
 function openEscenarios(cotId){
   var cot=getCots().find(function(c){return String(c.id)===String(cotId);});if(!cot)return;
-  var m2=parseFloat(cot.areaM2)||0;
+  var m2=parseFloat(cot.areaM2)||0;var tc=parseFloat(cot.tipoCambio)||18;
   var espsA=(cot.especialidades||[]).filter(function(e){return e.asesores&&e.asesores.length;});
   if(!window.__escSel||window.__escCot!==String(cotId)){
     window.__escCot=String(cotId);window.__escSel={};
@@ -9408,7 +9408,7 @@ function openEscenarios(cotId){
   var savedHtml='';
   if(saved.length){
     var tvals=saved.map(function(r){return r.total;});var minV=Math.min.apply(null,tvals),maxV=Math.max.apply(null,tvals);
-    savedHtml='<div style="margin-top:16px;border-top:.5px solid #e2e8f0;padding-top:12px"><div style="font-size:11px;font-weight:800;color:#254467;margin-bottom:8px">📊 Escenarios guardados</div>';
+    savedHtml='<div style="margin-top:16px;border-top:.5px solid #e2e8f0;padding-top:12px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span style="font-size:11px;font-weight:800;color:#254467">📊 Escenarios guardados</span><button onclick="imprimirEscenarios(\''+cotId+'\')" style="font-size:10px;padding:3px 9px;border:.5px solid #6990ab;border-radius:5px;background:#fff;color:#6990ab;cursor:pointer;font-family:Arial;font-weight:700">🖨 Imprimir comparativa</button></div>';
     saved.slice().sort(function(a,b){return a.total-b.total;}).forEach(function(r){
       var isMin=r.total===minV,isMax=r.total===maxV&&maxV!==minV;
       var col=isMin?'#3B6D11':isMax?'#c0392b':'#254467';
@@ -9416,7 +9416,7 @@ function openEscenarios(cotId){
       savedHtml+='<div style="margin-bottom:8px">'
         +'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:2px">'
         +'<span style="font-size:11px;font-weight:700;color:'+col+'">'+esc(r.nombre)+(isMin?' 💚 más bajo':isMax?' 🔺 más alto':'')+'</span>'
-        +'<span style="font-size:12px;font-weight:800;color:'+col+'">'+fmt(r.total)+(m2?' <span style="font-size:9px;color:#a8a8a8;font-weight:400">$'+(r.total/m2).toFixed(2)+'/m²</span>':'')+'</span></div>'
+        +'<span style="font-size:12px;font-weight:800;color:'+col+'">'+fmt(r.total)+(m2?' <span style="font-size:9px;color:#a8a8a8;font-weight:400">$'+(r.total/m2).toFixed(2)+'/m²'+(tc?' · $'+(r.total/m2/tc).toFixed(2)+' USD/m²':'')+'</span>':'')+'</span></div>'
         +'<div style="height:11px;background:#eef2f6;border-radius:4px;overflow:hidden"><div style="width:'+pct+'%;height:100%;background:'+col+';border-radius:4px"></div></div>'
         +'<div style="margin-top:3px;display:flex;gap:6px"><button onclick="cargarEscenario(\''+cotId+'\',\''+r.id+'\')" style="font-size:9px;padding:1px 7px;border:.5px solid #bfd1e5;border-radius:4px;background:#fff;cursor:pointer;font-family:Arial;color:#6990ab">Cargar</button>'
         +'<button onclick="borrarEscenario(\''+cotId+'\',\''+r.id+'\')" style="font-size:9px;padding:1px 7px;border:.5px solid #FECACA;border-radius:4px;background:#fff;cursor:pointer;font-family:Arial;color:#e65a27">✕</button></div>'
@@ -9484,6 +9484,48 @@ function escAplicar(cotId){
     e.asesores.forEach(function(a,i){a.elegido=(i===idx);});
   });
   saveCots(cots);window.__escSel=null;window.__escCot=null;closeModal();renderCotizaciones();
+}
+function imprimirEscenarios(cotId){
+  var cot=getCots().find(function(c){return String(c.id)===String(cotId);});if(!cot)return;
+  var escs=cot.escenarios||[];
+  if(!escs.length){alert('Aún no tienes escenarios guardados. Arma uno y dale "💾 Guardar escenario".');return;}
+  var m2=parseFloat(cot.areaM2)||0,tc=parseFloat(cot.tipoCambio)||18;
+  var allProjs=[...activeProjs(),...internos(),...ld(K.proj,[]).filter(function(p){return p.archivado;})];
+  var proj=allProjs.find(function(p){return String(p.id)===String(cot.projId);});
+  var esc=function(s){return String(s==null?'':s).replace(/</g,'&lt;');};
+  var fmt=function(n){return n?'$'+Math.round(n).toLocaleString('es-MX'):'—';};
+  var data=escs.map(function(s){var mt=_escMetrics(cot,s.sel||{});return {nombre:s.nombre,sel:s.sel||{},total:mt.grandTotal,directo:mt.grandDirect,indir:mt.grandTotal-mt.grandDirect};});
+  var totals=data.map(function(d){return d.total;});var minV=Math.min.apply(null,totals),maxV=Math.max.apply(null,totals);
+  var espsA=(cot.especialidades||[]).filter(function(e){return e.asesores&&e.asesores.length;});
+  var espRows=espsA.map(function(e){
+    return '<tr><td class="b">'+esc(e.nombre)+'</td>'+data.map(function(d){var idx=d.sel[e.nombre];var a=(idx!=null&&idx>=0&&e.asesores[idx])?e.asesores[idx]:null;return '<td class="r">'+(a?esc(a.empresa||'—')+'<div class="sub">'+fmt(parseFloat(a.costoMXN)||0)+'</div>':'<span style="color:#bbb">—</span>')+'</td>';}).join('')+'</tr>';
+  }).join('');
+  var rowLine=function(lbl,vals,cls){return '<tr'+(cls?' class="'+cls+'"':'')+'><td>'+lbl+'</td>'+vals.map(function(v){return '<td class="r">'+v+'</td>';}).join('')+'</tr>';};
+  var head='<tr><th>Partida</th>'+data.map(function(d){var c=d.total===minV?'#3B6D11':(d.total===maxV&&maxV!==minV?'#c0392b':'#254467');return '<th class="r" style="background:'+c+'">'+esc(d.nombre)+'</th>';}).join('')+'</tr>';
+  var totRow='<tr class="tot"><td>TOTAL</td>'+data.map(function(d){var c=d.total===minV?'#3B6D11':(d.total===maxV&&maxV!==minV?'#c0392b':'#254467');return '<td class="r" style="background:'+c+';color:#fff">'+fmt(d.total)+(d.total===minV?' 💚':(d.total===maxV&&maxV!==minV?' 🔺':''))+'</td>';}).join('')+'</tr>';
+  var win=window.open('','_blank');
+  win.document.write('<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Comparativa de escenarios — '+esc(cot.nombre)+'</title><style>'
+    +'*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;color:#1A1A2E;font-size:12px;padding:1.5rem;max-width:1000px;margin:0 auto}'
+    +'.hdr{background:#254467;color:#fff;border-radius:8px;padding:12px 16px;margin-bottom:14px}.hdr-t{font-size:16px;font-weight:700}.hdr-s{font-size:10px;color:#bfd1e5;margin-top:3px}'
+    +'table{width:100%;border-collapse:collapse;font-size:11px}'
+    +'th{color:#fff;padding:6px 8px;text-align:left;font-size:10px;font-weight:700;border:.5px solid #cbd5e1}th.r{text-align:right}'
+    +'td{padding:5px 8px;border:.5px solid #cbd5e1;vertical-align:top}td.r{text-align:right}td.b{font-weight:700;color:#254467}'
+    +'.sub{font-size:9px;color:#888;font-weight:400}'
+    +'tr.tot td{font-weight:800;font-size:12px}'
+    +'@page{size:landscape;margin:1cm}@media print{body{padding:.3rem}}</style></head><body>'
+    +'<div class="hdr"><div class="hdr-t">Comparativa de escenarios — '+esc(cot.nombre)+'</div>'
+    +'<div class="hdr-s">'+(proj?esc(proj.nombre)+' · ':'')+'Gerencia de Diseño CDMX — Grupo Hermosillo'+(m2?' · '+Number(m2).toLocaleString()+' m²':'')+' · '+today.toLocaleDateString('es-MX',{day:'2-digit',month:'long',year:'numeric'})+'</div></div>'
+    +'<table><thead>'+head+'</thead><tbody>'
+    +espRows
+    +rowLine('Directo (asesores)',data.map(function(d){return fmt(d.directo);}))
+    +rowLine('Indirectos',data.map(function(d){return fmt(d.indir);}))
+    +totRow
+    +(m2?rowLine('$/m² MXN',data.map(function(d){return '$'+(d.total/m2).toFixed(2);})):'')
+    +((m2&&tc)?rowLine('$/m² USD',data.map(function(d){return '$'+(d.total/m2/tc).toFixed(2);})):'')
+    +'</tbody></table>'
+    +'<div style="margin-top:14px;font-size:9px;color:#999">💚 más bajo · 🔺 más alto · T.C. $'+tc+' · Generado el '+fmtDY(todayStr)+'</div>'
+    +'</body></html>');
+  win.document.close();
 }
 
 function openVsHistModal(cotId,espNombre){
