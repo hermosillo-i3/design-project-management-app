@@ -2856,10 +2856,42 @@ function renderSegCliente(){
       +(collapsed?'':'<div style="padding:10px 12px">'+(feed.length?feed.map(_segItemHtml).join(''):'<div style="color:#a8a8a8;font-size:10px;padding:2px 0">Sin actividad registrada.</div>')+'</div>')
       +'</div>';
   };
-  var html='<div style="font-size:10px;color:#a8a8a8;margin-bottom:10px">Arrastra los proyectos (⠿) para ordenarlos por prioridad · clic en el título para colapsar</div>';
+  var _cliTasks=tasks.filter(function(t){return !t.projId&&(t.cliente||'')===cli&&(showArch||!t.archivado)&&(showDoneSeg||!t.done);}).sort(function(a,b){return (a.fechaCompromiso||'z').localeCompare(b.fechaCompromiso||'z');});
+  var _cliFeed=_cliTasks.map(function(t){return Object.assign({},t,{_type:'task'});});
+  var html='<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">'
+    +'<span style="font-size:10px;color:#a8a8a8;flex:1;min-width:180px">Arrastra los proyectos (⠿) para ordenarlos · clic en el título para colapsar</span>'
+    +(cli?'<button class="btn btn-xs btn-primary no-print" onclick="openAddTaskCliente()">+ Tarea del cliente</button>':'')
+    +'</div>';
+  if(cli&&_cliFeed.length){
+    html+='<div style="margin-bottom:12px;border:.5px solid #d9cff0;border-radius:8px;background:#faf8ff;overflow:hidden">'
+      +'<div style="padding:8px 12px;background:#efe9fb;font-size:11px;font-weight:800;color:#5B21B6">📋 Tareas de '+String(cli).replace(/</g,'&lt;')+' <span style="font-weight:400;color:#8a7bb0">(sin proyecto específico)</span></div>'
+      +'<div style="padding:10px 12px">'+_cliFeed.map(_segItemHtml).join('')+'</div></div>';
+  }
   if(lista.length){lista.forEach(function(p){html+=projBlock(p);});}
-  else html='<div style="color:#67727a;font-size:11px;padding:1rem;text-align:center">Sin proyectos para este cliente.</div>';
+  else if(!_cliFeed.length) html+='<div style="color:#67727a;font-size:11px;padding:1rem;text-align:center">Sin proyectos ni tareas para este cliente.</div>';
   document.getElementById('seg-feed').innerHTML=html;
+}
+function openAddTaskCliente(){
+  var cli=document.getElementById('seg-cliente')?document.getElementById('seg-cliente').value:'';
+  var personOpts=cat.personas.filter(function(p){return !p.baja;}).sort(function(a,b){return a.nombre.localeCompare(b.nombre);}).map(function(p){return '<option value="'+String(p.nombre).replace(/"/g,'&quot;')+'">'+p.nombre+'</option>';}).join('');
+  var projs=ld(K.proj,[]).filter(function(p){return (p.cliente||'').trim()===cli;}).sort(function(a,b){return String(a.nombre||'').localeCompare(String(b.nombre||''));});
+  var projOpts='<option value="">— Sin proyecto (general del cliente) —</option>'+projs.map(function(p){return '<option value="'+p.id+'">'+String(p.nombre).replace(/"/g,'&quot;')+(p.archivado?' (arch)':'')+'</option>';}).join('');
+  document.getElementById('modal-body').innerHTML='<h3>Nueva tarea — '+String(cli).replace(/</g,'&lt;')+'</h3>'
+    +'<div class="fg"><label>Tarea</label><textarea id="tt" placeholder="Describe la tarea..."></textarea></div>'
+    +'<div class="frow"><div class="fg"><label>Asignado a</label><select id="ta"><option value="">—</option>'+personOpts+'</select></div><div class="fg"><label>Fecha compromiso</label><input type="date" id="tfc" style="width:100%;font-family:Arial;font-size:12px;padding:6px 8px;border:.5px solid #bfd1e5;border-radius:6px"></div></div>'
+    +'<div class="fg"><label>Proyecto (opcional)</label><select id="tproj" style="width:100%;font-family:Arial;font-size:12px;padding:6px 8px;border:.5px solid #bfd1e5;border-radius:6px">'+projOpts+'</select></div>'
+    +'<input type="hidden" id="tcli" value="'+String(cli).replace(/"/g,'&quot;')+'">'
+    +_taskFlagsBox()
+    +'<div class="btn-row"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="saveTaskCliente()">Guardar</button></div>';
+  openModal();
+}
+function saveTaskCliente(){
+  var texto=document.getElementById('tt').value.trim();if(!texto)return;
+  var cli=document.getElementById('tcli')?document.getElementById('tcli').value:'';
+  var projEl=document.getElementById('tproj');var projId=projEl&&projEl.value?parseInt(projEl.value):null;
+  var f=_readTaskFlags();
+  tasks.push(Object.assign({id:Date.now(),texto:texto,cliente:cli,projId:projId,asignado:document.getElementById('ta').value,fechaPedido:todayStr,fechaCompromiso:document.getElementById('tfc').value||'',done:false,archivado:false,notas:[],clienteTask:true},f));
+  sv(K.tasks,tasks);closeModal();renderSeg();if(typeof renderPendientes==='function')renderPendientes();if(typeof renderConsultores==='function')renderConsultores();
 }
 function getSegCliOrder(cli){var m=ld('gh_seg_cli_order',{})||{};return m[cli]||[];}
 function _segCliSort(list,cli){var ord=getSegCliOrder(cli);var idx={};ord.forEach(function(id,i){idx[String(id)]=i;});return list.slice().sort(function(a,b){var ia=idx[String(a.id)],ib=idx[String(b.id)];if(ia==null&&ib==null)return (a.nombre||'').localeCompare(b.nombre||'');if(ia==null)return 1;if(ib==null)return -1;return ia-ib;});}
