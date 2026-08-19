@@ -4455,6 +4455,21 @@ function renderCotTabla(el,cots,allProjs,filterProj,catCot){
         +(grandTotNeto&&Math.round(grandTotNeto)!==Math.round(grandTotMXN)?'<div style="text-align:right"><div style="font-size:9px;color:#FBBF77">Neto si adjudicamos</div><div style="font-size:14px;font-weight:700;color:#FBBF77">$'+Math.round(grandTotNeto).toLocaleString('es-MX')+'</div></div>':'')
         +'</div></div>';
 
+      // ── Ajuste de Presupuestos (lo que mandé vs lo que dejaron) ──
+      var _mEnv=parseFloat(cot.montoEnviado)||0,_mPpto=parseFloat(cot.montoPresupuestos)||0;
+      var _escP=function(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;');};
+      var _valP=function(v){return String(v==null?'':v).replace(/"/g,'&quot;');};
+      html+='<div style="margin-top:8px;background:#f4f8fc;border:.5px solid #d5e3f0;border-radius:8px;padding:8px 12px">'
+        +'<div style="font-size:9px;font-weight:700;color:#254467;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">🏛️ Presupuestos — ajuste final</div>'
+        +'<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">'
+        +'<div><div style="font-size:9px;color:#67727a;margin-bottom:2px">Monto que mandé (Diseño)</div><input type="text" value="'+_valP(cot.montoEnviado)+'" onchange="setCotPresupuesto(\''+cot.id+'\',\'montoEnviado\',this.value)" placeholder="ej: 4000000" style="width:130px;font-size:12px;padding:4px 7px;border:.5px solid #bfd1e5;border-radius:5px;font-family:Arial;text-align:right"></div>'
+        +'<div><div style="font-size:9px;color:#67727a;margin-bottom:2px">Monto que dejó Presupuestos</div><input type="text" value="'+_valP(cot.montoPresupuestos)+'" onchange="setCotPresupuesto(\''+cot.id+'\',\'montoPresupuestos\',this.value)" placeholder="ej: 4500000" style="width:130px;font-size:12px;padding:4px 7px;border:.5px solid #bfd1e5;border-radius:5px;font-family:Arial;text-align:right"></div>'
+        +'<div id="pptodiff-'+cot.id+'" style="font-size:11px;font-weight:700;padding-bottom:4px">'+_pptoDiffHtml(_mEnv,_mPpto)+'</div>'
+        +'</div>'
+        +(grandTotConInd?'<div style="font-size:9px;color:#a8a8a8;margin-top:4px">Referencia — total cotizado en el sistema: $'+Math.round(grandTotConInd).toLocaleString('es-MX')+' (con indirecto)</div>':'')
+        +'<div style="margin-top:6px"><div style="font-size:9px;color:#67727a;margin-bottom:2px">Nota — ¿de dónde salió el número / por qué el ajuste?</div><textarea onchange="setCotPresupuesto(\''+cot.id+'\',\'notaPresupuestos\',this.value)" rows="2" placeholder="ej: Presupuestos subió a 4.5 MDP por contingencia de estructura. Base: mi cotización de diseño + 10%." style="width:100%;box-sizing:border-box;font-size:11px;padding:5px 7px;border:.5px solid #bfd1e5;border-radius:5px;font-family:Arial;resize:vertical">'+_escP(cot.notaPresupuestos)+'</textarea></div>'
+        +'</div>';
+
       if(cot.notas) html+='<div style="font-size:10px;color:#67727a;font-style:italic;background:#fff8f6;border-radius:6px;padding:6px 10px;margin-top:8px">'+cot.notas+'</div>';
       html+='</div>';
     });
@@ -4464,6 +4479,23 @@ function renderCotTabla(el,cots,allProjs,filterProj,catCot){
   el.innerHTML+=html;
 }
 
+function _pptoDiffHtml(mEnv,mPpto){
+  if(!mEnv||!mPpto)return '<span style="color:#a8a8a8;font-size:10px;font-weight:400">captura ambos montos para ver la diferencia</span>';
+  var diff=mPpto-mEnv;var pct=mEnv?diff/mEnv*100:0;
+  if(Math.round(diff)===0)return '<span style="color:#67727a">Sin cambio respecto a lo que mandé</span>';
+  var up=diff>0;var col=up?'#3B6D11':'#c0392b';
+  return '<span style="color:#67727a;font-size:9px;font-weight:400">Presupuestos '+(up?'subió':'bajó')+'</span><br><span style="color:'+col+'">'+(up?'▲ +':'▼ −')+'$'+Math.abs(Math.round(diff)).toLocaleString('es-MX')+' ('+(up?'+':'−')+Math.abs(pct).toFixed(1)+'%)</span>';
+}
+function setCotPresupuesto(cotId,field,val){
+  var cots=getCots();var cot=cots.find(function(c){return String(c.id)===String(cotId);});if(!cot)return;
+  if(field==='notaPresupuestos'){cot[field]=val;}
+  else{var num=String(val).replace(/[^0-9.]/g,'');cot[field]=(num===''?'':num);}
+  saveCots(cots);
+  if(field!=='notaPresupuestos'){
+    var mEnv=parseFloat(cot.montoEnviado)||0,mPpto=parseFloat(cot.montoPresupuestos)||0;
+    var d=document.getElementById('pptodiff-'+cotId);if(d)d.innerHTML=_pptoDiffHtml(mEnv,mPpto);
+  }
+}
 // ─── COTIZACIONES COMBINADAS (varios alcances) ───────────────
 function getCombinadas(){return ld('gh_cot_combinadas',[]);}
 function saveCombinadas(a){sv('gh_cot_combinadas',a);}
