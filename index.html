@@ -9373,25 +9373,19 @@ function setReembolso(cotId,espNombre,val){
   renderCotizaciones();
 }
 // ─── ESCENARIOS (armar opciones rápido) ──────────────────────
-function _escComputeTotal(cot,sel){
+function _escClone(cot,sel){
   sel=sel||{};
-  var m2=parseFloat(cot.areaM2)||0;
-  var designTotal=0;
-  (cot.especialidades||[]).forEach(function(e){
-    var indCat=parseFloat(e.categoria==='Estudios Preliminares'?cot.indEst:cot.indDis)||0;
-    var ind=parseFloat(e.indirecto!=null?e.indirecto:indCat)||0;
-    var mxn=0;
-    if(e.asesores&&e.asesores.length){
-      var idx=sel[e.nombre];var a=(idx!=null&&idx>=0&&e.asesores[idx])?e.asesores[idx]:null;
-      mxn=a?(parseFloat(a.costoMXN)||0):0;
-    }else{
-      var histAvg=getHistAvgM2(e.nombre,cot.id);
-      if(e.parametrico&&m2&&histAvg)mxn=Math.round(histAvg*m2);
-    }
-    designTotal+=mxn*(1+ind/100);
+  var clone=JSON.parse(JSON.stringify(cot));
+  (clone.especialidades||[]).forEach(function(e){
+    if(!(e.asesores&&e.asesores.length))return;
+    var idx=(e.nombre in sel)?parseInt(sel[e.nombre]):e.asesores.findIndex(function(a){return a.elegido;});
+    e.asesores.forEach(function(a,i){a.elegido=(i===idx);});
   });
-  return designTotal+(calcCotMetrics(cot).indTotal||0);
+  return clone;
 }
+function _escMetrics(cot,sel){return calcCotMetrics(_escClone(cot,sel));}
+function _escComputeTotal(cot,sel){return _escMetrics(cot,sel).grandTotal;}
+function _escDirecto(cot,sel){return _escMetrics(cot,sel).grandDirect;}
 function openEscenarios(cotId){
   var cot=getCots().find(function(c){return String(c.id)===String(cotId);});if(!cot)return;
   var m2=parseFloat(cot.areaM2)||0;
@@ -9408,12 +9402,13 @@ function openEscenarios(cotId){
     return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:.5px solid #eef2f6"><span style="flex:1;font-size:11px;font-weight:600;color:#254467">'+esc(e.nombre)+'</span>'
       +'<select data-esp="'+esc(e.nombre).replace(/"/g,'&quot;')+'" onchange="escSet(this)" style="font-size:11px;padding:4px 7px;border-radius:5px;border:.5px solid #bfd1e5;font-family:Arial;min-width:210px">'+opts+'</select></div>';
   }).join('');
-  var tot=_escComputeTotal(cot,sel);
+  var _mt=_escMetrics(cot,sel);var tot=_mt.grandTotal;var dir=_mt.grandDirect;
   document.getElementById('modal-body').innerHTML='<h3 style="margin-bottom:2px">🎚️ Escenarios — '+esc(cot.nombre)+'</h3>'
     +'<div style="font-size:11px;color:#67727a;margin-bottom:10px">Elige el asesor por partida y ve el total al instante. Cuando te guste, "Aplicar como elegidos".</div>'
     +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px"><button class="btn btn-sm" onclick="escPreset(\''+cotId+'\',\'min\')">💚 Mínimo</button><button class="btn btn-sm" onclick="escPreset(\''+cotId+'\',\'max\')">🔺 Máximo</button><button class="btn btn-sm" onclick="escPreset(\''+cotId+'\',\'actual\')">↺ Actual</button></div>'
-    +'<div style="background:#254467;border-radius:8px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><span style="font-size:11px;font-weight:700;color:#fff">TOTAL del escenario</span>'
-    +'<span id="esc-total" style="font-size:18px;font-weight:800;color:#FCD34D">'+fmt(tot)+(m2?' <span style="font-size:10px;color:#bfd1e5;font-weight:400">· $'+(tot/m2).toFixed(2)+'/m²</span>':'')+'</span></div>'
+    +'<div style="background:#254467;border-radius:8px;padding:10px 14px;display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px"><span style="font-size:11px;font-weight:700;color:#fff;padding-top:3px">TOTAL del escenario</span>'
+    +'<div style="text-align:right"><span id="esc-total" style="font-size:18px;font-weight:800;color:#FCD34D">'+fmt(tot)+(m2?' <span style="font-size:10px;color:#bfd1e5;font-weight:400">· $'+(tot/m2).toFixed(2)+'/m²</span>':'')+'</span>'
+    +'<div id="esc-sub" style="font-size:9px;color:#bfd1e5;margin-top:2px">Directo (asesores) '+fmt(dir)+' · Indirectos '+fmt(tot-dir)+'</div></div></div>'
     +(rows||'<div style="color:#a8a8a8;font-size:11px">Esta cotización no tiene partidas con asesores capturados.</div>')
     +'<div class="btn-row" style="margin-top:14px"><button class="btn" onclick="closeModal()">Cerrar</button>'+(espsA.length?'<button class="btn btn-primary" onclick="escAplicar(\''+cotId+'\')">Aplicar como elegidos</button>':'')+'</div>';
   var mm=document.querySelector('.modal');if(mm)mm.classList.add('wide');
@@ -9422,8 +9417,10 @@ function openEscenarios(cotId){
 function escSet(selEl){var espn=selEl.getAttribute('data-esp');window.__escSel=window.__escSel||{};window.__escSel[espn]=parseInt(selEl.value);escUpdate();}
 function escUpdate(){
   var cot=getCots().find(function(c){return String(c.id)===String(window.__escCot);});if(!cot)return;
-  var m2=parseFloat(cot.areaM2)||0;var tot=_escComputeTotal(cot,window.__escSel||{});
-  var el=document.getElementById('esc-total');if(el)el.innerHTML='$'+Math.round(tot).toLocaleString('es-MX')+(m2?' <span style="font-size:10px;color:#bfd1e5;font-weight:400">· $'+(tot/m2).toFixed(2)+'/m²</span>':'');
+  var m2=parseFloat(cot.areaM2)||0;var mt=_escMetrics(cot,window.__escSel||{});var tot=mt.grandTotal;var dir=mt.grandDirect;
+  var fmt=function(n){return '$'+Math.round(n||0).toLocaleString('es-MX');};
+  var el=document.getElementById('esc-total');if(el)el.innerHTML=fmt(tot)+(m2?' <span style="font-size:10px;color:#bfd1e5;font-weight:400">· $'+(tot/m2).toFixed(2)+'/m²</span>':'');
+  var sub=document.getElementById('esc-sub');if(sub)sub.innerHTML='Directo (asesores) '+fmt(dir)+' · Indirectos '+fmt(tot-dir);
 }
 function escPreset(cotId,which){
   var cot=getCots().find(function(c){return String(c.id)===String(cotId);});if(!cot)return;
