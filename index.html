@@ -4106,6 +4106,20 @@ function renderCotPorTipo(el,cots,allProjs,catCot){
         +mets.map(function(x){var v=x.espVal[en];return '<td onclick="cotTipoDetalle(\''+x.c.id+'\',\''+encodeURIComponent(en)+'\')" title="Ver asesores / elegido" style="text-align:right;padding:4px 8px;border-bottom:.5px solid #eef2f6;color:#254467;cursor:pointer">'+fmt(v)+'</td>';}).join('')+'</tr>';
     });
   });
+  var _markupAny=mets.some(function(x){return (x.m.grandIndir-x.m.indTotal)>0.5;});
+  var _genAny=mets.some(function(x){return IND_SECCIONS.some(function(s){return (x.m.indBySec[s]||{}).total;});});
+  if(_markupAny||_genAny){
+    t+='<tr><td colspan="'+(mets.length+1)+'" style="'+stL+'background:#e0eaf2;font-weight:700;color:#254467;padding:4px 8px">Indirectos</td></tr>';
+    if(_markupAny){
+      t+='<tr><td style="'+stL+'background:#fff;padding:4px 8px;border-bottom:.5px solid #eef2f6;color:#3a6080">Indirecto por partida (markup)</td>'
+        +mets.map(function(x){var v=x.m.grandIndir-x.m.indTotal;return '<td style="text-align:right;padding:4px 8px;border-bottom:.5px solid #eef2f6;color:#3a6080">'+fmt(v>0.5?v:0)+'</td>';}).join('')+'</tr>';
+    }
+    IND_SECCIONS.forEach(function(s){
+      if(!mets.some(function(x){return (x.m.indBySec[s]||{}).total;}))return;
+      t+='<tr><td style="'+stL+'background:#fff;padding:4px 8px;border-bottom:.5px solid #eef2f6;color:#3a6080">'+s+'</td>'
+        +mets.map(function(x){var v=(x.m.indBySec[s]||{}).total;return '<td style="text-align:right;padding:4px 8px;border-bottom:.5px solid #eef2f6;color:#3a6080">'+fmt(v)+'</td>';}).join('')+'</tr>';
+    });
+  }
   t+='<tr><td style="'+stL+'background:#f8fafc;font-weight:700;color:#3a6080;padding:5px 8px" title="Suma de los indirectos por partida + el bloque de indirectos generales">Indirectos (todos)</td>'+mets.map(function(x){return '<td style="text-align:right;padding:5px 8px;background:#f8fafc;color:#3a6080;font-weight:600">'+fmt(x.m.grandIndir)+'</td>';}).join('')+'</tr>';
   t+='<tr><td style="'+stL+'background:#254467;color:#fff;font-weight:700;padding:6px 8px">TOTAL</td>'+mets.map(function(x){return '<td style="text-align:right;padding:6px 8px;background:#254467;color:#fff;font-weight:700">'+(x.m.grandTotal?'$'+Math.round(x.m.grandTotal).toLocaleString('es-MX'):'—')+'</td>';}).join('')+'</tr>';
   t+='<tr><td style="'+stL+'background:#eef3f7;font-weight:700;color:#254467;padding:4px 8px">$/m² MXN</td>'+mets.map(function(x){return '<td style="text-align:right;padding:4px 8px;background:#eef3f7;color:#254467">'+(x.m.mxnM2?'$'+x.m.mxnM2.toFixed(2):'—')+'</td>';}).join('')+'</tr>';
