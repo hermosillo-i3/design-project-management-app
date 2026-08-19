@@ -4083,9 +4083,9 @@ function renderCotPorTipo(el,cots,allProjs,catCot){
   var _ord=window.__cotTipoOrder||[];
   if(_ord.length)mets.sort(function(a,b){var ia=_ord.indexOf(String(a.c.id)),ib=_ord.indexOf(String(b.c.id));if(ia<0&&ib<0)return 0;if(ia<0)return 1;if(ib<0)return -1;return ia-ib;});
   var _idsCsv=mets.map(function(x){return String(x.c.id);}).join(',');
-  html+='<div style="font-size:10px;color:#a8a8a8;margin-bottom:8px">Clic en un monto para ver con quién cotizaste y a quién elegiste · arrastra los encabezados (⠿) para reordenar · ✕ para ocultar'+(_hiddenN?' · <a href="#" onclick="cotTipoShowAll();return false" style="color:#6990ab;font-weight:700">👁 mostrar '+_hiddenN+' oculta(s)</a>':'')+'</div>';
+  html+='<div style="font-size:10px;color:#a8a8a8;margin-bottom:8px">Cada partida muestra el <strong>costo directo</strong> (del asesor); el indirecto va aparte en el renglón "Indirectos (todos)" · clic en un monto para ver con quién cotizaste y a quién elegiste · arrastra los encabezados (⠿) para reordenar · ✕ para ocultar'+(_hiddenN?' · <a href="#" onclick="cotTipoShowAll();return false" style="color:#6990ab;font-weight:700">👁 mostrar '+_hiddenN+' oculta(s)</a>':'')+'</div>';
   if(!mets.length){el.innerHTML+=html+'<div style="text-align:center;padding:2rem;color:#a8a8a8;font-size:12px">Todas ocultas. <a href="#" onclick="cotTipoShowAll();return false" style="color:#6990ab">Mostrar todas</a></div>';return;}
-  mets.forEach(function(x){x.espVal={};Object.keys(x.m.bySection).forEach(function(cat){(x.m.bySection[cat].esps||[]).forEach(function(e){x.espVal[e.nombre]=(x.espVal[e.nombre]||0)+e.withInd;});});});
+  mets.forEach(function(x){x.espVal={};Object.keys(x.m.bySection).forEach(function(cat){(x.m.bySection[cat].esps||[]).forEach(function(e){x.espVal[e.nombre]=(x.espVal[e.nombre]||0)+(e.mxn||0);});});});
   var espCat={};selCots.forEach(function(c){(c.especialidades||[]).forEach(function(e){if(e.nombre)espCat[e.nombre]=e.categoria||'Otros';});});
   var espByCat={};Object.keys(espCat).forEach(function(en){var cat=espCat[en];if(!espByCat[cat])espByCat[cat]=[];espByCat[cat].push(en);});
   var catOrder=Object.keys(catCot);
@@ -4106,7 +4106,7 @@ function renderCotPorTipo(el,cots,allProjs,catCot){
         +mets.map(function(x){var v=x.espVal[en];return '<td onclick="cotTipoDetalle(\''+x.c.id+'\',\''+encodeURIComponent(en)+'\')" title="Ver asesores / elegido" style="text-align:right;padding:4px 8px;border-bottom:.5px solid #eef2f6;color:#254467;cursor:pointer">'+fmt(v)+'</td>';}).join('')+'</tr>';
     });
   });
-  t+='<tr><td style="'+stL+'background:#f8fafc;font-weight:700;color:#3a6080;padding:5px 8px">Indirectos</td>'+mets.map(function(x){return '<td style="text-align:right;padding:5px 8px;background:#f8fafc;color:#3a6080;font-weight:600">'+fmt(x.m.indTotal)+'</td>';}).join('')+'</tr>';
+  t+='<tr><td style="'+stL+'background:#f8fafc;font-weight:700;color:#3a6080;padding:5px 8px" title="Suma de los indirectos por partida + el bloque de indirectos generales">Indirectos (todos)</td>'+mets.map(function(x){return '<td style="text-align:right;padding:5px 8px;background:#f8fafc;color:#3a6080;font-weight:600">'+fmt(x.m.grandIndir)+'</td>';}).join('')+'</tr>';
   t+='<tr><td style="'+stL+'background:#254467;color:#fff;font-weight:700;padding:6px 8px">TOTAL</td>'+mets.map(function(x){return '<td style="text-align:right;padding:6px 8px;background:#254467;color:#fff;font-weight:700">'+(x.m.grandTotal?'$'+Math.round(x.m.grandTotal).toLocaleString('es-MX'):'—')+'</td>';}).join('')+'</tr>';
   t+='<tr><td style="'+stL+'background:#eef3f7;font-weight:700;color:#254467;padding:4px 8px">$/m² MXN</td>'+mets.map(function(x){return '<td style="text-align:right;padding:4px 8px;background:#eef3f7;color:#254467">'+(x.m.mxnM2?'$'+x.m.mxnM2.toFixed(2):'—')+'</td>';}).join('')+'</tr>';
   t+='<tr><td style="'+stL+'background:#eef3f7;font-weight:700;color:#254467;padding:4px 8px">$/m² USD</td>'+mets.map(function(x){return '<td style="text-align:right;padding:4px 8px;background:#eef3f7;color:#254467">'+(x.m.usdM2?'$'+x.m.usdM2.toFixed(2):'—')+'</td>';}).join('')+'</tr>';
