@@ -4496,6 +4496,31 @@ function setCotPresupuesto(cotId,field,val){
     var d=document.getElementById('pptodiff-'+cotId);if(d)d.innerHTML=_pptoDiffHtml(mEnv,mPpto);
   }
 }
+function _pptoBoxComb(cb,totalSistema){
+  var mEnv=parseFloat(cb.montoEnviado)||0,mPpto=parseFloat(cb.montoPresupuestos)||0;
+  var escP=function(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;');};
+  var valP=function(v){return String(v==null?'':v).replace(/"/g,'&quot;');};
+  return '<div style="margin-top:8px;background:#f4f8fc;border:.5px solid #d5e3f0;border-radius:8px;padding:8px 12px">'
+    +'<div style="font-size:9px;font-weight:700;color:#254467;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">🏛️ Presupuestos — ajuste final</div>'
+    +'<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">'
+    +'<div><div style="font-size:9px;color:#67727a;margin-bottom:2px">Monto que mandé (Diseño)</div><input type="text" value="'+valP(cb.montoEnviado)+'" onchange="setCombPresupuesto(\''+cb.id+'\',\'montoEnviado\',this.value)" placeholder="ej: 4000000" style="width:130px;font-size:12px;padding:4px 7px;border:.5px solid #bfd1e5;border-radius:5px;font-family:Arial;text-align:right"></div>'
+    +'<div><div style="font-size:9px;color:#67727a;margin-bottom:2px">Monto que dejó Presupuestos</div><input type="text" value="'+valP(cb.montoPresupuestos)+'" onchange="setCombPresupuesto(\''+cb.id+'\',\'montoPresupuestos\',this.value)" placeholder="ej: 4500000" style="width:130px;font-size:12px;padding:4px 7px;border:.5px solid #bfd1e5;border-radius:5px;font-family:Arial;text-align:right"></div>'
+    +'<div id="pptodiff-comb-'+cb.id+'" style="font-size:11px;font-weight:700;padding-bottom:4px">'+_pptoDiffHtml(mEnv,mPpto)+'</div>'
+    +'</div>'
+    +(totalSistema?'<div style="font-size:9px;color:#a8a8a8;margin-top:4px">Referencia — total combinado en el sistema: $'+Math.round(totalSistema).toLocaleString('es-MX')+'</div>':'')
+    +'<div style="margin-top:6px"><div style="font-size:9px;color:#67727a;margin-bottom:2px">Nota — ¿de dónde salió el número / por qué el ajuste?</div><textarea onchange="setCombPresupuesto(\''+cb.id+'\',\'notaPresupuestos\',this.value)" rows="2" placeholder="ej: Presupuestos ajustó a 4.5 MDP. Base: suma de alcances + contingencia." style="width:100%;box-sizing:border-box;font-size:11px;padding:5px 7px;border:.5px solid #bfd1e5;border-radius:5px;font-family:Arial;resize:vertical">'+escP(cb.notaPresupuestos)+'</textarea></div>'
+    +'</div>';
+}
+function setCombPresupuesto(cbId,field,val){
+  var combs=getCombinadas();var cb=combs.find(function(c){return String(c.id)===String(cbId);});if(!cb)return;
+  if(field==='notaPresupuestos'){cb[field]=val;}
+  else{var num=String(val).replace(/[^0-9.]/g,'');cb[field]=(num===''?'':num);}
+  saveCombinadas(combs);
+  if(field!=='notaPresupuestos'){
+    var mEnv=parseFloat(cb.montoEnviado)||0,mPpto=parseFloat(cb.montoPresupuestos)||0;
+    var d=document.getElementById('pptodiff-comb-'+cbId);if(d)d.innerHTML=_pptoDiffHtml(mEnv,mPpto);
+  }
+}
 // ─── COTIZACIONES COMBINADAS (varios alcances) ───────────────
 function getCombinadas(){return ld('gh_cot_combinadas',[]);}
 function saveCombinadas(a){sv('gh_cot_combinadas',a);}
@@ -4529,7 +4554,9 @@ function renderCombinadasBlock(projId,projCots){
       +'<button onclick="imprimirCombinada(\''+cb.id+'\')" style="font-size:10px;padding:2px 8px;border:.5px solid #6990ab;border-radius:5px;background:#fff;color:#6990ab;cursor:pointer;font-family:Arial">🖨 Imprimir</button>'
       +'<button onclick="openArmarCombinada('+projId+',\''+cb.id+'\')" style="font-size:10px;padding:2px 8px;border:.5px solid #bfd1e5;border-radius:5px;background:#fff;cursor:pointer;font-family:Arial">✏ Editar</button>'
       +'<button onclick="deleteCombinada(\''+cb.id+'\')" style="font-size:10px;padding:2px 8px;border:.5px solid #FECACA;border-radius:5px;background:#fff;color:#e65a27;cursor:pointer;font-family:Arial">✕</button>'
-      +'</div></div>';
+      +'</div>'
+      +_pptoBoxComb(cb,total)
+      +'</div>';
   });
   html+='</div>';
   return html;
