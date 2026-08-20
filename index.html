@@ -11381,6 +11381,17 @@ function toggleConsulComment(cmId, consulNombre, cumplido){
 
 
 function toggleAseProjs(id){var d=document.getElementById(id);if(d)d.style.display=d.style.display==='none'?'block':'none';}
+function aseVBShow(id){
+  var d=window.__aseVB&&window.__aseVB[id];if(!d)return;
+  var det=document.getElementById('det_'+id.replace(/_\d+$/,''));if(!det)return;
+  if(det.style.display==='block'&&det.getAttribute('data-cur')===id){det.style.display='none';det.removeAttribute('data-cur');return;}
+  var esc=function(s){return String(s).replace(/</g,'&lt;');};
+  var html='<strong style="color:#5B21B6">'+esc(d.nombre)+'</strong>';
+  if(d.precon.length)html+='<div style="margin-top:4px"><span style="color:#7C3AED;font-weight:700">Preconstrucción ('+d.precon.length+'):</span> '+d.precon.map(esc).join(' · ')+'</div>';
+  if(d.eje.length)html+='<div style="margin-top:3px"><span style="color:#5B21B6;font-weight:700">Ejecutivo ('+d.eje.length+'):</span> '+d.eje.map(esc).join(' · ')+'</div>';
+  if(!d.precon.length&&!d.eje.length)html+='<div style="margin-top:4px;color:#a8a8a8">Sin proyectos.</div>';
+  det.innerHTML=html;det.style.display='block';det.setAttribute('data-cur',id);
+}
 function cargaShow(group,month){
   var d=(window.__cargaData||{})[group]||{};var list=d[month]||[];
   var el=document.getElementById('carga-det-'+group);if(!el)return;
@@ -11582,85 +11593,90 @@ function renderEstadisticas(){
     +'</div>'
     +'</div>';
 
-  // ── CONTRATISTAS / ASESORES EN PROYECTOS EJECUTIVOS ──
-  var _esEje=function(p){return !p.interno&&['EJECUTIVO','REVISIONES'].indexOf(p.etapa)>=0;};
-  var _tieneAse=function(p){
-    if(p.asesoresProyecto&&p.asesoresProyecto.length)return true;
-    if(p.costosEjec&&Object.keys(p.costosEjec).some(function(k){return p.costosEjec[k]&&p.costosEjec[k].asesor;}))return true;
-    return _cotsAll.some(function(c){return String(c.projId)===String(p.id)&&(c.especialidades||[]).some(function(e){return (e.asesores||[]).some(function(a){return a.elegido;});});});
-  };
-  // ── Filtros propios de esta sección: ámbito (activos/todos) + año ──
+  // ── CONTRATISTAS / ASESORES: barras verticales por especialidad, apiladas PRECON (arriba) / EJECUTIVO (abajo) ──
+  var _bucket=function(p){if(p.interno)return null;if(p.etapa==='PRECON')return 'precon';if(['EJECUTIVO','REVISIONES'].indexOf(p.etapa)>=0)return 'eje';return null;};
   var aseScope=ld('gh_stats_ase_scope','activos');
   var aseYearSel=ld('gh_stats_ase_year','');
   var _aseActivo=function(p){return !p.archivado&&['Perdido','Cancelado'].indexOf(p.estatusProy||'')<0;};
-  var aseYearsMap={};allP.forEach(function(p){if(_esEje(p)){var y=String(p.arranque||'').slice(0,4);if(/^\d{4}$/.test(y))aseYearsMap[y]=1;}});
+  var aseYearsMap={};allP.forEach(function(p){if(_bucket(p)){var y=String(p.arranque||'').slice(0,4);if(/^\d{4}$/.test(y))aseYearsMap[y]=1;}});
   var aseYearList=Object.keys(aseYearsMap).sort().reverse();
   if(aseYearSel&&aseYearList.indexOf(aseYearSel)<0)aseYearSel='';
-  var ejeSet=allP.filter(function(p){
-    if(!_esEje(p))return false;
+  var projSet=allP.filter(function(p){
+    if(!_bucket(p))return false;
     if(aseScope==='activos'&&!_aseActivo(p))return false;
     if(aseYearSel&&String(p.arranque||'').slice(0,4)!==aseYearSel)return false;
     return true;
   });
-  // Mapa especialidad -> categoría
+  // Mapa especialidad -> categoría y orden del catálogo (Arq, Civil, Est...)
   var catCotStats=migrateCotCat(getCotCat());
-  var catOrderStats=['Estudios Preliminares','Cotizaciones de Diseño','Trámites, Licencias y Permisos'];
-  var espCatMap={};
-  Object.keys(catCotStats).forEach(function(g){var v=catCotStats[g]||{};[].concat(v.base||[],v.extras||[]).forEach(function(e){espCatMap[e]=g;});});
-  // Global
-  var byAsesorEje={};
-  ejeSet.forEach(function(p){
-    var set={};
-    (p.asesoresProyecto||[]).forEach(function(n){if(n&&String(n).trim())set[String(n).trim().toLowerCase()]=String(n).trim();});
-    if(p.costosEjec)Object.keys(p.costosEjec).forEach(function(k){var a=p.costosEjec[k]&&p.costosEjec[k].asesor;if(a&&String(a).trim())set[String(a).trim().toLowerCase()]=String(a).trim();});
-    _cotsAll.forEach(function(c){if(String(c.projId)!==String(p.id))return;(c.especialidades||[]).forEach(function(e){(e.asesores||[]).forEach(function(a){if(a&&a.elegido&&a.empresa&&a.empresa.trim())set[a.empresa.trim().toLowerCase()]=a.empresa.trim();});});});
-    Object.keys(set).forEach(function(kk){if(!byAsesorEje[kk])byAsesorEje[kk]={nombre:set[kk],count:0,projs:[]};byAsesorEje[kk].count++;byAsesorEje[kk].projs.push(p.nombre);});
-  });
-  var aseEjeSorted=Object.keys(byAsesorEje).map(function(k){return byAsesorEje[k];}).sort(function(a,b){return b.count-a.count||a.nombre.localeCompare(b.nombre);});
-  var maxAseEje=aseEjeSorted.length?aseEjeSorted[0].count:1;
-  var totalEje=ejeSet.length;
-  var sinAseEje=ejeSet.filter(function(p){return !_tieneAse(p);}).length;
-  // Por especialidad con categoría
-  var byEsp={};
-  var _addEsp=function(espName,cat,aseName,projName){
-    if(!espName||!aseName)return;var ek=espName.trim();var ak=aseName.trim().toLowerCase();if(!ek||!ak)return;
+  var catOrderStats=['Cotizaciones de Diseño','Estudios Preliminares','Trámites, Licencias y Permisos'];
+  var espCatMap={},espOrderMap={};
+  Object.keys(catCotStats).forEach(function(g){var v=catCotStats[g]||{};[].concat(v.base||[],v.extras||[]).forEach(function(e,i){espCatMap[e]=g;espOrderMap[e]=i;});});
+  // Recolectar (especialidad, asesor) por proyecto, separando por etapa (precon/eje)
+  var byEsp={}; // esp -> {cat, ase:{ak:{nombre, precon:{}, eje:{}}}}
+  var _add=function(esp,cat,ase,proj,bucket){
+    if(!esp||!ase)return;var ek=String(esp).trim();var ak=String(ase).trim().toLowerCase();if(!ek||!ak)return;
     if(!byEsp[ek])byEsp[ek]={cat:cat||espCatMap[ek]||'Otros',ase:{}};
-    if(!byEsp[ek].ase[ak])byEsp[ek].ase[ak]={nombre:aseName.trim(),projsSet:{}};
-    byEsp[ek].ase[ak].projsSet[projName]=1;
+    if(cat&&byEsp[ek].cat==='Otros')byEsp[ek].cat=cat;
+    if(!byEsp[ek].ase[ak])byEsp[ek].ase[ak]={nombre:String(ase).trim(),precon:{},eje:{}};
+    byEsp[ek].ase[ak][bucket][proj]=1;
   };
-  ejeSet.forEach(function(p){
-    _cotsAll.forEach(function(c){if(String(c.projId)!==String(p.id))return;(c.especialidades||[]).forEach(function(e){(e.asesores||[]).forEach(function(a){if(a&&a.elegido&&a.empresa&&a.empresa.trim())_addEsp(e.nombre,e.categoria,a.empresa,p.nombre);});});});
-    if(p.costosEjec)Object.keys(p.costosEjec).forEach(function(k){if(k.indexOf(':')>=0||k.indexOf('__')===0)return;var a=p.costosEjec[k]&&p.costosEjec[k].asesor;if(a&&String(a).trim())_addEsp(k,espCatMap[k],a,p.nombre);});
+  projSet.forEach(function(p){
+    var b=_bucket(p);
+    _cotsAll.forEach(function(c){if(String(c.projId)!==String(p.id))return;(c.especialidades||[]).forEach(function(e){(e.asesores||[]).forEach(function(a){if(a&&a.elegido&&a.empresa&&a.empresa.trim())_add(e.nombre,e.categoria,a.empresa,p.nombre,b);});});});
+    if(p.costosEjec)Object.keys(p.costosEjec).forEach(function(k){if(k.indexOf(':')>=0||k.indexOf('__')===0)return;var a=p.costosEjec[k]&&p.costosEjec[k].asesor;if(a&&String(a).trim())_add(k,espCatMap[k],a,p.nombre,b);});
+    (p.asesoresProyecto||[]).forEach(function(n){if(n&&String(n).trim())_add('(sin especialidad)','Otros',n,p.nombre,b);});
   });
   var espByCat={};
   Object.keys(byEsp).forEach(function(en){var cat=byEsp[en].cat||'Otros';if(!espByCat[cat])espByCat[cat]=[];espByCat[cat].push(en);});
   var catList=catOrderStats.filter(function(c){return espByCat[c];}).concat(Object.keys(espByCat).filter(function(c){return catOrderStats.indexOf(c)<0;}).sort());
   var selCatAse=ld('gh_stats_ase_cat','');if(selCatAse&&catList.indexOf(selCatAse)<0)selCatAse='';
   var catsToShow=selCatAse?[selCatAse]:catList;
-  var maxEspAseGlobal=1;
-  Object.keys(byEsp).forEach(function(en){Object.keys(byEsp[en].ase).forEach(function(ak){var c=Object.keys(byEsp[en].ase[ak].projsSet).length;if(c>maxEspAseGlobal)maxEspAseGlobal=c;});});
-  // Barra horizontal clicable que despliega proyectos
-  var _aseBar=function(x,maxV,pref,i){
-    var id=pref+'_'+i;var pct=Math.max(3,Math.round(x.count/maxV*100));
-    return '<div style="margin-bottom:9px">'
-      +'<div onclick="toggleAseProjs(\''+id+'\')" style="cursor:pointer" title="Clic para ver proyectos">'
-      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px"><span style="font-size:11px;font-weight:600;color:#254467;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;max-width:280px">▸ '+x.nombre+'</span><span style="font-size:11px;color:#5B21B6;font-weight:800;flex-shrink:0">'+x.count+'</span></div>'
-      +'<div style="height:16px;background:#f0ecfa;border-radius:4px;overflow:hidden"><div style="width:'+pct+'%;height:100%;background:#7C3AED;border-radius:4px"></div></div>'
+  var maxTotal=1;
+  Object.keys(byEsp).forEach(function(en){Object.keys(byEsp[en].ase).forEach(function(ak){var o=byEsp[en].ase[ak];var t=Object.keys(o.precon).length+Object.keys(o.eje).length;if(t>maxTotal)maxTotal=t;});});
+  var totalEje=projSet.length;
+  var sinAseEje=projSet.filter(function(p){
+    var has=false;
+    _cotsAll.forEach(function(c){if(String(c.projId)===String(p.id)&&(c.especialidades||[]).some(function(e){return (e.asesores||[]).some(function(a){return a.elegido;});}))has=true;});
+    if(p.costosEjec&&Object.keys(p.costosEjec).some(function(k){return p.costosEjec[k]&&p.costosEjec[k].asesor;}))has=true;
+    if(p.asesoresProyecto&&p.asesoresProyecto.length)has=true;
+    return !has;
+  }).length;
+  // Barra vertical apilada (precon arriba, ejecutivo abajo)
+  var BARH=130;window.__aseVB={};
+  var _vbar=function(x,pref,i){
+    var pc=x.precon.length,ej=x.eje.length,tot=pc+ej;var id=pref+'_'+i;
+    window.__aseVB[id]={nombre:x.nombre,precon:x.precon,eje:x.eje};
+    var hPre=Math.round(pc/maxTotal*BARH),hEje=Math.round(ej/maxTotal*BARH);
+    if(pc>0&&hPre<3)hPre=3;if(ej>0&&hEje<3)hEje=3;
+    var nm=String(x.nombre).replace(/</g,'&lt;');
+    return '<div onclick="aseVBShow(\''+id+'\')" style="display:flex;flex-direction:column;align-items:center;width:60px;flex-shrink:0;cursor:pointer" title="'+nm+' — Precon: '+pc+' · Ejecutivo: '+ej+'">'
+      +'<div style="font-size:11px;font-weight:800;color:#254467;margin-bottom:2px">'+tot+'</div>'
+      +'<div style="display:flex;flex-direction:column;justify-content:flex-end;height:'+BARH+'px;width:28px">'
+      +(pc>0?'<div style="height:'+hPre+'px;background:#C4B5FD;border-radius:3px 3px 0 0"></div>':'')
+      +(ej>0?'<div style="height:'+hEje+'px;background:#7C3AED;border-radius:'+(pc>0?'0 0 3px 3px':'3px')+'"></div>':'')
       +'</div>'
-      +'<div id="'+id+'" style="display:none;font-size:10px;color:#67727a;margin-top:5px;padding:6px 9px;background:#faf8ff;border-radius:6px">📁 '+x.count+' proyecto'+(x.count!==1?'s':'')+': '+x.projs.map(function(n){return String(n).replace(/</g,'&lt;');}).join(' · ')+'</div>'
+      +'<div style="font-size:8px;color:#67727a;margin-top:4px;width:60px;text-align:center;line-height:1.1;height:22px;overflow:hidden">'+nm+'</div>'
       +'</div>';
   };
-  // Por categoría / ingeniería
+  var _espOrder=function(a,b){var oa=espOrderMap[a],ob=espOrderMap[b];if(oa!=null&&ob!=null)return oa-ob;if(oa!=null)return -1;if(ob!=null)return 1;return a.localeCompare(b);};
   var porCatHtml='';
   catsToShow.forEach(function(cat){
-    var esps=(espByCat[cat]||[]).sort(function(a,b){return a.localeCompare(b);});
+    var esps=(espByCat[cat]||[]).slice().sort(_espOrder);
     if(!esps.length)return;
-    porCatHtml+='<div style="margin-bottom:14px"><div style="font-size:11px;font-weight:800;color:#5B21B6;text-transform:uppercase;letter-spacing:.04em;border-bottom:1.5px solid #e5ddf7;padding-bottom:4px;margin-bottom:8px">'+cat+'</div>';
+    porCatHtml+='<div style="margin-bottom:16px;border:.5px solid #e5ddf7;border-radius:10px;padding:12px 14px;background:#fcfbff">'
+      +'<div style="font-size:12px;font-weight:800;color:#5B21B6;text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px">'+cat+'</div>';
     esps.forEach(function(en){
-      var arr=Object.keys(byEsp[en].ase).map(function(ak){var o=byEsp[en].ase[ak];return {nombre:o.nombre,count:Object.keys(o.projsSet).length,projs:Object.keys(o.projsSet)};}).sort(function(a,b){return b.count-a.count||a.nombre.localeCompare(b.nombre);});
-      var pref='asec_'+cat.replace(/[^a-z0-9]/gi,'')+'_'+en.replace(/[^a-z0-9]/gi,'');
-      porCatHtml+='<div style="font-size:10px;font-weight:700;color:#254467;margin:8px 0 5px">'+en+'</div>'
-        +arr.map(function(x,i){return _aseBar(x,maxEspAseGlobal,pref,i);}).join('');
+      var arr=Object.keys(byEsp[en].ase).map(function(ak){var o=byEsp[en].ase[ak];return {nombre:o.nombre,precon:Object.keys(o.precon),eje:Object.keys(o.eje)};}).sort(function(a,b){return (b.precon.length+b.eje.length)-(a.precon.length+a.eje.length)||a.nombre.localeCompare(b.nombre);});
+      if(!arr.length)return;
+      var pref='avb_'+cat.replace(/[^a-z0-9]/gi,'')+'_'+en.replace(/[^a-z0-9]/gi,'');
+      porCatHtml+='<div style="margin-bottom:12px">'
+        +'<div style="font-size:11px;font-weight:700;color:#254467;margin-bottom:6px">'+en.replace(/</g,'&lt;')+' <span style="font-size:9px;font-weight:400;color:#a8a8a8">('+arr.length+' asesor'+(arr.length!==1?'es':'')+')</span></div>'
+        +'<div style="display:flex;gap:10px;align-items:flex-end;overflow-x:auto;padding:6px 2px 2px;border-bottom:1px solid #eef2f6">'
+        +arr.map(function(x,i){return _vbar(x,pref,i);}).join('')
+        +'</div>'
+        +'<div id="det_'+pref+'" style="display:none;font-size:10px;color:#67727a;margin-top:6px;padding:7px 10px;background:#faf8ff;border-radius:6px"></div>'
+        +'</div>';
     });
     porCatHtml+='</div>';
   });
@@ -11668,24 +11684,17 @@ function renderEstadisticas(){
   var yearOptsAse='<option value="">Todos los años</option>'+aseYearList.map(function(y){return '<option value="'+y+'"'+(y===aseYearSel?' selected':'')+'>'+y+'</option>';}).join('');
   var scopeBtn=function(v,lbl){return '<button onclick="sv(\'gh_stats_ase_scope\',\''+v+'\');renderEstadisticas()" style="font-size:10px;padding:3px 10px;border:.5px solid #bfd1e5;border-radius:5px;cursor:pointer;font-family:Arial;background:'+(aseScope===v?'#254467':'#fff')+';color:'+(aseScope===v?'#fff':'#67727a')+'">'+lbl+'</button>';};
   var aseHtml='<div style="background:#fff;border-radius:12px;border:.5px solid #bfd1e5;padding:16px 18px;margin-bottom:1.25rem">'
-    +'<div class="sec" style="margin-top:0;margin-bottom:4px">🏗️ Contratistas / asesores en proyectos ejecutivos</div>'
-    +'<div style="font-size:10px;color:#67727a;margin-bottom:10px">'+totalEje+' proyecto'+(totalEje!==1?'s':'')+' ejecutivo'+(totalEje!==1?'s':'')+' · haz clic en un asesor para ver en qué proyectos está'+(sinAseEje?' · <span style="color:#e65a27;font-weight:700">'+sinAseEje+' sin asesor asignado</span>':'')+'</div>'
+    +'<div class="sec" style="margin-top:0;margin-bottom:4px">🏗️ Contratistas / asesores por especialidad</div>'
+    +'<div style="font-size:10px;color:#67727a;margin-bottom:10px">Cada barra es un asesor · la altura es el número de proyectos · '
+    +'<span style="display:inline-block;width:10px;height:10px;background:#C4B5FD;border-radius:2px;vertical-align:middle"></span> preconstrucción (arriba) &nbsp; '
+    +'<span style="display:inline-block;width:10px;height:10px;background:#7C3AED;border-radius:2px;vertical-align:middle"></span> ejecutivo (abajo) · clic en una barra para ver los proyectos'
+    +(sinAseEje?' · <span style="color:#e65a27;font-weight:700">'+sinAseEje+' proyecto'+(sinAseEje!==1?'s':'')+' sin asesor</span>':'')+'</div>'
     +'<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px">'
     +'<span style="font-size:10px;color:#67727a">Ámbito:</span>'+scopeBtn('activos','Activos')+scopeBtn('todos','Todos')
     +'<span style="font-size:10px;color:#67727a;margin-left:6px">Año:</span><select onchange="sv(\'gh_stats_ase_year\',this.value);renderEstadisticas()" style="font-size:10px;padding:3px 7px;border-radius:5px;border:.5px solid #bfd1e5;font-family:Arial">'+yearOptsAse+'</select>'
+    +'<span style="font-size:10px;color:#67727a;margin-left:6px">Categoría:</span><select onchange="sv(\'gh_stats_ase_cat\',this.value);renderEstadisticas()" style="font-size:10px;padding:3px 7px;border-radius:5px;border:.5px solid #bfd1e5;font-family:Arial">'+catOptsAse+'</select>'
     +'</div>'
-    +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.25rem">'
-    // Global
-    +'<div><div style="font-size:12px;font-weight:700;color:#254467;margin-bottom:10px">Global (todas las categorías)</div>'
-    +(aseEjeSorted.length?aseEjeSorted.map(function(x,i){return _aseBar(x,maxAseEje,'aseg',i);}).join(''):'<div style="font-size:11px;color:#a8a8a8">Aún no hay asesores asignados. Agrégalos en la ficha del proyecto (campo <strong>"Asesores / contratistas del proyecto"</strong>) o en Costos.</div>')
-    +'</div>'
-    // Por categoría / ingeniería
-    +'<div><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px"><span style="font-size:12px;font-weight:700;color:#254467">Por categoría / ingeniería</span>'
-    +(catList.length?'<select onchange="sv(\'gh_stats_ase_cat\',this.value);renderEstadisticas()" style="font-size:10px;padding:3px 7px;border-radius:5px;border:.5px solid #bfd1e5;font-family:Arial;margin-left:auto">'+catOptsAse+'</select>':'')
-    +'</div>'
-    +(porCatHtml||'<div style="font-size:11px;color:#a8a8a8">Sin datos por categoría todavía. Esta vista usa el asesor elegido en cotizaciones y en Costos (ligados a una especialidad).</div>')
-    +'</div>'
-    +'</div>'
+    +(porCatHtml||'<div style="font-size:11px;color:#a8a8a8">Aún no hay asesores ligados a especialidades. Esta vista se alimenta del asesor elegido en las cotizaciones, de Costos ejecutivos y del campo <strong>"Asesores / contratistas del proyecto"</strong> de la ficha.</div>')
     +'</div>';
 
   document.getElementById('stats-container').innerHTML=`
