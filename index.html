@@ -4230,27 +4230,30 @@ function renderCotTabla(el,cots,allProjs,filterProj,catCot){
       // ── Versión minimizada ──
       if(_collMap[cot.id]){
         var _mC=calcCotMetrics(cot);
-        html+='<div style="padding:8px 14px;border-bottom:.5px solid #eef2f6;display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:#fbfcfd">'
+        html+='<div style="padding:8px 14px;border-bottom:.5px solid #eef2f6;display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:'+(cot.oficial?'#f1f8ea':'#fbfcfd')+(cot.oficial?';border-left:4px solid #3B6D11':'')+'">'
           +'<button onclick="toggleCotCollapse(\''+cot.id+'\')" title="Expandir" style="font-size:11px;padding:2px 8px;border:.5px solid #bfd1e5;border-radius:5px;background:#fff;cursor:pointer;font-family:Arial;font-weight:700">▸</button>'
-          +'<span style="font-size:12px;font-weight:700;color:#1A1A2E">'+cot.nombre+' <span style="font-size:10px;font-weight:400;color:#a8a8a8">'+fmtDY(cot.fecha)+'</span></span>'
+          +'<span style="font-size:12px;font-weight:700;color:'+(cot.oficial?'#3B6D11':'#1A1A2E')+'">'+cot.nombre+' <span style="font-size:10px;font-weight:400;color:#a8a8a8">'+fmtDY(cot.fecha)+'</span></span>'
+          +(cot.oficial?'<span style="font-size:9px;background:#3B6D11;color:#fff;border-radius:4px;padding:1px 7px;font-weight:700">✓ OFICIAL</span>':'')
           +(cot.tipoCotizacion?'<span style="font-size:10px;background:#eef3f7;color:#254467;border-radius:4px;padding:1px 7px;font-weight:700">'+cot.tipoCotizacion+'</span>':'')
           +(m2?'<span style="font-size:10px;color:#67727a">'+Number(m2).toLocaleString()+' m²</span>':'')
           +'<span style="margin-left:auto;font-size:13px;font-weight:700;color:#254467">'+(_mC.grandTotal?'$'+Math.round(_mC.grandTotal).toLocaleString('es-MX'):'-')+'</span>'
+          +'<button onclick="toggleCotOficial(\''+cot.id+'\')" title="Marcar como oficial / aceptada" style="font-size:10px;padding:2px 8px;border:.5px solid #639922;border-radius:5px;background:'+(cot.oficial?'#3B6D11':'#fff')+';color:'+(cot.oficial?'#fff':'#3B6D11')+';cursor:pointer;font-family:Arial;font-weight:700">'+(cot.oficial?'✓ Oficial':'✓')+'</button>'
           +'<button onclick="openEditCotizacion(\''+cot.id+'\')" style="font-size:10px;padding:2px 8px;border:.5px solid #bfd1e5;border-radius:5px;background:#fff;cursor:pointer;font-family:Arial">Editar</button>'
           +'<button data-cotid="'+cot.id+'" onclick="imprimirCotizacion(this.dataset.cotid)" style="font-size:10px;padding:2px 8px;border:.5px solid #6990ab;border-radius:5px;background:#fff;color:#6990ab;cursor:pointer;font-family:Arial" title="Imprimir">🖨</button>'
           +'</div>';
         return;
       }
 
-      html+='<div style="padding:12px 14px;border-bottom:.5px solid #eef2f6">'
+      html+='<div style="padding:12px 14px;border-bottom:.5px solid #eef2f6'+(cot.oficial?';border-left:4px solid #3B6D11;background:#f8fcf3':'')+'">'
         +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">'
         +'<button onclick="toggleCotCollapse(\''+cot.id+'\')" title="Minimizar" style="font-size:11px;padding:2px 8px;border:.5px solid #bfd1e5;border-radius:5px;background:#fff;cursor:pointer;font-family:Arial;font-weight:700">▾</button>'
-        +'<div style="font-size:12px;font-weight:700;color:#1A1A2E;flex:1">'+cot.nombre+' <span style="font-size:10px;font-weight:400;color:#a8a8a8">'+fmtDY(cot.fecha)+'</span></div>'
+        +'<div style="font-size:12px;font-weight:700;color:'+(cot.oficial?'#3B6D11':'#1A1A2E')+';flex:1">'+cot.nombre+' <span style="font-size:10px;font-weight:400;color:#a8a8a8">'+fmtDY(cot.fecha)+'</span>'+(cot.oficial?' <span style="font-size:9px;background:#3B6D11;color:#fff;border-radius:4px;padding:1px 7px;font-weight:700">✓ OFICIAL</span>':'')+'</div>'
         +(cot.tipoCotizacion?'<span style="font-size:10px;background:#eef3f7;color:#254467;border-radius:4px;padding:1px 7px;font-weight:700">'+cot.tipoCotizacion+'</span>':'')
         +(m2?'<span style="font-size:10px;color:#67727a">'+Number(m2).toLocaleString()+' m² const.</span>':'')
         +(cot.areaTerreno?'<span style="font-size:10px;color:#67727a">'+Number(cot.areaTerreno).toLocaleString()+' m² terreno</span>':'')
         +(cot.indEst?'<span style="font-size:10px;background:#f0f5fa;color:#3a6080;border-radius:4px;padding:1px 6px">Est: '+cot.indEst+'%</span>':'')
         +(cot.indDis?'<span style="font-size:10px;background:#eef3f7;color:#5B21B6;border-radius:4px;padding:1px 6px">Dis: '+cot.indDis+'%</span>':'')
+        +'<button onclick="toggleCotOficial(\''+cot.id+'\')" title="Marcar como oficial / aceptada" style="font-size:10px;padding:2px 8px;border:.5px solid #639922;border-radius:5px;background:'+(cot.oficial?'#3B6D11':'#fff')+';color:'+(cot.oficial?'#fff':'#3B6D11')+';cursor:pointer;font-family:Arial;font-weight:700">'+(cot.oficial?'✓ Oficial':'✓ Marcar oficial')+'</button>'
         +'<button onclick="openEditCotizacion(\''+cot.id+'\')" style="font-size:10px;padding:2px 8px;border:.5px solid #bfd1e5;border-radius:5px;background:#fff;cursor:pointer;font-family:Arial">Editar</button>'
         +'<button data-cotid="'+cot.id+'" onclick="imprimirCotizacion(this.dataset.cotid)" style="font-size:10px;padding:2px 8px;border:.5px solid #6990ab;border-radius:5px;background:#fff;color:#6990ab;cursor:pointer;font-family:Arial">🖨 Imprimir</button>'
         +'<button data-cotid="'+cot.id+'" onclick="openComparativaModal(this.dataset.cotid)" style="font-size:10px;padding:2px 8px;border:.5px solid #7C3AED;border-radius:5px;background:#fff;color:#7C3AED;cursor:pointer;font-family:Arial">⚖ Comparar</button>'
@@ -4479,6 +4482,14 @@ function renderCotTabla(el,cots,allProjs,filterProj,catCot){
   el.innerHTML+=html;
 }
 
+function toggleCotOficial(cotId){
+  var cots=getCots();var cot=cots.find(function(c){return String(c.id)===String(cotId);});if(!cot)return;
+  cot.oficial=!cot.oficial;saveCots(cots);renderCotizaciones();
+}
+function toggleCombOficial(cbId){
+  var combs=getCombinadas();var cb=combs.find(function(c){return String(c.id)===String(cbId);});if(!cb)return;
+  cb.oficial=!cb.oficial;saveCombinadas(combs);renderCotizaciones();
+}
 function _pptoDiffHtml(mEnv,mPpto){
   if(!mEnv||!mPpto)return '<span style="color:#a8a8a8;font-size:10px;font-weight:400">captura ambos montos para ver la diferencia</span>';
   var diff=mPpto-mEnv;var pct=mEnv?diff/mEnv*100:0;
@@ -4555,10 +4566,11 @@ function renderCombinadasBlock(projId,projCots){
     var granM2=comps.reduce(function(s,c){return s+(parseFloat(c.areaM2)||0);},0);
     var totalUSD=comps.reduce(function(s,c){var tc=parseFloat(c.tipoCambio)||18;return s+calcCotMetrics(c).grandTotal/tc;},0);
     var isCol=collap.indexOf(String(cb.id))>-1;
-    html+='<div style="border:.5px solid #d9cff0;border-radius:8px;background:#fff;padding:9px 12px;margin-bottom:7px">'
+    html+='<div style="border:.5px solid '+(cb.oficial?'#639922':'#d9cff0')+';border-radius:8px;background:'+(cb.oficial?'#f8fcf3':'#fff')+';padding:9px 12px;margin-bottom:7px'+(cb.oficial?';border-left:4px solid #3B6D11':'')+'">'
       +'<div onclick="toggleCombCollapse(\''+cb.id+'\')" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:'+(isCol?'0':'6px')+';cursor:pointer" title="Clic para '+(isCol?'expandir':'colapsar')+'">'
       +'<span style="font-size:11px;color:#7C3AED;width:12px">'+(isCol?'▸':'▾')+'</span>'
-      +'<span style="font-size:12px;font-weight:700;color:#5B21B6">'+cb.nombre+'</span>'
+      +'<span style="font-size:12px;font-weight:700;color:'+(cb.oficial?'#3B6D11':'#5B21B6')+'">'+cb.nombre+'</span>'
+      +(cb.oficial?'<span style="font-size:9px;background:#3B6D11;color:#fff;border-radius:4px;padding:1px 7px;font-weight:700">✓ OFICIAL</span>':'')
       +'<span style="font-size:10px;color:#a8a8a8">'+fmtDY(cb.fecha)+'</span>'
       +'<span style="font-size:9px;background:#efe9fb;color:#7C3AED;border-radius:4px;padding:1px 7px;font-weight:700">'+comps.length+' alcance'+(comps.length!==1?'s':'')+'</span>'
       +(granM2?'<span style="font-size:10px;color:#67727a">'+Number(granM2).toLocaleString()+' m²</span>':'')
@@ -4584,6 +4596,7 @@ function renderCombinadasBlock(projId,projCots){
       +(cb.componentes&&cb.componentes.length>comps.length?'<div style="font-size:9px;color:#e65a27">⚠ Algún alcance fue eliminado; edita la combinada.</div>':'')
       +'</div>'
       +'<div style="display:flex;gap:6px;flex-wrap:wrap">'
+      +'<button onclick="toggleCombOficial(\''+cb.id+'\')" title="Marcar como oficial / aceptada" style="font-size:10px;padding:2px 8px;border:.5px solid #639922;border-radius:5px;background:'+(cb.oficial?'#3B6D11':'#fff')+';color:'+(cb.oficial?'#fff':'#3B6D11')+';cursor:pointer;font-family:Arial;font-weight:700">'+(cb.oficial?'✓ Oficial':'✓ Marcar oficial')+'</button>'
       +'<button onclick="imprimirCombinada(\''+cb.id+'\')" style="font-size:10px;padding:2px 8px;border:.5px solid #6990ab;border-radius:5px;background:#fff;color:#6990ab;cursor:pointer;font-family:Arial">🖨 Imprimir</button>'
       +'<button onclick="openArmarCombinada('+projId+',\''+cb.id+'\')" style="font-size:10px;padding:2px 8px;border:.5px solid #bfd1e5;border-radius:5px;background:#fff;cursor:pointer;font-family:Arial">✏ Editar</button>'
       +'<button onclick="deleteCombinada(\''+cb.id+'\')" style="font-size:10px;padding:2px 8px;border:.5px solid #FECACA;border-radius:5px;background:#fff;color:#e65a27;cursor:pointer;font-family:Arial">✕</button>'
