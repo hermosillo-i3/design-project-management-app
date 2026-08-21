@@ -4486,6 +4486,12 @@ function toggleCotOficial(cotId){
   var cots=getCots();var cot=cots.find(function(c){return String(c.id)===String(cotId);});if(!cot)return;
   cot.oficial=!cot.oficial;saveCots(cots);renderCotizaciones();
 }
+function combRowToggle(rid){
+  var r=document.getElementById(rid);if(!r)return;
+  var show=r.style.display==='none';r.style.display=show?'table-row':'none';
+  // cambiar flechita en la celda del alcance (fila anterior)
+  var prev=r.previousElementSibling;if(prev){var td=prev.firstElementChild;if(td)td.innerHTML=td.innerHTML.replace(show?'▸':'▾',show?'▾':'▸');}
+}
 function toggleCombOficial(cbId){
   var combs=getCombinadas();var cb=combs.find(function(c){return String(c.id)===String(cbId);});if(!cb)return;
   cb.oficial=!cb.oficial;saveCombinadas(combs);renderCotizaciones();
@@ -4600,14 +4606,25 @@ function renderCombinadasBlock(projId,projCots){
       +'<th style="text-align:right;padding:4px 8px;font-size:9px;font-weight:700;color:#7C3AED;border-bottom:.5px solid #d9cff0">MXN/m²</th>'
       +'<th style="text-align:right;padding:4px 8px;font-size:9px;font-weight:700;color:#7C3AED;border-bottom:.5px solid #d9cff0">USD/m²</th>'
       +'</tr></thead><tbody>'
-      +comps.map(function(c){var t=calcCotMetrics(c).grandTotal;var cm2=parseFloat(c.areaM2)||0;var ctc=parseFloat(c.tipoCambio)||18;return '<tr>'
-        +'<td style="padding:4px 8px;color:#254467;font-weight:600;border-bottom:.5px solid #f0ecf8">'+String(c.nombre).replace(/</g,'&lt;')+'</td>'
+      +comps.map(function(c,i){var mC=calcCotMetrics(c);var t=mC.grandTotal;var cm2=parseFloat(c.areaM2)||0;var ctc=parseFloat(c.tipoCambio)||18;
+        var rid='combrow_'+String(cb.id).replace(/[^a-z0-9]/gi,'')+'_'+i;
+        // Desglose por especialidad de este alcance
+        var inner='';Object.keys(mC.bySection||{}).forEach(function(cat){var sec=mC.bySection[cat];if(!sec||!sec.esps||!sec.esps.length)return;
+          inner+='<tr><td colspan="3" style="padding:3px 8px;font-size:9px;font-weight:700;color:#7C3AED;background:#f6f2fc;text-transform:uppercase">'+cat+'</td></tr>';
+          sec.esps.forEach(function(e){inner+='<tr><td style="padding:2px 8px 2px 20px;color:#254467">'+String(e.nombre).replace(/</g,'&lt;')+'</td><td style="padding:2px 8px;text-align:right;color:#8a97a3">'+fmt(e.mxn||0)+'</td><td style="padding:2px 8px;text-align:right;font-weight:600;color:#254467">'+fmt(e.withInd||0)+'</td></tr>';});
+          inner+='<tr><td style="padding:2px 8px;text-align:right;font-size:9px;color:#8a97a3">Subtotal '+cat+'</td><td style="padding:2px 8px;text-align:right;font-size:9px;color:#8a97a3">'+fmt(sec.direct||0)+'</td><td style="padding:2px 8px;text-align:right;font-size:9px;font-weight:700;color:#5B21B6">'+fmt(sec.withInd||0)+'</td></tr>';
+        });
+        if(!inner)inner='<tr><td style="padding:4px 8px;color:#a8a8a8">Sin partidas capturadas en este alcance.</td></tr>';
+        var detHtml='<table style="width:100%;border-collapse:collapse;font-size:10px"><thead><tr><th style="text-align:left;padding:2px 8px;font-size:8px;color:#a8a8a8;font-weight:700">Especialidad</th><th style="text-align:right;padding:2px 8px;font-size:8px;color:#a8a8a8;font-weight:700">Directo</th><th style="text-align:right;padding:2px 8px;font-size:8px;color:#a8a8a8;font-weight:700">Con indirecto</th></tr></thead><tbody>'+inner+'</tbody></table>';
+        return '<tr>'
+        +'<td onclick="combRowToggle(\''+rid+'\')" style="padding:4px 8px;color:#254467;font-weight:600;border-bottom:.5px solid #f0ecf8;cursor:pointer" title="Clic para ver qué incluye">▸ '+String(c.nombre).replace(/</g,'&lt;')+'</td>'
         +'<td style="padding:4px 8px;color:#67727a;border-bottom:.5px solid #f0ecf8">'+(c.tipoCotizacion||'—')+'</td>'
         +'<td style="padding:4px 8px;text-align:right;color:#67727a;border-bottom:.5px solid #f0ecf8">'+(cm2?Number(cm2).toLocaleString():'—')+'</td>'
         +'<td style="padding:4px 8px;text-align:right;font-weight:700;color:#254467;border-bottom:.5px solid #f0ecf8">'+fmt(t)+'</td>'
         +'<td style="padding:4px 8px;text-align:right;color:#67727a;border-bottom:.5px solid #f0ecf8">'+(cm2?'$'+(t/cm2).toFixed(2):'—')+'</td>'
         +'<td style="padding:4px 8px;text-align:right;color:#67727a;border-bottom:.5px solid #f0ecf8">'+(cm2&&ctc?'$'+(t/cm2/ctc).toFixed(2):'—')+'</td>'
-        +'</tr>';}).join('')
+        +'</tr>'
+        +'<tr id="'+rid+'" style="display:none"><td colspan="6" style="padding:6px 10px 8px;background:#fbfaff;border-bottom:.5px solid #f0ecf8">'+detHtml+'</td></tr>';}).join('')
       +'<tr style="background:#f3eefb"><td style="padding:5px 8px;font-weight:800;color:#5B21B6">TOTAL</td><td></td>'
       +'<td style="padding:5px 8px;text-align:right;font-weight:700;color:#5B21B6">'+(granM2?Number(granM2).toLocaleString():'—')+'</td>'
       +'<td style="padding:5px 8px;text-align:right;font-weight:800;color:#5B21B6">'+fmt(total)+'</td>'
