@@ -5729,6 +5729,8 @@ function openComparativaModal(cotId){
   // Build selector list — all other cots
   var otherCots=allCots.filter(function(c){return String(c.id)!==String(cotId);});
   var PERDIDOS_EST=['Perdido','Cancelado'];
+  var esc=function(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');};
+  var cliSet={},tipoSet={};
   var listHtml=otherCots.map(function(c){
     var p=allProjs.find(function(p){return String(p.id)===String(c.projId);});
     var pName=p?p.nombre:'Proyecto';
@@ -5736,13 +5738,21 @@ function openComparativaModal(cotId){
     var isPerd=p&&PERDIDOS_EST.includes(p.estatusProy||'');
     var badge=isArch?'<span style="font-size:8px;background:#eee;color:#888;border-radius:3px;padding:1px 4px;margin-left:4px">Archivado</span>'
       :isPerd?'<span style="font-size:8px;background:#fdd;color:#c0392b;border-radius:3px;padding:1px 4px;margin-left:4px">'+(p.estatusProy)+'</span>':'';
-    var cliente=p&&p.cliente?(' — <span style="color:#6990ab">'+p.cliente+'</span>'):'';
+    var cliRaw=p&&p.cliente?p.cliente:'';
+    var cliente=cliRaw?(' — <span style="color:#6990ab">'+esc(cliRaw)+'</span>'):'';
+    var m2num=parseFloat(c.areaM2)||0;
     var m2=c.areaM2?(' · '+Number(c.areaM2).toLocaleString()+' m²'):'';
-    return '<label style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:7px;border:.5px solid #bfd1e5;cursor:pointer;font-size:11px;background:#fff;transition:background .15s" onmouseover="this.style.background=\'#f0f5fa\'" onmouseout="this.style.background=\'#fff\'">'
+    var tipo=c.tipoCotizacion||'';
+    if(cliRaw)cliSet[cliRaw]=1;if(tipo)tipoSet[tipo]=1;
+    var search=(pName+' '+cliRaw+' '+c.nombre+' '+tipo).toLowerCase();
+    return '<label class="comp-row" data-cli="'+esc(cliRaw.toLowerCase())+'" data-m2="'+m2num+'" data-tipo="'+esc(tipo.toLowerCase())+'" data-search="'+esc(search)+'" style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:7px;border:.5px solid #bfd1e5;cursor:pointer;font-size:11px;background:#fff;transition:background .15s" onmouseover="this.style.background=\'#f0f5fa\'" onmouseout="this.style.background=\'#fff\'">'
       +'<input type="checkbox" value="'+c.id+'" style="cursor:pointer;accent-color:#7C3AED">'
-      +'<span><strong>'+pName+'</strong>'+badge+cliente+' / '+c.nombre+'<span style="color:#a8a8a8">'+m2+'</span></span>'
+      +'<span><strong>'+esc(pName)+'</strong>'+badge+cliente+' / '+esc(c.nombre)+'<span style="color:#a8a8a8">'+m2+'</span></span>'
       +'</label>';
   }).join('');
+  var clienteOpts='<option value="">Todos los clientes</option>'+Object.keys(cliSet).sort().map(function(x){return '<option value="'+esc(x.toLowerCase())+'">'+esc(x)+'</option>';}).join('');
+  var tipoOpts='<option value="">Todos los tipos</option>'+Object.keys(tipoSet).sort().map(function(x){return '<option value="'+esc(x.toLowerCase())+'">'+esc(x)+'</option>';}).join('');
+  var m2ActualNum=parseFloat(cot.areaM2)||0;
 
   var pName=proj?proj.nombre:'Proyecto';
   var m2Actual=cot.areaM2?Number(cot.areaM2).toLocaleString()+' m²':'sin m²';
@@ -5751,6 +5761,18 @@ function openComparativaModal(cotId){
     '<h3 style="margin-bottom:4px">⚖ Comparativa de cotizaciones</h3>'
     +'<div style="font-size:11px;color:#67727a;margin-bottom:14px">Cotización actual: <strong>'+pName+' / '+cot.nombre+'</strong> · '+m2Actual+'</div>'
     +'<div style="font-size:11px;font-weight:700;color:#254467;margin-bottom:8px">Selecciona los proyectos a comparar:</div>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;padding:8px 10px;background:#f8fafc;border:.5px solid #e2e8f0;border-radius:8px">'
+    +'<input id="comp-f-text" oninput="comparativaFilter()" placeholder="🔍 Buscar proyecto/cliente/cotización" style="flex:1;min-width:150px;font-size:11px;padding:5px 8px;border:.5px solid #bfd1e5;border-radius:6px;font-family:Arial">'
+    +'<select id="comp-f-cli" onchange="comparativaFilter()" style="font-size:11px;padding:5px 7px;border-radius:6px;border:.5px solid #bfd1e5;font-family:Arial;max-width:160px">'+clienteOpts+'</select>'
+    +'<select id="comp-f-tipo" onchange="comparativaFilter()" style="font-size:11px;padding:5px 7px;border-radius:6px;border:.5px solid #bfd1e5;font-family:Arial;max-width:160px">'+tipoOpts+'</select>'
+    +'<span style="font-size:10px;color:#67727a">m²:</span>'
+    +'<input id="comp-f-m2min" type="number" oninput="comparativaFilter()" placeholder="mín" style="width:64px;font-size:11px;padding:5px 6px;border:.5px solid #bfd1e5;border-radius:6px;font-family:Arial;text-align:right">'
+    +'<input id="comp-f-m2max" type="number" oninput="comparativaFilter()" placeholder="máx" style="width:64px;font-size:11px;padding:5px 6px;border:.5px solid #bfd1e5;border-radius:6px;font-family:Arial;text-align:right">'
+    +(m2ActualNum?'<button type="button" onclick="comparativaM2Similar('+m2ActualNum+')" title="Metraje parecido al de la cotización actual (±20%)" style="font-size:10px;padding:4px 8px;border:.5px solid #7C3AED;border-radius:6px;background:#fff;color:#7C3AED;cursor:pointer;font-family:Arial;font-weight:700">≈ m² del actual</button>':'')
+    +'<button type="button" onclick="comparativaSelectVisible()" style="font-size:10px;padding:4px 8px;border:.5px solid #639922;border-radius:6px;background:#fff;color:#3B6D11;cursor:pointer;font-family:Arial;font-weight:700">✓ Seleccionar visibles</button>'
+    +'<button type="button" onclick="comparativaClearSel()" style="font-size:10px;padding:4px 8px;border:.5px solid #bfd1e5;border-radius:6px;background:#fff;color:#67727a;cursor:pointer;font-family:Arial">✕ Limpiar</button>'
+    +'<span id="comp-count" style="font-size:9px;color:#a8a8a8;margin-left:auto"></span>'
+    +'</div>'
     +'<div style="max-height:280px;overflow-y:auto;display:flex;flex-direction:column;gap:5px;margin-bottom:14px" id="comp-list">'
     +(listHtml||'<div style="color:#a8a8a8;font-size:11px;padding:1rem">No hay otras cotizaciones registradas.</div>')
     +'</div>'
@@ -5764,6 +5786,37 @@ function openComparativaModal(cotId){
   openModal();
 }
 
+function comparativaFilter(){
+  var g=function(id){var e=document.getElementById(id);return e?e.value:'';};
+  var t=g('comp-f-text').toLowerCase().trim();
+  var cli=g('comp-f-cli');var tipo=g('comp-f-tipo');
+  var mn=parseFloat(g('comp-f-m2min'));var mx=parseFloat(g('comp-f-m2max'));
+  var rows=document.querySelectorAll('#comp-list .comp-row');var shown=0;
+  Array.prototype.forEach.call(rows,function(r){
+    var ok=true;
+    if(t&&r.getAttribute('data-search').indexOf(t)<0)ok=false;
+    if(cli&&r.getAttribute('data-cli')!==cli)ok=false;
+    if(tipo&&r.getAttribute('data-tipo')!==tipo)ok=false;
+    var m2=parseFloat(r.getAttribute('data-m2'))||0;
+    if(!isNaN(mn)&&m2<mn)ok=false;
+    if(!isNaN(mx)&&mx>0&&m2>mx)ok=false;
+    r.style.display=ok?'flex':'none';if(ok)shown++;
+  });
+  var cc=document.getElementById('comp-count');if(cc)cc.textContent=shown+' visible'+(shown!==1?'s':'');
+}
+function comparativaM2Similar(base){
+  var lo=Math.round(base*0.8),hi=Math.round(base*1.2);
+  var a=document.getElementById('comp-f-m2min'),b=document.getElementById('comp-f-m2max');
+  if(a)a.value=lo;if(b)b.value=hi;comparativaFilter();
+}
+function comparativaSelectVisible(){
+  var rows=document.querySelectorAll('#comp-list .comp-row');
+  Array.prototype.forEach.call(rows,function(r){if(r.style.display!=='none'){var cb=r.querySelector('input[type=checkbox]');if(cb)cb.checked=true;}});
+}
+function comparativaClearSel(){
+  var cbs=document.querySelectorAll('#comp-list input[type=checkbox]');
+  Array.prototype.forEach.call(cbs,function(cb){cb.checked=false;});
+}
 function renderComparativaTable(cotId){
   var allCots=getCots();
   var allProjs=[...ld(K.proj,[])];
