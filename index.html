@@ -1314,15 +1314,16 @@ function renderCargaGantt(){
     arr.sort(function(a,b){return a.t-b.t;});return arr;
   };
   var rows=[];
-  activeProjs().filter(function(p){return !p.archivado;}).forEach(function(p){
-    if(!p.arranque)return;
-    var start=new Date(p.arranque);if(isNaN(start))return;
+  activeProjs().forEach(function(p){
     var sec=p.etapa==='PRECON'?'PRECON':(['EJECUTIVO','REVISIONES'].indexOf(p.etapa)>=0?'EJECUTIVO':null);
     if(!sec)return;
     var ents=_entregas(p);
-    var endT=ents.length?ents[ents.length-1].t:today.getTime();
-    if(endT<start.getTime())endT=Math.max(today.getTime(),start.getTime()+MS);
-    rows.push({proj:p,coord:p.coord||'(sin coordinador)',jefe:p.jefe||'—',start:start,startT:start.getTime(),endT:endT,ents:ents,sec:sec});
+    var arrT=(p.arranque&&!isNaN(new Date(p.arranque).getTime()))?new Date(p.arranque).getTime():null;
+    var hasArr=arrT!=null;
+    var startT=hasArr?arrT:(ents.length?ents[0].t:today.getTime());
+    var endT=ents.length?ents[ents.length-1].t:(hasArr?Math.max(today.getTime(),startT+MS):startT+MS);
+    if(endT<startT)endT=Math.max(today.getTime(),startT+MS);
+    rows.push({proj:p,coord:p.coord||'(sin coordinador)',jefe:p.jefe||'—',startT:startT,endT:endT,ents:ents,sec:sec,hasArr:hasArr});
   });
   if(!rows.length){el.innerHTML='<div style="padding:2rem;text-align:center;color:#a8a8a8;font-size:12px">No hay proyectos activos con fecha de arranque. Captura la F. Arranque en la ficha del proyecto para verlos aquí.</div>';return;}
   var minT=Math.min.apply(null,rows.map(function(r){return r.startT;}));
@@ -1352,9 +1353,10 @@ function renderCargaGantt(){
     var dur=durTxt(r.endT-r.startT);
     // barra base arranque -> primera entrega (color), y extensión clara hasta la última
     var extW=xOf(r.endT)-xOf(firstEndT);
-    var bar='<div onclick="openProyecto('+p.id+')" title="'+esc(p.nombre)+' — arranque '+p.arranque+(r.ents.length?' · entregas: '+r.ents.map(function(e,i){return (i+1)+') '+e.str;}).join('  '):' · sin entrega')+'" style="position:absolute;left:'+bl+'px;top:7px;height:15px;width:'+Math.max(5,xOf(r.endT)-bl)+'px;cursor:pointer;z-index:1">'
+    var noArr=!r.hasArr;
+    var bar='<div onclick="openProyecto('+p.id+')" title="'+esc(p.nombre)+' — arranque '+(p.arranque||'(sin fecha)')+(r.ents.length?' · entregas: '+r.ents.map(function(e,i){return (i+1)+') '+e.str;}).join('  '):' · sin entrega')+'" style="position:absolute;left:'+bl+'px;top:7px;height:15px;width:'+Math.max(5,xOf(r.endT)-bl)+'px;cursor:pointer;z-index:1">'
       // tramo 1 (arranque -> 1a entrega) color lleno
-      +'<div style="position:absolute;left:0;top:0;height:15px;width:'+bwFirst+'px;background:'+col+';border-radius:4px 0 0 4px;box-shadow:0 1px 2px rgba(0,0,0,.12)"></div>'
+      +'<div style="position:absolute;left:0;top:0;height:15px;width:'+bwFirst+'px;background:'+col+';border-radius:4px 0 0 4px;box-shadow:0 1px 2px rgba(0,0,0,.12)'+(noArr?';opacity:.5;border:1px dashed rgba(255,255,255,.9)':'')+'"></div>'
       // tramo(s) posteriores (2a, 3a entrega) mismo color más tenue
       +(extW>1?'<div style="position:absolute;left:'+bwFirst+'px;top:0;height:15px;width:'+extW+'px;background:'+col+';opacity:.4;border-radius:0 4px 4px 0"></div>':'')
       +'</div>';
@@ -1368,7 +1370,7 @@ function renderCargaGantt(){
     return '<div style="display:flex;align-items:center;min-width:'+MW+'px;border-top:1px solid #f4f6f8">'
       +'<div style="position:sticky;left:0;width:'+LABELW+'px;flex-shrink:0;padding:4px 10px 4px 22px;background:#fff;z-index:2;overflow:hidden">'
       +'<div style="font-size:10px;font-weight:600;color:#254467;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+esc(p.nombre)+'">'+esc(p.nombre)+'</div>'
-      +'<div style="font-size:8px;color:#a8a8a8;white-space:nowrap">Jefe: '+esc(r.jefe)+' · '+dur+'</div>'
+      +'<div style="font-size:8px;color:#a8a8a8;white-space:nowrap">Jefe: '+esc(r.jefe)+' · '+dur+(noArr?' · <span style="color:#e6a817">⚠ sin arranque</span>':'')+'</div>'
       +'</div>'
       +'<div style="position:relative;height:29px;width:'+chartW+'px;flex-shrink:0">'+monthTicks+todayLine+bar+marks+'</div>'
       +'</div>';
