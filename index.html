@@ -431,12 +431,10 @@ body.qas-env{padding-top:32px}
       </select>
     </div>
     <div id="equipo-list"></div>
-    <div style="margin-top:1.75rem;border-top:1.5px solid #e5e9ee;padding-top:1rem">
-      <h2 class="sec" style="margin-top:0;color:#254467">🤝 Consultores</h2>
-      <div id="consul-chart"></div><div id="consul-list"></div>
-    </div>
   </div>
 </div>
+<!-- (contenedores legacy de consultores, ya no visibles como sección) -->
+<div style="display:none"><div id="consul-chart"></div><div id="consul-list"></div></div>
 
 <!-- COTIZACIONES -->
 <div id="p-cotizaciones" class="panel">
@@ -950,6 +948,21 @@ function bootApp(){
   comments=ld(K.comments,[]);
   cat=ld(K.cat,defCat);
   jefes=ld(K.jefes,[]);
+
+  // ── Migración: consultores pasan a ser personas del Equipo (mismas funciones) ──
+  (function migrateConsultoresToPersonas(){
+    if(!cat||!Array.isArray(cat.consultores)||!Array.isArray(cat.personas))return;
+    var changed=false;
+    var maxId=cat.personas.reduce(function(m,p){return Math.max(m,p.id||0);},0);
+    cat.consultores.forEach(function(c){
+      if(!c||!c.nombre)return;
+      if(cat.personas.some(function(p){return p.nombre===c.nombre;}))return;
+      maxId++;
+      cat.personas.push({id:maxId,nombre:c.nombre,rol:'Consultor',area:c.especialidad||'Consultor',capacidad:3,esConsultor:true});
+      changed=true;
+    });
+    if(changed)sv(K.cat,cat);
+  })();
 
   // ── Migración de tipos legacy al arrancar ──────────────────
   (function migrateTiposOnLoad(){
@@ -3621,7 +3634,6 @@ function renderEquipo(){
   const view=document.getElementById('equipo-view')?document.getElementById('equipo-view').value:'cards';
   const sortBy=document.getElementById('equipo-sort')?document.getElementById('equipo-sort').value:'alpha';
   const allProjs=[...activeProjs(),...internos()];
-  if(typeof renderConsultores==='function')renderConsultores();
   if(view==='chart'){renderEquipoChart(allProjs);return;}
   if(view==='org'){renderEquipoOrg(allProjs);return;}
   if(view==='detalle'){renderEquipoDetalle(allProjs);return;}
@@ -8014,12 +8026,8 @@ function renderConsultores(){
     +'<span style="margin-left:auto;font-size:9px;color:#a8a8a8;font-family:Arial">'+consuls.length+' consultor(es) · arrastra para reordenar</span>'
     +'</div>';
 
-  consuls.sort(function(a,b){return (a.nombre==='Ernesto Muñoz'?0:1)-(b.nombre==='Ernesto Muñoz'?0:1);});
-  var _lastGroup=null;
   consuls.forEach(function(consul){
     const nombre=consul.nombre;
-    var _grp=(nombre==='Ernesto Muñoz')?'Gerencia':'Consultores';
-    if(_grp!==_lastGroup){html+='<div style="font-size:11px;font-weight:800;color:'+(_grp==='Gerencia'?'#254467':'#6990ab')+';text-transform:uppercase;letter-spacing:.04em;margin:16px 0 8px;border-bottom:1.5px solid #e5e9ee;padding-bottom:4px">'+(_grp==='Gerencia'?'★ Gerencia':'Consultores')+'</div>';_lastGroup=_grp;}
     const myProjs=allProjs.filter(function(p){
       return (p.consultores||[]).some(function(c){return c.nombre===nombre;});
     }).sort(function(a,b){
