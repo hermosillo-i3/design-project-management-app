@@ -1396,11 +1396,14 @@ function renderCargaGantt(){
     +'<span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#254467;display:inline-block"></span> Marca de entrega (2ª, 3ª…)</span>'
     +'<span style="display:flex;align-items:center;gap:4px"><span style="width:14px;height:2px;background:#e65a27;display:inline-block"></span> Hoy</span>'
     +'</div>'
-    +'<div style="overflow-x:auto;border:.5px solid #e2e8f0;border-radius:8px">'
+    +'<div id="carga-scroll" style="overflow-x:auto;border:.5px solid #e2e8f0;border-radius:8px">'
     +'<div style="min-width:'+MW+'px">'
     +'<div style="display:flex;align-items:flex-end;height:20px;border-bottom:1px solid #e2e8f0;background:#fafbfc"><div style="position:sticky;left:0;width:'+LABELW+'px;flex-shrink:0;background:#fafbfc;z-index:2"></div><div style="position:relative;height:20px;width:'+chartW+'px;flex-shrink:0">'+monthLabels+'</div></div>'
     +body
     +'</div></div>';
+  // Centrar la vista en HOY
+  var _sc=document.getElementById('carga-scroll');
+  if(_sc){var target=LABELW+todayX-_sc.clientWidth/2;_sc.scrollLeft=Math.max(0,target);}
 }
 function histNum(p){return(p.arranque&&p.arranque.length>=4?p.arranque.slice(2,4):(new Date().getFullYear()+'').slice(-2))+'-'+p.num;}
 
