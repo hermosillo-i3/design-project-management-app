@@ -4217,6 +4217,7 @@ function renderCotTabla(el,cots,allProjs,filterProj,catCot){
       +(!isArch&&!isPerd&&proj?'<span style="font-size:9px;background:#e0eaf2;color:#254467;border-radius:4px;padding:1px 6px;font-weight:700">'+proj.etapa+'</span>':'')
       +'<button onclick="openNuevaVersion('+projId+')" style="font-size:10px;padding:3px 10px;border:.5px solid #6990ab;border-radius:5px;background:#fff;color:#6990ab;cursor:pointer;font-family:Arial">+ Nueva versión</button>'
       +'<button onclick="openNuevaCotizacion('+projId+')" style="font-size:10px;padding:3px 10px;border:.5px solid #bfd1e5;border-radius:5px;background:#fff;cursor:pointer;font-family:Arial">+ Cotización</button>'
+      +'<button onclick="openCopiarCotDeOtro('+projId+')" style="font-size:10px;padding:3px 10px;border:.5px solid #BA7517;border-radius:5px;background:#fff;color:#BA7517;cursor:pointer;font-family:Arial">📋 Copiar de otro proyecto</button>'
       +(projCots.length>1?'<button onclick="openArmarCombinada('+projId+')" style="font-size:10px;padding:3px 10px;border:.5px solid #7C3AED;border-radius:5px;background:#fff;color:#7C3AED;cursor:pointer;font-family:Arial;font-weight:700">🧩 Armar combinada</button>':'')
       +(projCots.length>1?'<button onclick="toggleAllCots('+projId+')" style="font-size:10px;padding:3px 10px;border:.5px solid #bfd1e5;border-radius:5px;background:#fff;color:#67727a;cursor:pointer;font-family:Arial">'+(_allCol?'🗖 Expandir todas':'🗕 Minimizar todas')+'</button>':'')
       +'</div>';
@@ -7321,6 +7322,57 @@ function openNuevaVersion(projId){
     }).join('')
     +'</div>'
     +'<div class="btn-row" style="margin-top:14px"><button class="btn" onclick="closeModal()">Cancelar</button></div>';
+  openModal();
+}
+function openCopiarCotDeOtro(projId){
+  var cots=getCots();
+  var allProjs=[].concat(activeProjs(),internos(),ld(K.proj,[]).filter(function(p){return p.archivado;}));
+  var projName=function(pid){var p=allProjs.find(function(x){return String(x.id)===String(pid);});return p?p.nombre:'(proyecto)';};
+  var otras=cots.filter(function(c){return String(c.projId)!==String(projId);});
+  if(!otras.length){alert('No hay cotizaciones en otros proyectos para copiar.');return;}
+  otras.sort(function(a,b){var pa=projName(a.projId).toLowerCase(),pb=projName(b.projId).toLowerCase();return pa.localeCompare(pb)||(b.fecha||'').localeCompare(a.fecha||'');});
+  var esc=function(s){return String(s==null?'':s).replace(/</g,'&lt;').replace(/"/g,'&quot;');};
+  var rows=otras.map(function(c){
+    var tot=calcCotMetrics(c).grandTotal;var pn=projName(c.projId);
+    var search=(pn+' '+(c.nombre||'')+' '+(c.tipoCotizacion||'')).toLowerCase();
+    return '<button class="copycot-row" data-search="'+esc(search)+'" onclick="doCopiarCotDeOtro('+projId+',\''+c.id+'\')" style="text-align:left;padding:9px 12px;border:.5px solid #bfd1e5;border-radius:8px;background:#fff;cursor:pointer;font-family:Arial;display:flex;justify-content:space-between;align-items:center;gap:10px" onmouseover="this.style.background=\'#f0f5fa\'" onmouseout="this.style.background=\'#fff\'">'
+      +'<span><span style="font-size:9px;font-weight:700;color:#BA7517;text-transform:uppercase;letter-spacing:.03em">'+esc(pn)+'</span>'
+      +'<div style="font-size:12px;font-weight:700;color:#254467">'+esc(c.nombre)+(c.tipoCotizacion?' <span style="font-size:9px;font-weight:400;color:#6990ab">· '+esc(c.tipoCotizacion)+'</span>':'')+'</div>'
+      +'<div style="font-size:9px;font-weight:400;color:#a8a8a8">'+fmtDY(c.fecha)+((c.especialidades||[]).length?' · '+(c.especialidades||[]).length+' partidas':'')+'</div></span>'
+      +'<span style="font-size:12px;font-weight:700;color:#3B6D11;white-space:nowrap">$'+Math.round(tot).toLocaleString('es-MX')+'</span>'
+      +'</button>';
+  }).join('');
+  document.getElementById('modal-body').innerHTML='<h3 style="margin-bottom:4px">📋 Copiar cotización de otro proyecto</h3>'
+    +'<div style="font-size:11px;color:#67727a;margin-bottom:10px">Elige una cotización de otro proyecto. Se copiará su base (partidas, asesores, indirectos) a <strong>'+esc(projName(projId))+'</strong> para que la ajustes. No se copian los envíos ni la marca de oficial.</div>'
+    +'<input type="text" placeholder="🔍 Buscar por proyecto o cotización..." oninput="filterCopyCot(this.value)" style="width:100%;box-sizing:border-box;font-size:12px;padding:7px 10px;border:.5px solid #bfd1e5;border-radius:7px;font-family:Arial;margin-bottom:10px">'
+    +'<div id="copycot-list" style="display:flex;flex-direction:column;gap:8px;max-height:50vh;overflow-y:auto">'+rows+'</div>'
+    +'<div class="btn-row" style="margin-top:14px"><button class="btn" onclick="closeModal()">Cancelar</button></div>';
+  openModal();
+}
+function filterCopyCot(q){
+  q=String(q||'').toLowerCase().trim();
+  var list=document.getElementById('copycot-list');if(!list)return;
+  Array.prototype.forEach.call(list.getElementsByClassName('copycot-row'),function(r){
+    r.style.display=(!q||r.getAttribute('data-search').indexOf(q)>=0)?'flex':'none';
+  });
+}
+function doCopiarCotDeOtro(projId,srcId){
+  var cots=getCots();
+  var base=cots.find(function(c){return String(c.id)===String(srcId);});
+  if(!base){closeModal();return;}
+  var allProjs=[].concat(activeProjs(),internos(),ld(K.proj,[]).filter(function(p){return p.archivado;}));
+  var target=allProjs.find(function(p){return String(p.id)===String(projId);});
+  var clone=JSON.parse(JSON.stringify(base));
+  clone.id='cot_'+Date.now();
+  clone.projId=projId;
+  clone.nombre=(base.nombre||'Cotización')+' (copia)';
+  clone.fecha=todayStr;
+  if(target&&target.areaM2)clone.areaM2=target.areaM2;
+  // Empezar limpio: sin envíos, sin oficial, sin ajuste de presupuestos, sin escenarios
+  delete clone._baseId;delete clone.oficial;delete clone.enviadoCliente;delete clone.fechaEnvioCliente;
+  delete clone.enviadoPresupuesto;delete clone.fechaEnvioPresupuesto;delete clone.montoEnviado;delete clone.montoPresupuestos;delete clone.notaPresupuestos;delete clone.escenarios;
+  cots.push(clone);saveCots(cots);
+  document.getElementById('modal-body').innerHTML=buildCotModal(clone,projId,[].concat(activeProjs(),internos()),true);
   openModal();
 }
 function doNuevaVersion(projId,baseId){
