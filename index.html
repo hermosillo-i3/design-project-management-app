@@ -1306,28 +1306,33 @@ function setProjSubTab(tab){
 function renderCargaGantt(){
   var el=document.getElementById('carga-gantt');if(!el)return;
   var esc=function(s){return String(s==null?'':s).replace(/</g,'&lt;').replace(/"/g,'&quot;');};
-  var _end=function(p){return p.entregaV4||p.entregaV3||p.entregaV2||p.entregaV1||p.entrega||'';};
   var semColors={crit:'#e65a27',risk:'#6990ab',ok:'#639922',none:'#a8a8a8'};
   var MS=86400000;
+  var _entregas=function(p){
+    var raw=[p.entregaV1||p.entrega,p.entregaV2,p.entregaV3,p.entregaV4];
+    var arr=[];raw.forEach(function(v){if(v&&String(v).trim()){var t=new Date(v).getTime();if(!isNaN(t))arr.push({str:v,t:t});}});
+    arr.sort(function(a,b){return a.t-b.t;});return arr;
+  };
   var rows=[];
   activeProjs().filter(function(p){return !p.archivado;}).forEach(function(p){
     if(!p.arranque)return;
     var start=new Date(p.arranque);if(isNaN(start))return;
-    var endStr=_end(p);var end=endStr?new Date(endStr):new Date(today);
-    if(isNaN(end)||end<start)end=new Date(Math.max(today.getTime(),start.getTime()+MS));
-    var lider=p.jefe||p.coord||'(sin líder)';
-    rows.push({lider:lider,proj:p,start:start,end:end});
+    var sec=p.etapa==='PRECON'?'PRECON':(['EJECUTIVO','REVISIONES'].indexOf(p.etapa)>=0?'EJECUTIVO':null);
+    if(!sec)return;
+    var ents=_entregas(p);
+    var endT=ents.length?ents[ents.length-1].t:today.getTime();
+    if(endT<start.getTime())endT=Math.max(today.getTime(),start.getTime()+MS);
+    rows.push({proj:p,coord:p.coord||'(sin coordinador)',jefe:p.jefe||'—',start:start,startT:start.getTime(),endT:endT,ents:ents,sec:sec});
   });
   if(!rows.length){el.innerHTML='<div style="padding:2rem;text-align:center;color:#a8a8a8;font-size:12px">No hay proyectos activos con fecha de arranque. Captura la F. Arranque en la ficha del proyecto para verlos aquí.</div>';return;}
-  var minT=Math.min.apply(null,rows.map(function(r){return r.start.getTime();}));
-  var maxT=Math.max.apply(null,rows.map(function(r){return r.end.getTime();}));
+  var minT=Math.min.apply(null,rows.map(function(r){return r.startT;}));
+  var maxT=Math.max.apply(null,rows.map(function(r){return r.endT;}));
   minT=Math.min(minT,today.getTime());maxT=Math.max(maxT,today.getTime());
   var span=Math.max(MS,maxT-minT);
   var totalMonths=span/MS/30.4;
   var chartW=Math.max(640,Math.round(totalMonths*72));
-  var LABELW=210;
+  var LABELW=250;
   var xOf=function(t){return (t-minT)/span*chartW;};
-  // meses (marcas verticales)
   var mDate=new Date(minT);mDate.setDate(1);
   var monthTicks='';var monthLabels='';var MESES=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
   while(mDate.getTime()<=maxT){
@@ -1338,43 +1343,61 @@ function renderCargaGantt(){
   }
   var todayX=xOf(today.getTime());
   var todayLine='<div style="position:absolute;left:'+todayX+'px;top:0;bottom:0;width:2px;background:#e65a27;opacity:.65;z-index:3"></div>';
-  // agrupar por líder
-  var byLider={};rows.forEach(function(r){(byLider[r.lider]=byLider[r.lider]||[]).push(r);});
-  var liders=Object.keys(byLider).sort(function(a,b){return byLider[b].length-byLider[a].length||a.localeCompare(b);});
   var durTxt=function(ms){var d=ms/MS;if(d<45)return Math.round(d)+' d';return (d/30.4).toFixed(1)+' meses';};
-  var body='';
-  liders.forEach(function(lider){
-    var list=byLider[lider].sort(function(a,b){return a.start-b.start;});
-    // meses totales de carga (suma de duraciones)
-    var totMs=list.reduce(function(s,r){return s+(r.end-r.start);},0);
-    body+='<div style="display:flex;align-items:center;min-width:'+(LABELW+chartW)+'px;background:#f1f6fb;border-top:1px solid #e2e8f0">'
-      +'<div style="position:sticky;left:0;width:'+LABELW+'px;flex-shrink:0;padding:5px 10px;background:#f1f6fb;font-size:11px;font-weight:800;color:#254467;z-index:2">👤 '+esc(lider)+' <span style="font-size:9px;font-weight:400;color:#6990ab">· '+list.length+' proy · '+(totMs/MS/30.4).toFixed(1)+' m acum.</span></div>'
-      +'<div style="flex:1"></div></div>';
-    list.forEach(function(r){
-      var p=r.proj;var s=sem(p);var col=semColors[s.cls]||'#6990ab';
-      var bl=xOf(r.start.getTime()),bw=Math.max(5,xOf(r.end.getTime())-xOf(r.start.getTime()));
-      var dur=durTxt(r.end-r.start);
-      var showInside=bw>70;
-      body+='<div style="display:flex;align-items:center;min-width:'+(LABELW+chartW)+'px;border-top:1px solid #f4f6f8">'
-        +'<div style="position:sticky;left:0;width:'+LABELW+'px;flex-shrink:0;padding:4px 10px 4px 20px;background:#fff;font-size:10px;color:#254467;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;z-index:2" title="'+esc(p.nombre)+'">'+esc(p.nombre)+'</div>'
-        +'<div style="position:relative;height:24px;width:'+chartW+'px;flex-shrink:0">'
-        +monthTicks+todayLine
-        +'<div onclick="openProyecto('+p.id+')" title="'+esc(p.nombre)+' — '+p.arranque+' → '+(_end(p)||'sin entrega')+' ('+dur+')" style="position:absolute;left:'+bl+'px;top:4px;height:16px;width:'+bw+'px;background:'+col+';border-radius:4px;cursor:pointer;display:flex;align-items:center;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,.12)">'
-        +(showInside?'<span style="font-size:8px;color:#fff;font-weight:700;padding:0 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+dur+'</span>':'')
-        +'</div>'
-        +(bw<=70?'<span style="position:absolute;left:'+(bl+bw+4)+'px;top:5px;font-size:8px;color:#67727a;white-space:nowrap">'+dur+'</span>':'')
-        +'</div></div>';
+  var MW=LABELW+chartW;
+  var projRow=function(r){
+    var p=r.proj;var s=sem(p);var col=semColors[s.cls]||'#6990ab';
+    var firstEndT=r.ents.length?r.ents[0].t:r.endT;
+    var bl=xOf(r.startT),bwFirst=Math.max(5,xOf(firstEndT)-xOf(r.startT));
+    var dur=durTxt(r.endT-r.startT);
+    // barra base arranque -> primera entrega (color), y extensión clara hasta la última
+    var extW=xOf(r.endT)-xOf(firstEndT);
+    var bar='<div onclick="openProyecto('+p.id+')" title="'+esc(p.nombre)+' — arranque '+p.arranque+(r.ents.length?' · entregas: '+r.ents.map(function(e,i){return (i+1)+') '+e.str;}).join('  '):' · sin entrega')+'" style="position:absolute;left:'+bl+'px;top:7px;height:15px;width:'+Math.max(5,xOf(r.endT)-bl)+'px;cursor:pointer;z-index:1">'
+      // tramo 1 (arranque -> 1a entrega) color lleno
+      +'<div style="position:absolute;left:0;top:0;height:15px;width:'+bwFirst+'px;background:'+col+';border-radius:4px 0 0 4px;box-shadow:0 1px 2px rgba(0,0,0,.12)"></div>'
+      // tramo(s) posteriores (2a, 3a entrega) mismo color más tenue
+      +(extW>1?'<div style="position:absolute;left:'+bwFirst+'px;top:0;height:15px;width:'+extW+'px;background:'+col+';opacity:.4;border-radius:0 4px 4px 0"></div>':'')
+      +'</div>';
+    // marcas de entregas (2ª, 3ª, …) + números
+    var marks='';
+    r.ents.forEach(function(e,i){
+      var mx=xOf(e.t);
+      marks+='<div title="Entrega '+(i+1)+': '+e.str+'" style="position:absolute;left:'+(mx-1)+'px;top:4px;height:21px;width:2px;background:#254467;z-index:2"></div>'
+        +'<div style="position:absolute;left:'+(mx-2)+'px;top:-2px;font-size:8px;font-weight:800;color:#254467;z-index:2">'+(i+1)+'</div>';
     });
-  });
-  el.innerHTML='<div style="font-size:11px;color:#67727a;margin-bottom:8px">Cada barra es un proyecto activo, de su <strong>F. Arranque</strong> a su <strong>última entrega</strong> (o a hoy si no tiene). Color = semáforo. La línea roja es hoy. Clic en una barra para abrir el proyecto.</div>'
+    return '<div style="display:flex;align-items:center;min-width:'+MW+'px;border-top:1px solid #f4f6f8">'
+      +'<div style="position:sticky;left:0;width:'+LABELW+'px;flex-shrink:0;padding:4px 10px 4px 22px;background:#fff;z-index:2;overflow:hidden">'
+      +'<div style="font-size:10px;font-weight:600;color:#254467;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+esc(p.nombre)+'">'+esc(p.nombre)+'</div>'
+      +'<div style="font-size:8px;color:#a8a8a8;white-space:nowrap">Jefe: '+esc(r.jefe)+' · '+dur+'</div>'
+      +'</div>'
+      +'<div style="position:relative;height:29px;width:'+chartW+'px;flex-shrink:0">'+monthTicks+todayLine+bar+marks+'</div>'
+      +'</div>';
+  };
+  var sectionHtml=function(secKey,secLabel,secColor){
+    var secRows=rows.filter(function(r){return r.sec===secKey;});
+    if(!secRows.length)return '';
+    var byCoord={};secRows.forEach(function(r){(byCoord[r.coord]=byCoord[r.coord]||[]).push(r);});
+    var coords=Object.keys(byCoord).sort(function(a,b){return byCoord[b].length-byCoord[a].length||a.localeCompare(b);});
+    var h='<div style="display:flex;min-width:'+MW+'px;background:'+secColor+'"><div style="position:sticky;left:0;width:'+LABELW+'px;flex-shrink:0;padding:6px 10px;background:'+secColor+';font-size:12px;font-weight:800;color:#fff;z-index:2">'+secLabel+' <span style="font-size:9px;font-weight:400;opacity:.85">· '+secRows.length+' proy</span></div><div style="flex:1"></div></div>';
+    coords.forEach(function(coord){
+      var list=byCoord[coord].sort(function(a,b){return a.startT-b.startT;});
+      var totMs=list.reduce(function(s,r){return s+(r.endT-r.startT);},0);
+      h+='<div style="display:flex;align-items:center;min-width:'+MW+'px;background:#f1f6fb;border-top:1px solid #e2e8f0"><div style="position:sticky;left:0;width:'+LABELW+'px;flex-shrink:0;padding:5px 10px;background:#f1f6fb;font-size:11px;font-weight:800;color:#254467;z-index:2">🧭 '+esc(coord)+' <span style="font-size:9px;font-weight:400;color:#6990ab">· '+list.length+' proy · '+(totMs/MS/30.4).toFixed(1)+' m acum.</span></div><div style="flex:1"></div></div>';
+      list.forEach(function(r){h+=projRow(r);});
+    });
+    return h;
+  };
+  var body=sectionHtml('PRECON','🏆 PRECON','#254467')+sectionHtml('EJECUTIVO','⚙ EJECUTIVO','#3B6D11');
+  el.innerHTML='<div style="font-size:11px;color:#67727a;margin-bottom:8px">Barras por proyecto, agrupadas por <strong>coordinador</strong> (dentro de PRECON y de EJECUTIVO). La barra va del <strong>arranque</strong> a la <strong>1ª entrega</strong> (color lleno); si hay entregas adicionales, se extiende más tenue con marcas numeradas (2ª, 3ª…). Color = semáforo. Línea roja = hoy. Clic en una barra para abrir el proyecto.</div>'
     +'<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:8px;font-size:10px;color:#67727a">'
     +'<span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#639922;display:inline-block"></span> En tiempo</span>'
     +'<span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#6990ab;display:inline-block"></span> En riesgo</span>'
     +'<span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#e65a27;display:inline-block"></span> Crítico/vencido</span>'
+    +'<span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#254467;display:inline-block"></span> Marca de entrega (2ª, 3ª…)</span>'
     +'<span style="display:flex;align-items:center;gap:4px"><span style="width:14px;height:2px;background:#e65a27;display:inline-block"></span> Hoy</span>'
     +'</div>'
     +'<div style="overflow-x:auto;border:.5px solid #e2e8f0;border-radius:8px">'
-    +'<div style="min-width:'+(LABELW+chartW)+'px">'
+    +'<div style="min-width:'+MW+'px">'
     +'<div style="display:flex;align-items:flex-end;height:20px;border-bottom:1px solid #e2e8f0;background:#fafbfc"><div style="position:sticky;left:0;width:'+LABELW+'px;flex-shrink:0;background:#fafbfc;z-index:2"></div><div style="position:relative;height:20px;width:'+chartW+'px;flex-shrink:0">'+monthLabels+'</div></div>'
     +body
     +'</div></div>';
