@@ -2403,7 +2403,7 @@ function openProyecto(id,isInterno){
     <div class="frow"><div class="fg"><label>F. Entrega V3</label><input type="date" id="pev3" value="${p.entregaV3||''}"></div>
     <div class="fg"><label>F. Entrega V4</label><input type="date" id="pev4" value="${p.entregaV4||''}"></div></div>
     <div class="fg"><label>F. Presentación</label><input type="date" id="ppre" value="${p.presentacion||''}"></div>
-    <div class="frow"><div class="fg"><label>Estatus</label><select id="pest">${['En tiempo','En riesgo','Retrasado','Pausado','Completado'].map(e=>`<option ${p.estatus===e?'selected':''}>${e}</option>`).join('')}</select></div><div class="fg"><label>Prioridad</label><select id="ppri">${['Alta','Media','Baja'].map(e=>`<option ${p.prioridad===e?'selected':''}>${e}</option>`).join('')}</select></div></div>
+    <div class="frow"><div class="fg"><label>Estado de avance</label><select id="pest">${['En tiempo','En riesgo','Retrasado','Pausado','Completado'].map(e=>`<option ${p.estatus===e?'selected':''}>${e}</option>`).join('')}</select></div><div class="fg"><label>Prioridad</label><select id="ppri">${['Alta','Media','Baja'].map(e=>`<option ${p.prioridad===e?'selected':''}>${e}</option>`).join('')}</select></div></div>
     <div class="fg"><label>Estatus del proyecto</label><select id="pep">
       ${['','Ongoing','StandBy','Perdido','Ganado','Cancelado'].map(e=>`<option ${(p.estatusProy||'')=== e?'selected':''}>${e||'— Sin definir —'}</option>`).join('')}
     </select></div>
