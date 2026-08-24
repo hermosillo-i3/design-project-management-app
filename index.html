@@ -273,7 +273,6 @@ body.qas-env{padding-top:32px}
   <button class="tab" onclick="goTab('seguimiento',this)">Seguimiento</button>
   <button class="tab" onclick="goTab('documentos',this)">Entregables</button>
   <button class="tab" onclick="goTab('equipo',this)">Equipo</button>
-  <button class="tab" onclick="goTab('consultores',this)">Consultores</button>
   <button class="tab" onclick="goTab('cotizaciones',this)" style="color:#e65a27">$ Cotizaciones</button>
   <button class="tab" onclick="goTab('costos',this)" style="color:#3B6D11">💰 Costos</button>
   <button class="tab internal" onclick="goTab('internos',this)">Desarrollo interno</button>
@@ -432,10 +431,14 @@ body.qas-env{padding-top:32px}
       </select>
     </div>
     <div id="equipo-list"></div>
+    <div style="margin-top:1.75rem;border-top:1.5px solid #e5e9ee;padding-top:1rem">
+      <h2 class="sec" style="margin-top:0;color:#254467">🤝 Consultores</h2>
+      <div id="consul-chart"></div><div id="consul-list"></div>
+    </div>
   </div>
 </div>
 
-<!-- CONSULTORES -->
+<!-- COTIZACIONES -->
 <div id="p-cotizaciones" class="panel">
   <div id="cotizaciones-list"></div>
 </div>
@@ -443,13 +446,6 @@ body.qas-env{padding-top:32px}
 <!-- COSTOS EJECUCIÓN -->
 <div id="p-costos" class="panel">
   <div id="costos-container" style="padding:16px 20px"></div>
-</div>
-
-<div id="p-consultores" class="panel">
-  <div class="pdf-break">
-    <h2 class="pdf-sh" style="display:none">Consultores</h2>
-    <div id="consul-chart"></div><div id="consul-list"></div>
-  </div>
 </div>
 
 <!-- INTERNOS -->
@@ -3625,6 +3621,7 @@ function renderEquipo(){
   const view=document.getElementById('equipo-view')?document.getElementById('equipo-view').value:'cards';
   const sortBy=document.getElementById('equipo-sort')?document.getElementById('equipo-sort').value:'alpha';
   const allProjs=[...activeProjs(),...internos()];
+  if(typeof renderConsultores==='function')renderConsultores();
   if(view==='chart'){renderEquipoChart(allProjs);return;}
   if(view==='org'){renderEquipoOrg(allProjs);return;}
   if(view==='detalle'){renderEquipoDetalle(allProjs);return;}
@@ -8017,8 +8014,12 @@ function renderConsultores(){
     +'<span style="margin-left:auto;font-size:9px;color:#a8a8a8;font-family:Arial">'+consuls.length+' consultor(es) · arrastra para reordenar</span>'
     +'</div>';
 
+  consuls.sort(function(a,b){return (a.nombre==='Ernesto Muñoz'?0:1)-(b.nombre==='Ernesto Muñoz'?0:1);});
+  var _lastGroup=null;
   consuls.forEach(function(consul){
     const nombre=consul.nombre;
+    var _grp=(nombre==='Ernesto Muñoz')?'Gerencia':'Consultores';
+    if(_grp!==_lastGroup){html+='<div style="font-size:11px;font-weight:800;color:'+(_grp==='Gerencia'?'#254467':'#6990ab')+';text-transform:uppercase;letter-spacing:.04em;margin:16px 0 8px;border-bottom:1.5px solid #e5e9ee;padding-bottom:4px">'+(_grp==='Gerencia'?'★ Gerencia':'Consultores')+'</div>';_lastGroup=_grp;}
     const myProjs=allProjs.filter(function(p){
       return (p.consultores||[]).some(function(c){return c.nombre===nombre;});
     }).sort(function(a,b){
