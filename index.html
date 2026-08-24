@@ -1367,30 +1367,28 @@ function renderCargaGantt(){
       marks+='<div title="Entrega '+(i+1)+': '+e.str+'" style="position:absolute;left:'+(mx-1)+'px;top:4px;height:21px;width:2px;background:#254467;z-index:2"></div>'
         +'<div style="position:absolute;left:'+(mx-2)+'px;top:-2px;font-size:8px;font-weight:800;color:#254467;z-index:2">'+(i+1)+'</div>';
     });
+    var etBadge=r.sec==='PRECON'
+      ? '<span style="font-size:7px;font-weight:800;background:#254467;color:#fff;border-radius:3px;padding:1px 4px;margin-right:4px;vertical-align:middle">PRE</span>'
+      : '<span style="font-size:7px;font-weight:800;background:#3B6D11;color:#fff;border-radius:3px;padding:1px 4px;margin-right:4px;vertical-align:middle">EJE</span>';
     return '<div style="display:flex;align-items:center;min-width:'+MW+'px;border-top:1px solid #f4f6f8">'
       +'<div style="position:sticky;left:0;width:'+LABELW+'px;flex-shrink:0;padding:4px 10px 4px 22px;background:#fff;z-index:2;overflow:hidden">'
-      +'<div style="font-size:10px;font-weight:600;color:#254467;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+esc(p.nombre)+'">'+esc(p.nombre)+'</div>'
+      +'<div style="font-size:10px;font-weight:600;color:#254467;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+esc(p.nombre)+'">'+etBadge+esc(p.nombre)+'</div>'
       +'<div style="font-size:8px;color:#a8a8a8;white-space:nowrap">Jefe: '+esc(r.jefe)+' · '+dur+(noArr?' · <span style="color:#e6a817">⚠ sin arranque</span>':'')+'</div>'
       +'</div>'
       +'<div style="position:relative;height:29px;width:'+chartW+'px;flex-shrink:0">'+monthTicks+todayLine+bar+marks+'</div>'
       +'</div>';
   };
-  var sectionHtml=function(secKey,secLabel,secColor){
-    var secRows=rows.filter(function(r){return r.sec===secKey;});
-    if(!secRows.length)return '';
-    var byCoord={};secRows.forEach(function(r){(byCoord[r.coord]=byCoord[r.coord]||[]).push(r);});
-    var coords=Object.keys(byCoord).sort(function(a,b){return byCoord[b].length-byCoord[a].length||a.localeCompare(b);});
-    var h='<div style="display:flex;min-width:'+MW+'px;background:'+secColor+'"><div style="position:sticky;left:0;width:'+LABELW+'px;flex-shrink:0;padding:6px 10px;background:'+secColor+';font-size:12px;font-weight:800;color:#fff;z-index:2">'+secLabel+' <span style="font-size:9px;font-weight:400;opacity:.85">· '+secRows.length+' proy</span></div><div style="flex:1"></div></div>';
-    coords.forEach(function(coord){
-      var list=byCoord[coord].sort(function(a,b){return a.startT-b.startT;});
-      var totMs=list.reduce(function(s,r){return s+(r.endT-r.startT);},0);
-      h+='<div style="display:flex;align-items:center;min-width:'+MW+'px;background:#f1f6fb;border-top:1px solid #e2e8f0"><div style="position:sticky;left:0;width:'+LABELW+'px;flex-shrink:0;padding:5px 10px;background:#f1f6fb;font-size:11px;font-weight:800;color:#254467;z-index:2">🧭 '+esc(coord)+' <span style="font-size:9px;font-weight:400;color:#6990ab">· '+list.length+' proy · '+(totMs/MS/30.4).toFixed(1)+' m acum.</span></div><div style="flex:1"></div></div>';
-      list.forEach(function(r){h+=projRow(r);});
-    });
-    return h;
-  };
-  var body=sectionHtml('PRECON','🏆 PRECON','#254467')+sectionHtml('EJECUTIVO','⚙ EJECUTIVO','#3B6D11');
-  el.innerHTML='<div style="font-size:11px;color:#67727a;margin-bottom:8px">Barras por proyecto, agrupadas por <strong>coordinador</strong> (dentro de PRECON y de EJECUTIVO). La barra va del <strong>arranque</strong> a la <strong>1ª entrega</strong> (color lleno); si hay entregas adicionales, se extiende más tenue con marcas numeradas (2ª, 3ª…). Color = semáforo. Línea roja = hoy. Clic en una barra para abrir el proyecto.</div>'
+  var byCoord={};rows.forEach(function(r){(byCoord[r.coord]=byCoord[r.coord]||[]).push(r);});
+  var coords=Object.keys(byCoord).sort(function(a,b){return byCoord[b].length-byCoord[a].length||a.localeCompare(b);});
+  var body='';
+  coords.forEach(function(coord){
+    var list=byCoord[coord].slice().sort(function(a,b){var oa=a.sec==='PRECON'?0:1,ob=b.sec==='PRECON'?0:1;if(oa!==ob)return oa-ob;return a.startT-b.startT;});
+    var nPre=list.filter(function(r){return r.sec==='PRECON';}).length;var nEje=list.length-nPre;
+    var totMs=list.reduce(function(s,r){return s+(r.endT-r.startT);},0);
+    body+='<div style="display:flex;align-items:center;min-width:'+MW+'px;background:#eef3f9;border-top:2px solid #d5e3f0"><div style="position:sticky;left:0;width:'+LABELW+'px;flex-shrink:0;padding:6px 10px;background:#eef3f9;font-size:11px;font-weight:800;color:#254467;z-index:2">🧭 '+esc(coord)+' <span style="font-size:9px;font-weight:400;color:#6990ab">· '+list.length+' proy'+((nPre&&nEje)?' ('+nPre+' pre · '+nEje+' eje)':'')+' · '+(totMs/MS/30.4).toFixed(1)+' m acum.</span></div><div style="flex:1"></div></div>';
+    list.forEach(function(r){body+=projRow(r);});
+  });
+  el.innerHTML='<div style="font-size:11px;color:#67727a;margin-bottom:8px">Barras por proyecto, agrupadas por <strong>coordinador</strong> (aparece una sola vez). Cada proyecto trae su etapa: <span style="font-size:7px;font-weight:800;background:#254467;color:#fff;border-radius:3px;padding:1px 4px">PRE</span> preconstrucción · <span style="font-size:7px;font-weight:800;background:#3B6D11;color:#fff;border-radius:3px;padding:1px 4px">EJE</span> ejecutivo. La barra va del <strong>arranque</strong> a la <strong>1ª entrega</strong>; las entregas adicionales salen más tenues con marcas numeradas (2ª, 3ª…). Color = semáforo. Línea roja = hoy.</div>'
     +'<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:8px;font-size:10px;color:#67727a">'
     +'<span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#639922;display:inline-block"></span> En tiempo</span>'
     +'<span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#6990ab;display:inline-block"></span> En riesgo</span>'
