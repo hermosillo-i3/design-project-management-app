@@ -10305,11 +10305,9 @@ function renderEquipoDetalle(allProjs){
   var el=document.getElementById('equipo-list');
   if(!el) return;
 
-  // Exclude consultores (they appear in the Consultores tab)
-  var consulNames=new Set((cat.consultores||[]).map(function(c){return c.nombre;}));
-  // Only show internal personas (not consultores) that have open tasks
+  // Mostrar todas las personas del equipo (incluidos los consultores, ya integrados al equipo) con tareas activas
   var personasConTareas=cat.personas.filter(function(p){
-    return !consulNames.has(p.nombre)&&tasks.some(function(t){return t.asignado===p.nombre&&!t.done&&!t.archivado;});
+    return tasks.some(function(t){return t.asignado===p.nombre&&!t.done&&!t.archivado;});
   }).sort(function(a,b){return a.nombre.localeCompare(b.nombre);});
 
   if(!personasConTareas.length){
@@ -11243,8 +11241,6 @@ function renderEquipoOrg(allProjs){
   // Also add jefes from catalogue even if no active project
   jefes.forEach(j=>{ if(!personRole[j]){ personRole[j]='jefe'; personProjList[j]=[]; } });
 
-  // Exclude consultores
-  Object.keys(personRole).forEach(n=>{ if(isConsultor(getPersona(n).rol)) delete personRole[n]; });
 
   // ── Determine parent for each person ──────────────────────
   // Rule: find their "boss" = the person in a higher role level who most frequently
