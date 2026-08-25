@@ -2023,26 +2023,28 @@ function toggleAlcanceCancelado(projId,espIdx){
 }
 
 function _costosSections(metrics,cot){
-  // Secciones (categoría -> esps) para Costos, incluyendo partidas de la cotización con $0
+  // Secciones (categoría -> esps) para Costos, incluyendo TODAS las partidas de la cotización (aunque estén en $0)
   var catCot=migrateCotCat(getCotCat());
-  var out=[];
-  Object.keys(catCot).forEach(function(cat){
-    var sec=metrics.bySection[cat];
-    var espsInCat=cot?(cot.especialidades||[]).filter(function(e){return e.categoria===cat;}):[];
-    var existing=(sec&&sec.esps)?sec.esps.slice():[];
-    if(!espsInCat.length&&!existing.length)return;
-    var names={};existing.forEach(function(e){names[e.nombre]=1;});
+  var secMap={},secOrder=[];
+  var ensure=function(cat){
+    if(!secMap[cat]){var s=(metrics.bySection||{})[cat];secMap[cat]={esps:(s&&s.esps)?s.esps.slice():[],direct:s?s.direct:0,indir:s?s.indir:0,withInd:s?s.withInd:0,_names:{}};secMap[cat].esps.forEach(function(e){secMap[cat]._names[e.nombre]=1;});secOrder.push(cat);}
+    return secMap[cat];
+  };
+  // 1) categorías con costo, en el orden del catálogo
+  Object.keys(catCot).forEach(function(cat){if((metrics.bySection||{})[cat])ensure(cat);});
+  // 2) TODAS las especialidades de la cotización de control (incluye $0)
+  ((cot&&cot.especialidades)||[]).forEach(function(e){
+    if(!e||!e.nombre)return;
+    var cat=e.categoria||(typeof guessCategory==='function'?guessCategory(e.nombre):'')||'Otros';
+    var s=ensure(cat);
+    if(s._names[e.nombre])return;
     var indCat=parseFloat(cat==='Estudios Preliminares'?cot.indEst:cot.indDis)||0;
-    espsInCat.forEach(function(e){
-      if(names[e.nombre])return;
-      var ind=parseFloat(e.indirecto!=null?e.indirecto:indCat)||0;
-      existing.push({nombre:e.nombre,mxn:0,ind:ind,indir:0,withInd:0});
-    });
-    if(existing.length)out.push([cat,{esps:existing,direct:(sec?sec.direct:0),indir:(sec?sec.indir:0),withInd:(sec?sec.withInd:0)}]);
+    var ind=parseFloat(e.indirecto!=null?e.indirecto:indCat)||0;
+    s.esps.push({nombre:e.nombre,mxn:0,ind:ind,indir:0,withInd:0});s._names[e.nombre]=1;
   });
-  // categorías fuera del catálogo que existan en metrics
-  Object.keys(metrics.bySection||{}).forEach(function(cat){if(catCot[cat])return;out.push([cat,metrics.bySection[cat]]);});
-  return out;
+  // 3) categorías con costo fuera del catálogo
+  Object.keys(metrics.bySection||{}).forEach(function(cat){ensure(cat);});
+  return secOrder.map(function(cat){var s=secMap[cat];return [cat,{esps:s.esps,direct:s.direct,indir:s.indir,withInd:s.withInd}];});
 }
 function renderCostos(){
   var container=document.getElementById('costos-container');
