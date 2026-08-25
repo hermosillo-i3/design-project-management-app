@@ -1401,9 +1401,14 @@ function renderCargaGantt(){
     +'<div style="display:flex;align-items:flex-end;height:20px;border-bottom:1px solid #e2e8f0;background:#fafbfc"><div style="position:sticky;left:0;width:'+LABELW+'px;flex-shrink:0;background:#fafbfc;z-index:2"></div><div style="position:relative;height:20px;width:'+chartW+'px;flex-shrink:0">'+monthLabels+'</div></div>'
     +body
     +'</div></div>';
-  // Centrar la vista en HOY
+  // Posicionar la vista en HOY (hoy hacia la izquierda para ver lo que sigue)
   var _sc=document.getElementById('carga-scroll');
-  if(_sc){var target=LABELW+todayX-_sc.clientWidth/2;_sc.scrollLeft=Math.max(0,target);}
+  if(_sc){
+    var _goToday=function(){var vw=_sc.clientWidth||700;var target=LABELW+todayX-vw*0.32;_sc.scrollLeft=Math.max(0,target);};
+    _goToday();
+    if(window.requestAnimationFrame)requestAnimationFrame(_goToday);
+    setTimeout(_goToday,80);
+  }
 }
 function histNum(p){return(p.arranque&&p.arranque.length>=4?p.arranque.slice(2,4):(new Date().getFullYear()+'').slice(-2))+'-'+p.num;}
 
