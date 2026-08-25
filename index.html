@@ -9787,18 +9787,22 @@ function openEscenarios(cotId){
   var fmt=function(n){return '$'+Math.round(n||0).toLocaleString('es-MX');};
   var esc=function(s){return String(s==null?'':s).replace(/</g,'&lt;');};
   window.__escEsps=espsA.map(function(e){return e.nombre;});
-  var _chip=function(i,idx,label,cost,selIdx){
-    var on=String(idx)===String(selIdx);
-    return '<button type="button" class="escchip" data-idx="'+idx+'" onclick="escPick('+i+','+idx+')" style="font-size:10px;padding:5px 10px;border-radius:6px;border:.5px solid '+(on?'#3B6D11':'#bfd1e5')+';background:'+(on?'#3B6D11':'#fff')+';color:'+(on?'#fff':'#254467')+';font-weight:'+(on?'700':'500')+';cursor:pointer;font-family:Arial;white-space:nowrap">'+label+(cost!=null?' <span style="opacity:.85">· '+fmt(cost)+'</span>':'')+'</button>';
-  };
   var rows=espsA.map(function(e,i){
     var selIdx=(e.nombre in sel)?parseInt(sel[e.nombre]):-1;
-    var chips='<div style="display:flex;gap:6px;flex-wrap:wrap">'
-      +e.asesores.map(function(a,j){return _chip(i,j,esc(a.empresa||('Asesor '+(j+1))),parseFloat(a.costoMXN)||0,selIdx);}).join('')
-      +_chip(i,-1,'— ninguno —',null,selIdx)
-      +'</div>';
+    var aseRows=e.asesores.map(function(a,j){
+      var on=String(j)===String(selIdx);var cv=parseFloat(a.costoMXN)||0;
+      return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">'
+        +'<button type="button" class="escchip" data-idx="'+j+'" onclick="escPick('+i+','+j+')" style="flex:0 0 auto;min-width:160px;max-width:220px;text-align:left;font-size:10px;padding:5px 10px;border-radius:6px;border:.5px solid '+(on?'#3B6D11':'#bfd1e5')+';background:'+(on?'#3B6D11':'#fff')+';color:'+(on?'#fff':'#254467')+';font-weight:'+(on?'700':'500')+';cursor:pointer;font-family:Arial;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+esc(a.empresa||('Asesor '+(j+1)))+'">'+esc(a.empresa||('Asesor '+(j+1)))+'</button>'
+        +'<span style="font-size:9px;color:#a8a8a8">$</span>'
+        +'<input type="text" value="'+(cv?cv:'')+'" onchange="escSetCosto('+i+','+j+',this.value)" placeholder="0" style="width:120px;font-size:11px;padding:4px 7px;border:.5px solid #bfd1e5;border-radius:5px;font-family:Arial;text-align:right" title="Editar costo — se guarda en la cotización">'
+        +'<span style="font-size:9px;color:#a8a8a8">MXN</span>'
+        +'</div>';
+    }).join('');
     return '<div id="escrow_'+i+'" style="padding:8px 0;border-bottom:.5px solid #eef2f6">'
-      +'<div style="font-size:11px;font-weight:700;color:#254467;margin-bottom:5px">'+esc(e.nombre)+'</div>'+chips+'</div>';
+      +'<div style="font-size:11px;font-weight:700;color:#254467;margin-bottom:5px">'+esc(e.nombre)+'</div>'
+      +aseRows
+      +'<button type="button" class="escchip" data-idx="-1" onclick="escPick('+i+',-1)" style="font-size:9px;padding:3px 9px;border-radius:6px;border:.5px solid '+(selIdx===-1?'#3B6D11':'#bfd1e5')+';background:'+(selIdx===-1?'#3B6D11':'#fff')+';color:'+(selIdx===-1?'#fff':'#67727a')+';cursor:pointer;font-family:Arial;margin-top:2px">— ninguno —</button>'
+      +'</div>';
   }).join('');
   var _mt=_escMetrics(cot,sel,indOv);var tot=_mt.grandTotal;var dir=_mt.grandDirect;
   // Escenarios guardados (comparativa)
@@ -9842,6 +9846,15 @@ function openEscenarios(cotId){
   openModal();
 }
 function escSet(selEl){var espn=selEl.getAttribute('data-esp');window.__escSel=window.__escSel||{};window.__escSel[espn]=parseInt(selEl.value);escUpdate();}
+function escSetCosto(i,j,val){
+  var name=(window.__escEsps||[])[i];if(name==null)return;
+  var cots=getCots();var cot=cots.find(function(c){return String(c.id)===String(window.__escCot);});if(!cot)return;
+  var e=(cot.especialidades||[]).find(function(x){return x.nombre===name;});if(!e||!e.asesores||!e.asesores[j])return;
+  var num=String(val).replace(/[^0-9.]/g,'');
+  e.asesores[j].costoMXN=(num===''?0:parseFloat(num));
+  saveCots(cots);
+  escUpdate();
+}
 function escPick(i,idx){
   var name=(window.__escEsps||[])[i];if(name==null)return;
   window.__escSel=window.__escSel||{};window.__escSel[name]=idx;
