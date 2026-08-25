@@ -10103,8 +10103,13 @@ function imprimirEscenariosComb(cbId){
   var totals=data.map(function(d){return d.total;});var minV=Math.min.apply(null,totals),maxV=Math.max.apply(null,totals);
   var colOf=function(d){return d.total===minV?'#3B6D11':(d.total===maxV&&maxV!==minV?'#c0392b':'#5B21B6');};
   var head='<tr><th>Partida</th>'+data.map(function(d){return '<th class="r" style="background:'+colOf(d)+'">'+(d.esOfic?'★ ':'')+esc(d.nombre)+'</th>';}).join('')+'</tr>';
+  // Respetar el orden de columnas guardado (arrastre), sin alterar el índice interno
+  var _compIds=comps.map(function(cm){return String(cm.cot.id);});
+  var _ord=(cb.escColOrder||[]).map(String).filter(function(id){return _compIds.indexOf(id)>=0;});
+  _compIds.forEach(function(id){if(_ord.indexOf(id)<0)_ord.push(id);});
+  var _orderCis=_ord.map(function(id){return _compIds.indexOf(id);});
   var espRows='';
-  comps.forEach(function(cm,ci){
+  _orderCis.forEach(function(ci){var cm=comps[ci];
     espRows+='<tr class="sec"><td colspan="'+(data.length+1)+'">🧩 '+esc(cm.cot.nombre)+(cm.cot.tipoCotizacion?' · '+esc(cm.cot.tipoCotizacion):'')+'</td></tr>';
     cm.espsA.forEach(function(e){
       espRows+='<tr><td class="b">'+esc(e.nombre)+'</td>'+data.map(function(d){
