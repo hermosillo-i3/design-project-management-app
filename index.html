@@ -10016,6 +10016,20 @@ function cargarEscenarioComb(cbId,escId){
   if(window.__escCB)window.__escCB.sel=Object.assign({},s.sel||{});
   openEscenariosComb(cbId);
 }
+function renombrarEscenarioComb(cbId,escId){
+  var combs=getCombinadas();var cb=combs.find(function(c){return String(c.id)===String(cbId);});if(!cb)return;
+  var s=(cb.escenarios||[]).find(function(x){return String(x.id)===String(escId);});if(!s)return;
+  var nombre=prompt('Nuevo nombre del escenario:',s.nombre||'');
+  if(!nombre||!nombre.trim())return;
+  s.nombre=nombre.trim();saveCombinadas(combs);openEscenariosComb(cbId);
+}
+function actualizarEscenarioComb(cbId,escId){
+  var st=window.__escCB;if(!st){alert('Abre el armador para tener una selección que guardar.');return;}
+  var combs=getCombinadas();var cb=combs.find(function(c){return String(c.id)===String(cbId);});if(!cb)return;
+  var s=(cb.escenarios||[]).find(function(x){return String(x.id)===String(escId);});if(!s)return;
+  if(!confirm('¿Actualizar "'+(s.nombre||'este escenario')+'" con la selección de asesores que tienes ahora arriba?'))return;
+  s.sel=Object.assign({},st.sel||{});saveCombinadas(combs);openEscenariosComb(cbId);
+}
 function borrarEscenarioComb(cbId,escId){
   if(!confirm('¿Eliminar este escenario guardado?'))return;
   var combs=getCombinadas();var cb=combs.find(function(c){return String(c.id)===String(cbId);});if(!cb)return;
@@ -10165,7 +10179,7 @@ function openEscenariosComb(cbId){
       var esOfic=cb.escenarioOficial&&String(cb.escenarioOficial)===String(r.id);
       savedHtml+='<div style="margin-bottom:7px'+(esOfic?';background:#f1f8ea;border:.5px solid #c3e6cb;border-radius:6px;padding:5px 8px':'')+'"><div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:11px;font-weight:700;color:'+(esOfic?'#3B6D11':col)+'">'+(esOfic?'✓ ':'')+esc(r.nombre)+(esOfic?' <span style="font-size:8px;background:#3B6D11;color:#fff;border-radius:3px;padding:1px 5px;font-weight:700">OFICIAL</span>':'')+(isMin?' 💚 más bajo':isMax?' 🔺 más alto':'')+'</span><span style="font-size:12px;font-weight:800;color:'+col+'">'+fmt(r.total)+'</span></div>'
         +'<div style="font-size:9px;color:#67727a">Directo '+fmt(r.directo)+' · Indirectos '+fmt(r.total-r.directo)+'</div>'
-        +'<div style="margin-top:3px;display:flex;gap:6px;flex-wrap:wrap"><button onclick="cargarEscenarioComb(\''+cbId+'\',\''+r.id+'\')" style="font-size:9px;padding:1px 7px;border:.5px solid #bfd1e5;border-radius:4px;background:#fff;cursor:pointer;font-family:Arial;color:#6990ab">Cargar</button><button onclick="escHacerOficialComb(\''+cbId+'\',\''+r.id+'\')" style="font-size:9px;padding:1px 7px;border:.5px solid #639922;border-radius:4px;background:#fff;cursor:pointer;font-family:Arial;color:#3B6D11;font-weight:700">⭐ Hacer oficial</button><button onclick="borrarEscenarioComb(\''+cbId+'\',\''+r.id+'\')" style="font-size:9px;padding:1px 7px;border:.5px solid #FECACA;border-radius:4px;background:#fff;cursor:pointer;font-family:Arial;color:#e65a27">✕</button></div></div>';
+        +'<div style="margin-top:3px;display:flex;gap:6px;flex-wrap:wrap"><button onclick="cargarEscenarioComb(\''+cbId+'\',\''+r.id+'\')" style="font-size:9px;padding:1px 7px;border:.5px solid #bfd1e5;border-radius:4px;background:#fff;cursor:pointer;font-family:Arial;color:#6990ab">Cargar</button><button onclick="renombrarEscenarioComb(\''+cbId+'\',\''+r.id+'\')" style="font-size:9px;padding:1px 7px;border:.5px solid #bfd1e5;border-radius:4px;background:#fff;cursor:pointer;font-family:Arial;color:#254467">✏ Renombrar</button><button onclick="actualizarEscenarioComb(\''+cbId+'\',\''+r.id+'\')" style="font-size:9px;padding:1px 7px;border:.5px solid #BA7517;border-radius:4px;background:#fff;cursor:pointer;font-family:Arial;color:#BA7517;font-weight:700" title="Guardar la selección actual en este escenario">↻ Actualizar</button><button onclick="escHacerOficialComb(\''+cbId+'\',\''+r.id+'\')" style="font-size:9px;padding:1px 7px;border:.5px solid #639922;border-radius:4px;background:#fff;cursor:pointer;font-family:Arial;color:#3B6D11;font-weight:700">⭐ Hacer oficial</button><button onclick="borrarEscenarioComb(\''+cbId+'\',\''+r.id+'\')" style="font-size:9px;padding:1px 7px;border:.5px solid #FECACA;border-radius:4px;background:#fff;cursor:pointer;font-family:Arial;color:#e65a27">✕</button></div></div>';
     });
     savedHtml+='</div>';
   }
