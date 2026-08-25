@@ -10044,6 +10044,65 @@ function escHacerOficialComb(cbId,escId){
   cb.oficial=true;cb.escenarioOficial=escId;saveCombinadas(combs);
   window.__escCB=null;closeModal();renderCotizaciones();
 }
+function imprimirEscenariosComb(cbId){
+  var cb=getCombinadas().find(function(c){return String(c.id)===String(cbId);});if(!cb)return;
+  var escs=cb.escenarios||[];
+  if(!escs.length){alert('Aún no tienes escenarios guardados en esta combinada. Arma uno y dale "💾 Guardar escenario".');return;}
+  var cots=getCots();
+  var comps=(cb.componentes||[]).map(function(id){return cots.find(function(c){return String(c.id)===String(id);});}).filter(Boolean)
+    .map(function(cot){return {cot:cot,espsA:(cot.especialidades||[]).filter(function(e){return e.asesores&&e.asesores.length;})};});
+  var granM2=comps.reduce(function(s,cm){return s+(parseFloat(cm.cot.areaM2)||0);},0);
+  var tc=parseFloat(comps[0]&&comps[0].cot.tipoCambio)||18;
+  var allProjs=[].concat(activeProjs(),internos(),ld(K.proj,[]).filter(function(p){return p.archivado;}));
+  var proj=allProjs.find(function(p){return String(p.id)===String(cb.projId);});
+  var esc=function(s){return String(s==null?'':s).replace(/</g,'&lt;');};
+  var fmt=function(n){return n?'$'+Math.round(n).toLocaleString('es-MX'):'—';};
+  var data=escs.map(function(s){
+    var total=0,directo=0;
+    comps.forEach(function(cm,ci){var mt=_escMetrics(cm.cot,_escCombPerCotSel(s.sel||{},ci));total+=mt.grandTotal;directo+=mt.grandDirect;});
+    return {nombre:s.nombre,sel:s.sel||{},total:total,directo:directo,indir:total-directo,esOfic:cb.escenarioOficial&&String(cb.escenarioOficial)===String(s.id)};
+  });
+  var totals=data.map(function(d){return d.total;});var minV=Math.min.apply(null,totals),maxV=Math.max.apply(null,totals);
+  var colOf=function(d){return d.total===minV?'#3B6D11':(d.total===maxV&&maxV!==minV?'#c0392b':'#5B21B6');};
+  var head='<tr><th>Partida</th>'+data.map(function(d){return '<th class="r" style="background:'+colOf(d)+'">'+(d.esOfic?'★ ':'')+esc(d.nombre)+'</th>';}).join('')+'</tr>';
+  var espRows='';
+  comps.forEach(function(cm,ci){
+    espRows+='<tr class="sec"><td colspan="'+(data.length+1)+'">🧩 '+esc(cm.cot.nombre)+(cm.cot.tipoCotizacion?' · '+esc(cm.cot.tipoCotizacion):'')+'</td></tr>';
+    cm.espsA.forEach(function(e){
+      espRows+='<tr><td class="b">'+esc(e.nombre)+'</td>'+data.map(function(d){
+        var perSel=_escCombPerCotSel(d.sel,ci);var idx=perSel[e.nombre];
+        var a=(idx!=null&&idx>=0&&e.asesores[idx])?e.asesores[idx]:null;
+        return '<td class="r">'+(a?esc(a.empresa||'—')+'<div class="sub">'+fmt(parseFloat(a.costoMXN)||0)+'</div>':'<span style="color:#bbb">—</span>')+'</td>';
+      }).join('')+'</tr>';
+    });
+  });
+  var rowLine=function(lbl,vals,cls){return '<tr'+(cls?' class="'+cls+'"':'')+'><td>'+lbl+'</td>'+vals.map(function(v){return '<td class="r">'+v+'</td>';}).join('')+'</tr>';};
+  var totRow='<tr class="tot"><td>TOTAL COMBINADO</td>'+data.map(function(d){var c=colOf(d);return '<td class="r" style="background:'+c+';color:#fff">'+fmt(d.total)+(d.total===minV?' 💚':(d.total===maxV&&maxV!==minV?' 🔺':''))+'</td>';}).join('')+'</tr>';
+  var win=window.open('','_blank');
+  win.document.write('<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Comparativa de escenarios — '+esc(cb.nombre)+'</title><style>'
+    +'*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;color:#1A1A2E;font-size:12px;padding:1.5rem;max-width:1100px;margin:0 auto}'
+    +'.hdr{background:#5B21B6;color:#fff;border-radius:8px;padding:12px 16px;margin-bottom:14px}.hdr-t{font-size:16px;font-weight:700}.hdr-s{font-size:10px;color:#e5ddf7;margin-top:3px}'
+    +'table{width:100%;border-collapse:collapse;font-size:11px}'
+    +'th{color:#fff;padding:6px 8px;text-align:left;font-size:10px;font-weight:700;border:.5px solid #cbd5e1}th.r{text-align:right}'
+    +'td{padding:5px 8px;border:.5px solid #cbd5e1;vertical-align:top}td.r{text-align:right}td.b{font-weight:700;color:#254467}'
+    +'.sub{font-size:9px;color:#888;font-weight:400}'
+    +'tr.sec td{background:#f3eefb;color:#5B21B6;font-weight:800;font-size:10px;text-transform:uppercase;letter-spacing:.03em}'
+    +'tr.tot td{font-weight:800;font-size:12px}'
+    +'@page{size:landscape;margin:1cm}@media print{body{padding:.3rem}}</style></head><body>'
+    +'<div class="hdr"><div class="hdr-t">Comparativa de escenarios — '+esc(cb.nombre)+' (combinada)</div>'
+    +'<div class="hdr-s">'+(proj?esc(proj.nombre)+' · ':'')+'Gerencia de Diseño CDMX — Grupo Hermosillo'+(granM2?' · '+Number(granM2).toLocaleString()+' m²':'')+' · '+today.toLocaleDateString('es-MX',{day:'2-digit',month:'long',year:'numeric'})+'</div></div>'
+    +'<table><thead>'+head+'</thead><tbody>'
+    +espRows
+    +rowLine('Directo (asesores)',data.map(function(d){return fmt(d.directo);}))
+    +rowLine('Indirectos',data.map(function(d){return fmt(d.indir);}))
+    +totRow
+    +(granM2?rowLine('$/m² MXN',data.map(function(d){return '$'+(d.total/granM2).toFixed(2);})):'')
+    +((granM2&&tc)?rowLine('$/m² USD',data.map(function(d){return '$'+(d.total/granM2/tc).toFixed(2);})):'')
+    +'</tbody></table>'
+    +'<div style="margin-top:14px;font-size:9px;color:#999">💚 más bajo · 🔺 más alto · ★ oficial · T.C. $'+tc+' · Generado el '+fmtDY(todayStr)+'</div>'
+    +'</body></html>');
+  win.document.close();
+}
 function openEscenariosComb(cbId){
   var cb=getCombinadas().find(function(c){return String(c.id)===String(cbId);});if(!cb)return;
   var cots=getCots();
@@ -10089,7 +10148,7 @@ function openEscenariosComb(cbId){
   var savedHtml='';
   if(saved.length){
     var tvals=saved.map(function(r){return r.total;});var minV=Math.min.apply(null,tvals),maxV=Math.max.apply(null,tvals);
-    savedHtml='<div style="margin-top:14px;border-top:.5px solid #e2e8f0;padding-top:12px"><div style="font-size:11px;font-weight:800;color:#254467;margin-bottom:8px">📊 Escenarios guardados</div>';
+    savedHtml='<div style="margin-top:14px;border-top:.5px solid #e2e8f0;padding-top:12px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span style="font-size:11px;font-weight:800;color:#254467">📊 Escenarios guardados</span><button onclick="imprimirEscenariosComb(\''+cbId+'\')" style="font-size:10px;padding:3px 9px;border:.5px solid #6990ab;border-radius:5px;background:#fff;color:#6990ab;cursor:pointer;font-family:Arial;font-weight:700">🖨 Imprimir comparativa</button></div>';
     saved.slice().sort(function(a,b){return a.total-b.total;}).forEach(function(r){
       var isMin=r.total===minV,isMax=r.total===maxV&&maxV!==minV;var col=isMin?'#3B6D11':isMax?'#c0392b':'#254467';
       var esOfic=cb.escenarioOficial&&String(cb.escenarioOficial)===String(r.id);
