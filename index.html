@@ -11947,7 +11947,7 @@ function aseVBShow(id){
   var esc=function(s){return String(s).replace(/</g,'&lt;');};
   var cons=d.cons||[];
   var html='<strong style="color:#5B21B6">'+esc(d.nombre)+'</strong>';
-  if(cons.length)html+='<div style="margin-top:4px"><span style="color:#BA7517;font-weight:700">Cotizado / considerado en precon ('+cons.length+'):</span> '+cons.map(esc).join(' · ')+'</div>';
+  if(cons.length)html+='<div style="margin-top:4px"><span style="color:#7b8794;font-weight:700">Cotizado / considerado en precon ('+cons.length+'):</span> '+cons.map(esc).join(' · ')+'</div>';
   if(d.precon.length)html+='<div style="margin-top:3px"><span style="color:#7C3AED;font-weight:700">Precon — elegido ('+d.precon.length+'):</span> '+d.precon.map(esc).join(' · ')+'</div>';
   if(d.eje.length)html+='<div style="margin-top:3px"><span style="color:#5B21B6;font-weight:700">Ejecutivo — Costos ('+d.eje.length+'):</span> '+d.eje.map(esc).join(' · ')+'</div>';
   if(!d.precon.length&&!d.eje.length&&!cons.length)html+='<div style="margin-top:4px;color:#a8a8a8">Sin proyectos.</div>';
@@ -12228,7 +12228,7 @@ function renderEstadisticas(){
     var nm=String(x.nombre).replace(/</g,'&lt;');
     // Orden de arriba a abajo: cotizado (considerado), precon (elegido), ejecutivo
     var segs='';
-    if(cs>0)segs+='<div style="height:'+hCons+'px;background:#F0C177"></div>';
+    if(cs>0)segs+='<div style="height:'+hCons+'px;background:#CBD5E1"></div>';
     if(pc>0)segs+='<div style="height:'+hPre+'px;background:#C4B5FD"></div>';
     if(ej>0)segs+='<div style="height:'+hEje+'px;background:#7C3AED"></div>';
     return '<div onclick="aseVBShow(\''+id+'\')" style="display:flex;flex-direction:column;align-items:center;width:60px;flex-shrink:0;cursor:pointer" title="'+nm+' — Cotizado: '+cs+' · Precon elegido: '+pc+' · Ejecutivo: '+ej+'">'
@@ -12264,7 +12264,7 @@ function renderEstadisticas(){
   var aseHtml='<div style="background:#fff;border-radius:12px;border:.5px solid #bfd1e5;padding:16px 18px;margin-bottom:1.25rem">'
     +'<div class="sec" style="margin-top:0;margin-bottom:4px">🏗️ Contratistas / asesores por especialidad</div>'
     +'<div style="font-size:10px;color:#67727a;margin-bottom:10px">Cada barra es un asesor · la altura es el número de proyectos · '
-    +'<span style="display:inline-block;width:10px;height:10px;background:#F0C177;border-radius:2px;vertical-align:middle"></span> cotizado / considerado &nbsp; '
+    +'<span style="display:inline-block;width:10px;height:10px;background:#CBD5E1;border-radius:2px;vertical-align:middle"></span> cotizado / considerado &nbsp; '
     +'<span style="display:inline-block;width:10px;height:10px;background:#C4B5FD;border-radius:2px;vertical-align:middle"></span> precon (elegido) &nbsp; '
     +'<span style="display:inline-block;width:10px;height:10px;background:#7C3AED;border-radius:2px;vertical-align:middle"></span> ejecutivo · clic en una barra para ver los proyectos'
     +(sinAseEje?' · <span style="color:#e65a27;font-weight:700">'+sinAseEje+' proyecto'+(sinAseEje!==1?'s':'')+' sin asesor</span>':'')+'</div>'
