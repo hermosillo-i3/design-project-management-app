@@ -10120,30 +10120,41 @@ function openEscenariosComb(cbId){
   var esc=function(s){return String(s==null?'':s).replace(/</g,'&lt;');};
   var tot=_escCombTotalsFor(st.sel);
   var _m2line=function(total){if(!st.granM2)return '';var mx=total/st.granM2;return Number(st.granM2).toLocaleString()+' m² · $'+mx.toFixed(2)+'/m² MXN'+(st.tc?' · $'+(mx/st.tc).toFixed(2)+'/m² USD':'');};
-  var compHtml=comps.map(function(cm,ci){
-    var mt=_escMetrics(cm.cot,_escCombPerCotSel(st.sel,ci));
-    var rows=cm.espsA.map(function(e,ei){
-      var selIdx=(ci+'|'+e.nombre in st.sel)?parseInt(st.sel[ci+'|'+e.nombre]):-1;
-      var optRow=function(j,label,cv,editable){
-        var on=String(j)===String(selIdx);
-        return '<div class="escchip" data-idx="'+j+'" onclick="escPickC('+ci+','+ei+','+j+')" style="display:flex;align-items:center;gap:10px;padding:6px 10px;border-radius:8px;border:1px solid '+(on?'#bcdba0':'#eef2f6')+';background:'+(on?'#f1f8ea':'#fff')+';cursor:pointer;margin-bottom:4px">'
-          +'<span class="escradio" style="width:14px;height:14px;border-radius:50%;border:2px solid '+(on?'#3B6D11':'#c5ccd4')+';background:'+(on?'#3B6D11':'#fff')+';flex-shrink:0"></span>'
-          +'<span class="escname" style="flex:1;font-size:11px;font-weight:'+(on?'700':'500')+';color:#254467;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+esc(label)+'">'+esc(label)+'</span>'
-          +(editable?'<span style="font-size:9px;color:#b7bfc7">$</span><input type="text" value="'+(cv?cv:'')+'" onclick="event.stopPropagation()" onchange="escSetCostoC('+ci+','+ei+','+j+',this.value)" placeholder="0" style="width:120px;font-size:11px;padding:5px 9px;border:.5px solid #d5dde5;border-radius:6px;font-family:Arial;text-align:right;color:#254467" title="Editar costo — se guarda en la cotización"><span style="font-size:8px;color:#b7bfc7">MXN</span>':'<span style="font-size:9px;color:#c5ccd4;font-style:italic">sin costo</span>')
-          +'</div>';
-      };
-      var aseRows=e.asesores.map(function(a,j){return optRow(j,a.empresa||('Asesor '+(j+1)),parseFloat(a.costoMXN)||0,true);}).join('')
-        +optRow(-1,'— ninguno —',0,false);
-      return '<div id="esccrow_'+ci+'_'+ei+'" style="padding:9px 0;border-top:.5px solid #f1f4f7">'
-        +'<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px"><span style="width:3px;height:12px;background:#7C3AED;border-radius:2px;display:inline-block"></span><span style="font-size:10px;font-weight:800;color:#254467;text-transform:uppercase;letter-spacing:.03em">'+esc(e.nombre)+'</span></div>'
-        +aseRows+'</div>';
-    }).join('');
-    var _col=!!st.collapsed[ci];
-    return '<div style="border:.5px solid #e5ddf7;border-radius:8px;padding:8px 12px;margin-bottom:10px;background:#fcfbff">'
-      +'<div onclick="escCombToggleAlcance('+ci+')" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;cursor:pointer" title="Clic para colapsar/expandir"><span style="font-size:11px;font-weight:800;color:#5B21B6"><span id="esccchev_'+ci+'" style="color:#7C3AED">'+(_col?'▸':'▾')+'</span> 🧩 '+esc(cm.cot.nombre)+(cm.cot.tipoCotizacion?' <span style="font-size:9px;font-weight:400;color:#8a97a3">· '+esc(cm.cot.tipoCotizacion)+'</span>':'')+'</span><span id="esccsub_'+ci+'" style="font-size:12px;font-weight:800;color:#254467">'+fmt(mt.grandTotal)+'</span></div>'
-      +'<div id="esccbody_'+ci+'" style="'+(_col?'display:none':'')+'">'+(rows||'<div style="font-size:10px;color:#a8a8a8">Sin partidas con asesores.</div>')+'</div>'
+  // Orden de especialidades según catálogo (Arq, Civil, Est...)
+  var _catCot=migrateCotCat(getCotCat());var _espOrder={},_oi=0;
+  ['Cotizaciones de Diseño','Estudios Preliminares','Trámites, Licencias y Permisos'].concat(Object.keys(_catCot)).forEach(function(g){var v=_catCot[g]||{};[].concat(v.base||[],v.extras||[]).forEach(function(e){if(!(e in _espOrder))_espOrder[e]=_oi++;});});
+  var allEsps=[];comps.forEach(function(cm){cm.espsA.forEach(function(e){if(allEsps.indexOf(e.nombre)<0)allEsps.push(e.nombre);});});
+  allEsps.sort(function(a,b){var oa=_espOrder[a],ob=_espOrder[b];if(oa!=null&&ob!=null)return oa-ob;if(oa!=null)return -1;if(ob!=null)return 1;return a.localeCompare(b);});
+  var _optRow=function(ci,ei,j,label,cv,editable,selIdx){
+    var on=String(j)===String(selIdx);
+    return '<div class="escchip" data-idx="'+j+'" onclick="escPickC('+ci+','+ei+','+j+')" style="display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:7px;border:1px solid '+(on?'#bcdba0':'#eef2f6')+';background:'+(on?'#f1f8ea':'#fff')+';cursor:pointer;margin-bottom:4px">'
+      +'<span class="escradio" style="width:13px;height:13px;border-radius:50%;border:2px solid '+(on?'#3B6D11':'#c5ccd4')+';background:'+(on?'#3B6D11':'#fff')+';flex-shrink:0"></span>'
+      +'<span class="escname" style="flex:1;font-size:10px;font-weight:'+(on?'700':'500')+';color:#254467;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+esc(label)+'">'+esc(label)+'</span>'
+      +(editable?'<input type="text" value="'+(cv?cv:'')+'" onclick="event.stopPropagation()" onchange="escSetCostoC('+ci+','+ei+','+j+',this.value)" placeholder="0" style="width:88px;font-size:10px;padding:4px 6px;border:.5px solid #d5dde5;border-radius:5px;font-family:Arial;text-align:right;color:#254467" title="Editar costo — se guarda en la cotización">':'<span style="font-size:8px;color:#c5ccd4;font-style:italic">sin costo</span>')
+      +'</div>';
+  };
+  var _cellPicker=function(ci,ei,e){
+    var selIdx=(ci+'|'+e.nombre in st.sel)?parseInt(st.sel[ci+'|'+e.nombre]):-1;
+    var aseRows=e.asesores.map(function(a,j){return _optRow(ci,ei,j,a.empresa||('Asesor '+(j+1)),parseFloat(a.costoMXN)||0,true,selIdx);}).join('')
+      +_optRow(ci,ei,-1,'— ninguno —',0,false,selIdx);
+    return '<div id="esccrow_'+ci+'_'+ei+'">'+aseRows+'</div>';
+  };
+  var COLW=250,LEFTW=140;var MW=LEFTW+comps.length*COLW;
+  var header='<div style="display:flex;min-width:'+MW+'px;border-bottom:2px solid #e5ddf7;position:sticky;top:0;z-index:4">'
+    +'<div style="position:sticky;left:0;width:'+LEFTW+'px;flex-shrink:0;background:#f6f2fc;z-index:5;padding:8px 10px;font-size:9px;font-weight:800;color:#5B21B6;text-transform:uppercase;letter-spacing:.04em;display:flex;align-items:center">Ingeniería</div>'
+    +comps.map(function(cm,ci){var mt=_escMetrics(cm.cot,_escCombPerCotSel(st.sel,ci));return '<div style="width:'+COLW+'px;flex-shrink:0;padding:8px 10px;background:#f6f2fc;border-left:1px solid #e5ddf7"><div style="font-size:11px;font-weight:800;color:#5B21B6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+esc(cm.cot.nombre)+'">🧩 '+esc(cm.cot.nombre)+'</div>'+(cm.cot.tipoCotizacion?'<div style="font-size:8px;color:#8a97a3">'+esc(cm.cot.tipoCotizacion)+'</div>':'')+'<div id="esccsub_'+ci+'" style="font-size:13px;font-weight:800;color:#254467;margin-top:2px">'+fmt(mt.grandTotal)+'</div></div>';}).join('')
+    +'</div>';
+  var bodyRows=allEsps.map(function(espName,ri){
+    return '<div style="display:flex;min-width:'+MW+'px;border-bottom:.5px solid #f1f4f7;background:'+(ri%2?'#fcfbff':'#fff')+'">'
+      +'<div style="position:sticky;left:0;width:'+LEFTW+'px;flex-shrink:0;background:'+(ri%2?'#fcfbff':'#fff')+';z-index:2;padding:8px 10px;display:flex;align-items:center;gap:6px"><span style="width:3px;height:12px;background:#7C3AED;border-radius:2px;display:inline-block;flex-shrink:0"></span><span style="font-size:10px;font-weight:800;color:#254467;line-height:1.2">'+esc(espName)+'</span></div>'
+      +comps.map(function(cm,ci){
+          var ei=cm.espsA.findIndex(function(e){return e.nombre===espName;});
+          if(ei<0)return '<div style="width:'+COLW+'px;flex-shrink:0;padding:8px 10px;border-left:1px solid #f4f6f8;color:#c5ccd4;font-size:9px;font-style:italic;display:flex;align-items:center">— no incluida —</div>';
+          return '<div style="width:'+COLW+'px;flex-shrink:0;padding:6px 8px;border-left:1px solid #f1f4f7">'+_cellPicker(ci,ei,cm.espsA[ei])+'</div>';
+        }).join('')
       +'</div>';
   }).join('');
+  var compHtml='<div style="overflow:auto;max-height:52vh;border:.5px solid #e5ddf7;border-radius:10px">'+header+bodyRows+'</div>';
   var saved=(cb.escenarios||[]).map(function(s){var t=_escCombTotalsFor(s.sel||{});return {id:s.id,nombre:s.nombre,total:t.total,directo:t.directo};});
   var savedHtml='';
   if(saved.length){
