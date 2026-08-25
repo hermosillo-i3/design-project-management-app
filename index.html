@@ -4767,6 +4767,7 @@ function renderCombinadasBlock(projId,projCots){
       +(cb.componentes&&cb.componentes.length>comps.length?'<div style="font-size:9px;color:#e65a27;margin-bottom:6px">⚠ Algún alcance fue eliminado; edita la combinada.</div>':'')
       +'<div style="display:flex;gap:6px;flex-wrap:wrap">'
       +'<button onclick="toggleCombOficial(\''+cb.id+'\')" title="Marcar como oficial / aceptada" style="font-size:10px;padding:2px 8px;border:.5px solid #639922;border-radius:5px;background:'+(cb.oficial?'#3B6D11':'#fff')+';color:'+(cb.oficial?'#fff':'#3B6D11')+';cursor:pointer;font-family:Arial;font-weight:700">'+(cb.oficial?'✓ Oficial':'✓ Marcar oficial')+'</button>'
+      +'<button onclick="openEscenariosComb(\''+cb.id+'\')" style="font-size:10px;padding:2px 8px;border:.5px solid #BA7517;border-radius:5px;background:#fff;color:#BA7517;cursor:pointer;font-family:Arial;font-weight:700">🎚️ Escenarios</button>'
       +'<button onclick="imprimirCombinada(\''+cb.id+'\')" style="font-size:10px;padding:2px 8px;border:.5px solid #6990ab;border-radius:5px;background:#fff;color:#6990ab;cursor:pointer;font-family:Arial">🖨 Imprimir</button>'
       +'<button onclick="openArmarCombinada('+projId+',\''+cb.id+'\')" style="font-size:10px;padding:2px 8px;border:.5px solid #bfd1e5;border-radius:5px;background:#fff;cursor:pointer;font-family:Arial">✏ Editar</button>'
       +'<button onclick="deleteCombinada(\''+cb.id+'\')" style="font-size:10px;padding:2px 8px;border:.5px solid #FECACA;border-radius:5px;background:#fff;color:#e65a27;cursor:pointer;font-family:Arial">✕</button>'
@@ -9962,6 +9963,122 @@ function imprimirEscenarios(cotId){
     +'<div style="margin-top:14px;font-size:9px;color:#999">💚 más bajo · 🔺 más alto · T.C. $'+tc+' · Generado el '+fmtDY(todayStr)+'</div>'
     +'</body></html>');
   win.document.close();
+}
+
+// ── ESCENARIOS DE COTIZACIÓN COMBINADA (elige asesor por partida de cada alcance) ──
+function _escCombPerCotSel(sel,ci){var o={};Object.keys(sel||{}).forEach(function(k){var p=k.indexOf('|');if(p<0)return;if(String(k.slice(0,p))!==String(ci))return;o[k.slice(p+1)]=sel[k];});return o;}
+function _escCombTotalsFor(sel){var st=window.__escCB;var total=0,directo=0;if(!st)return{total:0,directo:0};st.comps.forEach(function(cm,ci){var mt=_escMetrics(cm.cot,_escCombPerCotSel(sel,ci));total+=mt.grandTotal;directo+=mt.grandDirect;});return{total:total,directo:directo};}
+function escUpdateC(){
+  var st=window.__escCB;if(!st)return;var fmt=function(n){return '$'+Math.round(n||0).toLocaleString('es-MX');};
+  var total=0,directo=0;
+  st.comps.forEach(function(cm,ci){var mt=_escMetrics(cm.cot,_escCombPerCotSel(st.sel,ci));total+=mt.grandTotal;directo+=mt.grandDirect;var sub=document.getElementById('esccsub_'+ci);if(sub)sub.textContent=fmt(mt.grandTotal);});
+  var el=document.getElementById('esccomb-total');if(el)el.textContent=fmt(total);
+  var s=document.getElementById('esccomb-sub');if(s)s.textContent='Directo (asesores) '+fmt(directo)+' · Indirectos '+fmt(total-directo);
+}
+function escPickC(ci,ei,idx){
+  var st=window.__escCB;if(!st)return;var name=st.comps[ci].espsA[ei].nombre;st.sel[ci+'|'+name]=idx;
+  var row=document.getElementById('esccrow_'+ci+'_'+ei);
+  if(row){Array.prototype.forEach.call(row.getElementsByClassName('escchip'),function(ch){var on=String(ch.getAttribute('data-idx'))===String(idx);ch.style.background=on?'#3B6D11':'#fff';ch.style.color=on?'#fff':'#254467';ch.style.borderColor=on?'#3B6D11':'#bfd1e5';ch.style.fontWeight=on?'700':'500';});}
+  escUpdateC();
+}
+function escSetCostoC(ci,ei,j,val){
+  var st=window.__escCB;if(!st)return;var espName=st.comps[ci].espsA[ei].nombre;var cotId=st.comps[ci].cot.id;
+  var cots=getCots();var cot=cots.find(function(c){return String(c.id)===String(cotId);});if(!cot)return;
+  var e=(cot.especialidades||[]).find(function(x){return x.nombre===espName;});if(!e||!e.asesores||!e.asesores[j])return;
+  var num=String(val).replace(/[^0-9.]/g,'');var newv=(num===''?0:parseFloat(num));e.asesores[j].costoMXN=newv;saveCots(cots);
+  var se=(st.comps[ci].cot.especialidades||[]).find(function(x){return x.nombre===espName;});if(se&&se.asesores&&se.asesores[j])se.asesores[j].costoMXN=newv;
+  escUpdateC();
+}
+function escPresetC(cbId,which){
+  var st=window.__escCB;if(!st)return;
+  st.comps.forEach(function(cm,ci){cm.espsA.forEach(function(e){
+    if(which==='actual'){st.sel[ci+'|'+e.nombre]=e.asesores.findIndex(function(a){return a.elegido;});return;}
+    var best=-1,bestV=null;e.asesores.forEach(function(a,j){var v=parseFloat(a.costoMXN)||0;if(!v)return;if(bestV==null||(which==='min'?v<bestV:v>bestV)){bestV=v;best=j;}});st.sel[ci+'|'+e.nombre]=best;});});
+  openEscenariosComb(cbId);
+}
+function guardarEscenarioComb(cbId){
+  var nombre=prompt('Nombre del escenario (ej. Opción A):');if(!nombre||!nombre.trim())return;
+  var combs=getCombinadas();var cb=combs.find(function(c){return String(c.id)===String(cbId);});if(!cb)return;
+  if(!cb.escenarios)cb.escenarios=[];
+  cb.escenarios.push({id:'escc_'+Date.now(),nombre:nombre.trim(),sel:Object.assign({},(window.__escCB||{}).sel||{}),fecha:todayStr});
+  saveCombinadas(combs);openEscenariosComb(cbId);
+}
+function cargarEscenarioComb(cbId,escId){
+  var cb=getCombinadas().find(function(c){return String(c.id)===String(cbId);});if(!cb)return;
+  var s=(cb.escenarios||[]).find(function(x){return String(x.id)===String(escId);});if(!s)return;
+  if(window.__escCB)window.__escCB.sel=Object.assign({},s.sel||{});
+  openEscenariosComb(cbId);
+}
+function borrarEscenarioComb(cbId,escId){
+  if(!confirm('¿Eliminar este escenario guardado?'))return;
+  var combs=getCombinadas();var cb=combs.find(function(c){return String(c.id)===String(cbId);});if(!cb)return;
+  cb.escenarios=(cb.escenarios||[]).filter(function(x){return String(x.id)!==String(escId);});
+  saveCombinadas(combs);openEscenariosComb(cbId);
+}
+function escAplicarC(cbId){
+  var st=window.__escCB;if(!st)return;var cots=getCots();
+  st.comps.forEach(function(cm,ci){var cot=cots.find(function(c){return String(c.id)===String(cm.cot.id);});if(!cot)return;var perSel=_escCombPerCotSel(st.sel,ci);
+    (cot.especialidades||[]).forEach(function(e){if(!(e.asesores&&e.asesores.length)||!(e.nombre in perSel))return;var idx=parseInt(perSel[e.nombre]);e.asesores.forEach(function(a,j){a.elegido=(j===idx);});});});
+  saveCots(cots);window.__escCB=null;closeModal();renderCotizaciones();
+}
+function openEscenariosComb(cbId){
+  var cb=getCombinadas().find(function(c){return String(c.id)===String(cbId);});if(!cb)return;
+  var cots=getCots();
+  var comps=(cb.componentes||[]).map(function(id){return cots.find(function(c){return String(c.id)===String(id);});}).filter(Boolean)
+    .map(function(cot){return {cot:cot,espsA:(cot.especialidades||[]).filter(function(e){return e.asesores&&e.asesores.length;})};});
+  if(!comps.length){alert('Esta combinada no tiene alcances con asesores capturados.');return;}
+  if(!window.__escCB||window.__escCB.cbId!==String(cbId)){
+    window.__escCB={cbId:String(cbId),comps:comps,sel:{}};
+    comps.forEach(function(cm,ci){cm.espsA.forEach(function(e){window.__escCB.sel[ci+'|'+e.nombre]=e.asesores.findIndex(function(a){return a.elegido;});});});
+  } else { window.__escCB.comps=comps; }
+  var st=window.__escCB;
+  var fmt=function(n){return '$'+Math.round(n||0).toLocaleString('es-MX');};
+  var esc=function(s){return String(s==null?'':s).replace(/</g,'&lt;');};
+  var tot=_escCombTotalsFor(st.sel);
+  var compHtml=comps.map(function(cm,ci){
+    var mt=_escMetrics(cm.cot,_escCombPerCotSel(st.sel,ci));
+    var rows=cm.espsA.map(function(e,ei){
+      var selIdx=(ci+'|'+e.nombre in st.sel)?parseInt(st.sel[ci+'|'+e.nombre]):-1;
+      var aseRows=e.asesores.map(function(a,j){
+        var on=String(j)===String(selIdx);var cv=parseFloat(a.costoMXN)||0;
+        return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">'
+          +'<button type="button" class="escchip" data-idx="'+j+'" onclick="escPickC('+ci+','+ei+','+j+')" style="flex:0 0 auto;min-width:150px;max-width:210px;text-align:left;font-size:10px;padding:5px 10px;border-radius:6px;border:.5px solid '+(on?'#3B6D11':'#bfd1e5')+';background:'+(on?'#3B6D11':'#fff')+';color:'+(on?'#fff':'#254467')+';font-weight:'+(on?'700':'500')+';cursor:pointer;font-family:Arial;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+esc(a.empresa||('Asesor '+(j+1)))+'">'+esc(a.empresa||('Asesor '+(j+1)))+'</button>'
+          +'<span style="font-size:9px;color:#a8a8a8">$</span>'
+          +'<input type="text" value="'+(cv?cv:'')+'" onchange="escSetCostoC('+ci+','+ei+','+j+',this.value)" placeholder="0" style="width:110px;font-size:11px;padding:4px 7px;border:.5px solid #bfd1e5;border-radius:5px;font-family:Arial;text-align:right" title="Editar costo — se guarda en la cotización">'
+          +'</div>';
+      }).join('');
+      return '<div id="esccrow_'+ci+'_'+ei+'" style="padding:6px 0;border-bottom:.5px solid #f4f6f8">'
+        +'<div style="font-size:10px;font-weight:700;color:#254467;margin-bottom:4px">'+esc(e.nombre)+'</div>'+aseRows
+        +'<button type="button" class="escchip" data-idx="-1" onclick="escPickC('+ci+','+ei+',-1)" style="font-size:9px;padding:3px 9px;border-radius:6px;border:.5px solid '+(selIdx===-1?'#3B6D11':'#bfd1e5')+';background:'+(selIdx===-1?'#3B6D11':'#fff')+';color:'+(selIdx===-1?'#fff':'#67727a')+';cursor:pointer;font-family:Arial;margin-top:2px">— ninguno —</button>'
+        +'</div>';
+    }).join('');
+    return '<div style="border:.5px solid #e5ddf7;border-radius:8px;padding:8px 12px;margin-bottom:10px;background:#fcfbff">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><span style="font-size:11px;font-weight:800;color:#5B21B6">🧩 '+esc(cm.cot.nombre)+(cm.cot.tipoCotizacion?' <span style="font-size:9px;font-weight:400;color:#8a97a3">· '+esc(cm.cot.tipoCotizacion)+'</span>':'')+'</span><span id="esccsub_'+ci+'" style="font-size:12px;font-weight:800;color:#254467">'+fmt(mt.grandTotal)+'</span></div>'
+      +(rows||'<div style="font-size:10px;color:#a8a8a8">Sin partidas con asesores.</div>')
+      +'</div>';
+  }).join('');
+  var saved=(cb.escenarios||[]).map(function(s){var t=_escCombTotalsFor(s.sel||{});return {id:s.id,nombre:s.nombre,total:t.total,directo:t.directo};});
+  var savedHtml='';
+  if(saved.length){
+    var tvals=saved.map(function(r){return r.total;});var minV=Math.min.apply(null,tvals),maxV=Math.max.apply(null,tvals);
+    savedHtml='<div style="margin-top:14px;border-top:.5px solid #e2e8f0;padding-top:12px"><div style="font-size:11px;font-weight:800;color:#254467;margin-bottom:8px">📊 Escenarios guardados</div>';
+    saved.slice().sort(function(a,b){return a.total-b.total;}).forEach(function(r){
+      var isMin=r.total===minV,isMax=r.total===maxV&&maxV!==minV;var col=isMin?'#3B6D11':isMax?'#c0392b':'#254467';
+      savedHtml+='<div style="margin-bottom:7px"><div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:11px;font-weight:700;color:'+col+'">'+esc(r.nombre)+(isMin?' 💚 más bajo':isMax?' 🔺 más alto':'')+'</span><span style="font-size:12px;font-weight:800;color:'+col+'">'+fmt(r.total)+'</span></div>'
+        +'<div style="font-size:9px;color:#67727a">Directo '+fmt(r.directo)+' · Indirectos '+fmt(r.total-r.directo)+'</div>'
+        +'<div style="margin-top:3px;display:flex;gap:6px"><button onclick="cargarEscenarioComb(\''+cbId+'\',\''+r.id+'\')" style="font-size:9px;padding:1px 7px;border:.5px solid #bfd1e5;border-radius:4px;background:#fff;cursor:pointer;font-family:Arial;color:#6990ab">Cargar</button><button onclick="borrarEscenarioComb(\''+cbId+'\',\''+r.id+'\')" style="font-size:9px;padding:1px 7px;border:.5px solid #FECACA;border-radius:4px;background:#fff;cursor:pointer;font-family:Arial;color:#e65a27">✕</button></div></div>';
+    });
+    savedHtml+='</div>';
+  }
+  document.getElementById('modal-body').innerHTML='<h3 style="margin-bottom:2px">🎚️ Escenarios — '+esc(cb.nombre)+' <span style="font-size:11px;font-weight:400;color:#a8a8a8">(combinada)</span></h3>'
+    +'<div style="font-size:11px;color:#67727a;margin-bottom:10px">Elige el asesor por partida en cada alcance; el total combinado se actualiza al instante. Puedes ajustar costos aquí mismo y guardar opciones.</div>'
+    +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px"><button class="btn btn-sm" onclick="escPresetC(\''+cbId+'\',\'min\')">💚 Mínimo</button><button class="btn btn-sm" onclick="escPresetC(\''+cbId+'\',\'max\')">🔺 Máximo</button><button class="btn btn-sm" onclick="escPresetC(\''+cbId+'\',\'actual\')">↺ Actual</button><button class="btn btn-sm" style="border:.5px solid #BA7517;color:#BA7517;font-weight:700" onclick="guardarEscenarioComb(\''+cbId+'\')">💾 Guardar escenario</button></div>'
+    +'<div style="background:#5B21B6;border-radius:8px;padding:10px 14px;display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px"><span style="font-size:11px;font-weight:700;color:#fff;padding-top:3px">TOTAL COMBINADO</span><div style="text-align:right"><span id="esccomb-total" style="font-size:18px;font-weight:800;color:#FCD34D">'+fmt(tot.total)+'</span><div id="esccomb-sub" style="font-size:9px;color:#e5ddf7;margin-top:2px">Directo (asesores) '+fmt(tot.directo)+' · Indirectos '+fmt(tot.total-tot.directo)+'</div></div></div>'
+    +compHtml
+    +savedHtml
+    +'<div class="btn-row" style="margin-top:14px"><button class="btn" onclick="closeModal()">Cerrar</button><button class="btn btn-primary" onclick="escAplicarC(\''+cbId+'\')">Aplicar como elegidos</button></div>';
+  var mm=document.querySelector('.modal');if(mm)mm.classList.add('wide');
+  openModal();
 }
 
 function openVsHistModal(cotId,espNombre){
