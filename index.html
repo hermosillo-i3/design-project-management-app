@@ -12182,8 +12182,13 @@ function renderEstadisticas(){
   };
   projSet.forEach(function(p){
     var b=_bucket(p);
-    _cotsAll.forEach(function(c){if(String(c.projId)!==String(p.id))return;(c.especialidades||[]).forEach(function(e){(e.asesores||[]).forEach(function(a){if(a&&a.elegido&&a.empresa&&a.empresa.trim())_add(e.nombre,e.categoria,a.empresa,p.nombre,b);});});});
-    if(p.costosEjec)Object.keys(p.costosEjec).forEach(function(k){if(k.indexOf(':')>=0||k.indexOf('__')===0)return;var a=p.costosEjec[k]&&p.costosEjec[k].asesor;if(a&&String(a).trim())_add(k,espCatMap[k],a,p.nombre,b);});
+    if(b==='precon'){
+      // PRECON: el asesor elegido en las cotizaciones
+      _cotsAll.forEach(function(c){if(String(c.projId)!==String(p.id))return;(c.especialidades||[]).forEach(function(e){(e.asesores||[]).forEach(function(a){if(a&&a.elegido&&a.empresa&&a.empresa.trim())_add(e.nombre,e.categoria,a.empresa,p.nombre,b);});});});
+    } else if(b==='eje'){
+      // EJECUTIVO: la selección oficial es la de Costos ejecutivos
+      if(p.costosEjec)Object.keys(p.costosEjec).forEach(function(k){if(k.indexOf(':')>=0||k.indexOf('__')===0)return;var a=p.costosEjec[k]&&p.costosEjec[k].asesor;if(a&&String(a).trim())_add(k,espCatMap[k],a,p.nombre,b);});
+    }
     (p.asesoresProyecto||[]).forEach(function(n){if(n&&String(n).trim())_add('(sin especialidad)','Otros',n,p.nombre,b);});
   });
   var espByCat={};
@@ -12195,9 +12200,9 @@ function renderEstadisticas(){
   Object.keys(byEsp).forEach(function(en){Object.keys(byEsp[en].ase).forEach(function(ak){var o=byEsp[en].ase[ak];var t=Object.keys(o.precon).length+Object.keys(o.eje).length;if(t>maxTotal)maxTotal=t;});});
   var totalEje=projSet.length;
   var sinAseEje=projSet.filter(function(p){
-    var has=false;
-    _cotsAll.forEach(function(c){if(String(c.projId)===String(p.id)&&(c.especialidades||[]).some(function(e){return (e.asesores||[]).some(function(a){return a.elegido;});}))has=true;});
-    if(p.costosEjec&&Object.keys(p.costosEjec).some(function(k){return p.costosEjec[k]&&p.costosEjec[k].asesor;}))has=true;
+    var b=_bucket(p);var has=false;
+    if(b==='precon'){_cotsAll.forEach(function(c){if(String(c.projId)===String(p.id)&&(c.especialidades||[]).some(function(e){return (e.asesores||[]).some(function(a){return a.elegido;});}))has=true;});}
+    else if(b==='eje'){if(p.costosEjec&&Object.keys(p.costosEjec).some(function(k){return p.costosEjec[k]&&p.costosEjec[k].asesor;}))has=true;}
     if(p.asesoresProyecto&&p.asesoresProyecto.length)has=true;
     return !has;
   }).length;
