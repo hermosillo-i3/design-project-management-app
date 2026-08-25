@@ -11945,10 +11945,12 @@ function aseVBShow(id){
   var det=document.getElementById('det_'+id.replace(/_\d+$/,''));if(!det)return;
   if(det.style.display==='block'&&det.getAttribute('data-cur')===id){det.style.display='none';det.removeAttribute('data-cur');return;}
   var esc=function(s){return String(s).replace(/</g,'&lt;');};
+  var cons=d.cons||[];
   var html='<strong style="color:#5B21B6">'+esc(d.nombre)+'</strong>';
-  if(d.precon.length)html+='<div style="margin-top:4px"><span style="color:#7C3AED;font-weight:700">Preconstrucción ('+d.precon.length+'):</span> '+d.precon.map(esc).join(' · ')+'</div>';
-  if(d.eje.length)html+='<div style="margin-top:3px"><span style="color:#5B21B6;font-weight:700">Ejecutivo ('+d.eje.length+'):</span> '+d.eje.map(esc).join(' · ')+'</div>';
-  if(!d.precon.length&&!d.eje.length)html+='<div style="margin-top:4px;color:#a8a8a8">Sin proyectos.</div>';
+  if(cons.length)html+='<div style="margin-top:4px"><span style="color:#BA7517;font-weight:700">Cotizado / considerado en precon ('+cons.length+'):</span> '+cons.map(esc).join(' · ')+'</div>';
+  if(d.precon.length)html+='<div style="margin-top:3px"><span style="color:#7C3AED;font-weight:700">Precon — elegido ('+d.precon.length+'):</span> '+d.precon.map(esc).join(' · ')+'</div>';
+  if(d.eje.length)html+='<div style="margin-top:3px"><span style="color:#5B21B6;font-weight:700">Ejecutivo — Costos ('+d.eje.length+'):</span> '+d.eje.map(esc).join(' · ')+'</div>';
+  if(!d.precon.length&&!d.eje.length&&!cons.length)html+='<div style="margin-top:4px;color:#a8a8a8">Sin proyectos.</div>';
   det.innerHTML=html;det.style.display='block';det.setAttribute('data-cur',id);
 }
 function cargaShow(group,month){
@@ -12177,14 +12179,24 @@ function renderEstadisticas(){
     if(!esp||!ase)return;var ek=String(esp).trim();var ak=String(ase).trim().toLowerCase();if(!ek||!ak)return;
     if(!byEsp[ek])byEsp[ek]={cat:cat||espCatMap[ek]||'Otros',ase:{}};
     if(cat&&byEsp[ek].cat==='Otros')byEsp[ek].cat=cat;
-    if(!byEsp[ek].ase[ak])byEsp[ek].ase[ak]={nombre:String(ase).trim(),precon:{},eje:{}};
+    if(!byEsp[ek].ase[ak])byEsp[ek].ase[ak]={nombre:String(ase).trim(),precon:{},eje:{},cons:{}};
     byEsp[ek].ase[ak][bucket][proj]=1;
   };
   projSet.forEach(function(p){
     var b=_bucket(p);
     if(b==='precon'){
-      // PRECON: el asesor elegido en las cotizaciones
-      _cotsAll.forEach(function(c){if(String(c.projId)!==String(p.id))return;(c.especialidades||[]).forEach(function(e){(e.asesores||[]).forEach(function(a){if(a&&a.elegido&&a.empresa&&a.empresa.trim())_add(e.nombre,e.categoria,a.empresa,p.nombre,b);});});});
+      // PRECON: junta por especialidad+asesor a través de todas las versiones de cotización
+      var espAse={};
+      _cotsAll.forEach(function(c){if(String(c.projId)!==String(p.id))return;(c.especialidades||[]).forEach(function(e){(e.asesores||[]).forEach(function(a){
+        if(!a||!a.empresa||!a.empresa.trim())return;var ak=a.empresa.trim().toLowerCase();
+        var g=espAse[e.nombre]=espAse[e.nombre]||{cat:e.categoria,ase:{}};
+        var r=g.ase[ak]=g.ase[ak]||{nombre:a.empresa.trim(),elegido:false,cost:0};
+        if(a.elegido)r.elegido=true;var cv=parseFloat(a.costoMXN)||0;if(cv>r.cost)r.cost=cv;
+      });});});
+      Object.keys(espAse).forEach(function(en){var cat=espAse[en].cat;Object.keys(espAse[en].ase).forEach(function(ak){var r=espAse[en].ase[ak];
+        if(r.elegido)_add(en,cat,r.nombre,p.nombre,'precon');
+        else if(r.cost>0)_add(en,cat,r.nombre,p.nombre,'cons');
+      });});
     } else if(b==='eje'){
       // EJECUTIVO: la selección oficial es la de Costos ejecutivos
       if(p.costosEjec)Object.keys(p.costosEjec).forEach(function(k){if(k.indexOf(':')>=0||k.indexOf('__')===0)return;var a=p.costosEjec[k]&&p.costosEjec[k].asesor;if(a&&String(a).trim())_add(k,espCatMap[k],a,p.nombre,b);});
@@ -12197,7 +12209,7 @@ function renderEstadisticas(){
   var selCatAse=ld('gh_stats_ase_cat','');if(selCatAse&&catList.indexOf(selCatAse)<0)selCatAse='';
   var catsToShow=selCatAse?[selCatAse]:catList;
   var maxTotal=1;
-  Object.keys(byEsp).forEach(function(en){Object.keys(byEsp[en].ase).forEach(function(ak){var o=byEsp[en].ase[ak];var t=Object.keys(o.precon).length+Object.keys(o.eje).length;if(t>maxTotal)maxTotal=t;});});
+  Object.keys(byEsp).forEach(function(en){Object.keys(byEsp[en].ase).forEach(function(ak){var o=byEsp[en].ase[ak];var t=Object.keys(o.precon).length+Object.keys(o.eje).length+Object.keys(o.cons||{}).length;if(t>maxTotal)maxTotal=t;});});
   var totalEje=projSet.length;
   var sinAseEje=projSet.filter(function(p){
     var b=_bucket(p);var has=false;
@@ -12209,17 +12221,19 @@ function renderEstadisticas(){
   // Barra vertical apilada (precon arriba, ejecutivo abajo)
   var BARH=130;window.__aseVB={};
   var _vbar=function(x,pref,i){
-    var pc=x.precon.length,ej=x.eje.length,tot=pc+ej;var id=pref+'_'+i;
-    window.__aseVB[id]={nombre:x.nombre,precon:x.precon,eje:x.eje};
-    var hPre=Math.round(pc/maxTotal*BARH),hEje=Math.round(ej/maxTotal*BARH);
-    if(pc>0&&hPre<3)hPre=3;if(ej>0&&hEje<3)hEje=3;
+    var pc=x.precon.length,ej=x.eje.length,cs=(x.cons||[]).length,tot=pc+ej+cs;var id=pref+'_'+i;
+    window.__aseVB[id]={nombre:x.nombre,precon:x.precon,eje:x.eje,cons:x.cons||[]};
+    var hPre=Math.round(pc/maxTotal*BARH),hEje=Math.round(ej/maxTotal*BARH),hCons=Math.round(cs/maxTotal*BARH);
+    if(pc>0&&hPre<3)hPre=3;if(ej>0&&hEje<3)hEje=3;if(cs>0&&hCons<3)hCons=3;
     var nm=String(x.nombre).replace(/</g,'&lt;');
-    return '<div onclick="aseVBShow(\''+id+'\')" style="display:flex;flex-direction:column;align-items:center;width:60px;flex-shrink:0;cursor:pointer" title="'+nm+' — Precon: '+pc+' · Ejecutivo: '+ej+'">'
+    // Orden de arriba a abajo: cotizado (considerado), precon (elegido), ejecutivo
+    var segs='';
+    if(cs>0)segs+='<div style="height:'+hCons+'px;background:#F0C177"></div>';
+    if(pc>0)segs+='<div style="height:'+hPre+'px;background:#C4B5FD"></div>';
+    if(ej>0)segs+='<div style="height:'+hEje+'px;background:#7C3AED"></div>';
+    return '<div onclick="aseVBShow(\''+id+'\')" style="display:flex;flex-direction:column;align-items:center;width:60px;flex-shrink:0;cursor:pointer" title="'+nm+' — Cotizado: '+cs+' · Precon elegido: '+pc+' · Ejecutivo: '+ej+'">'
       +'<div style="font-size:11px;font-weight:800;color:#254467;margin-bottom:2px">'+tot+'</div>'
-      +'<div style="display:flex;flex-direction:column;justify-content:flex-end;height:'+BARH+'px;width:28px">'
-      +(pc>0?'<div style="height:'+hPre+'px;background:#C4B5FD;border-radius:3px 3px 0 0"></div>':'')
-      +(ej>0?'<div style="height:'+hEje+'px;background:#7C3AED;border-radius:'+(pc>0?'0 0 3px 3px':'3px')+'"></div>':'')
-      +'</div>'
+      +'<div style="display:flex;flex-direction:column;justify-content:flex-end;height:'+BARH+'px;width:28px;overflow:hidden;border-radius:3px">'+segs+'</div>'
       +'<div style="font-size:8px;color:#67727a;margin-top:4px;width:60px;text-align:center;line-height:1.1;height:22px;overflow:hidden">'+nm+'</div>'
       +'</div>';
   };
@@ -12231,7 +12245,7 @@ function renderEstadisticas(){
     porCatHtml+='<div style="margin-bottom:16px;border:.5px solid #e5ddf7;border-radius:10px;padding:12px 14px;background:#fcfbff">'
       +'<div style="font-size:12px;font-weight:800;color:#5B21B6;text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px">'+cat+'</div>';
     esps.forEach(function(en){
-      var arr=Object.keys(byEsp[en].ase).map(function(ak){var o=byEsp[en].ase[ak];return {nombre:o.nombre,precon:Object.keys(o.precon),eje:Object.keys(o.eje)};}).sort(function(a,b){return (b.precon.length+b.eje.length)-(a.precon.length+a.eje.length)||a.nombre.localeCompare(b.nombre);});
+      var arr=Object.keys(byEsp[en].ase).map(function(ak){var o=byEsp[en].ase[ak];return {nombre:o.nombre,precon:Object.keys(o.precon),eje:Object.keys(o.eje),cons:Object.keys(o.cons||{})};}).sort(function(a,b){return (b.precon.length+b.eje.length+b.cons.length)-(a.precon.length+a.eje.length+a.cons.length)||a.nombre.localeCompare(b.nombre);});
       if(!arr.length)return;
       var pref='avb_'+cat.replace(/[^a-z0-9]/gi,'')+'_'+en.replace(/[^a-z0-9]/gi,'');
       porCatHtml+='<div style="margin-bottom:12px">'
@@ -12250,8 +12264,9 @@ function renderEstadisticas(){
   var aseHtml='<div style="background:#fff;border-radius:12px;border:.5px solid #bfd1e5;padding:16px 18px;margin-bottom:1.25rem">'
     +'<div class="sec" style="margin-top:0;margin-bottom:4px">🏗️ Contratistas / asesores por especialidad</div>'
     +'<div style="font-size:10px;color:#67727a;margin-bottom:10px">Cada barra es un asesor · la altura es el número de proyectos · '
-    +'<span style="display:inline-block;width:10px;height:10px;background:#C4B5FD;border-radius:2px;vertical-align:middle"></span> preconstrucción (arriba) &nbsp; '
-    +'<span style="display:inline-block;width:10px;height:10px;background:#7C3AED;border-radius:2px;vertical-align:middle"></span> ejecutivo (abajo) · clic en una barra para ver los proyectos'
+    +'<span style="display:inline-block;width:10px;height:10px;background:#F0C177;border-radius:2px;vertical-align:middle"></span> cotizado / considerado &nbsp; '
+    +'<span style="display:inline-block;width:10px;height:10px;background:#C4B5FD;border-radius:2px;vertical-align:middle"></span> precon (elegido) &nbsp; '
+    +'<span style="display:inline-block;width:10px;height:10px;background:#7C3AED;border-radius:2px;vertical-align:middle"></span> ejecutivo · clic en una barra para ver los proyectos'
     +(sinAseEje?' · <span style="color:#e65a27;font-weight:700">'+sinAseEje+' proyecto'+(sinAseEje!==1?'s':'')+' sin asesor</span>':'')+'</div>'
     +'<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px">'
     +'<span style="font-size:10px;color:#67727a">Ámbito:</span>'+scopeBtn('activos','Activos')+scopeBtn('todos','Todos')
