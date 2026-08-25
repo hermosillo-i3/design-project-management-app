@@ -2022,6 +2022,28 @@ function toggleAlcanceCancelado(projId,espIdx){
   sv(K.proj,projects);renderCostos();
 }
 
+function _costosSections(metrics,cot){
+  // Secciones (categoría -> esps) para Costos, incluyendo partidas de la cotización con $0
+  var catCot=migrateCotCat(getCotCat());
+  var out=[];
+  Object.keys(catCot).forEach(function(cat){
+    var sec=metrics.bySection[cat];
+    var espsInCat=cot?(cot.especialidades||[]).filter(function(e){return e.categoria===cat;}):[];
+    var existing=(sec&&sec.esps)?sec.esps.slice():[];
+    if(!espsInCat.length&&!existing.length)return;
+    var names={};existing.forEach(function(e){names[e.nombre]=1;});
+    var indCat=parseFloat(cat==='Estudios Preliminares'?cot.indEst:cot.indDis)||0;
+    espsInCat.forEach(function(e){
+      if(names[e.nombre])return;
+      var ind=parseFloat(e.indirecto!=null?e.indirecto:indCat)||0;
+      existing.push({nombre:e.nombre,mxn:0,ind:ind,indir:0,withInd:0});
+    });
+    if(existing.length)out.push([cat,{esps:existing,direct:(sec?sec.direct:0),indir:(sec?sec.indir:0),withInd:(sec?sec.withInd:0)}]);
+  });
+  // categorías fuera del catálogo que existan en metrics
+  Object.keys(metrics.bySection||{}).forEach(function(cat){if(catCot[cat])return;out.push([cat,metrics.bySection[cat]]);});
+  return out;
+}
 function renderCostos(){
   var container=document.getElementById('costos-container');
   if(!container)return;
@@ -2060,12 +2082,12 @@ function renderCostos(){
   window.__costosEspKeys=[];
   window.__costosEspCot=[];
   // Bloques de presupuesto: control + adicionales ligados a una cotización
-  var blocks=[{title:'',label:'Ppto. Control',metrics:metrics,cotId:ctrlCot.id,keyPrefix:''}];
+  var blocks=[{title:'',label:'Ppto. Control',metrics:metrics,cotId:ctrlCot.id,cot:ctrlCot,keyPrefix:''}];
   var _adicN=0;
   (selProj.extraordinarios||[]).forEach(function(a){
     if(!a.cotId)return;
     var ac=allCots.find(function(c){return String(c.id)===String(a.cotId);});
-    if(ac){_adicN++;blocks.push({title:'Adicional '+_adicN+' — '+(ac.nombre||a.descripcion||''),label:'Adicional '+_adicN,cotNombre:(ac.nombre||a.descripcion||''),metrics:calcCotMetrics(ac),cotId:ac.id,keyPrefix:'adic:'+a.id+':'});}
+    if(ac){_adicN++;blocks.push({title:'Adicional '+_adicN+' — '+(ac.nombre||a.descripcion||''),label:'Adicional '+_adicN,cotNombre:(ac.nombre||a.descripcion||''),metrics:calcCotMetrics(ac),cotId:ac.id,cot:ac,keyPrefix:'adic:'+a.id+':'});}
   });
   var totalCobrado=0;var totalPagado=0;
   Object.values(costosData).forEach(function(esp){
@@ -2124,7 +2146,7 @@ function renderCostos(){
     if(block.title){
       html+='<tr><td colspan="8" style="padding:9px 12px;font-size:10px;font-weight:800;color:#e65a27;font-family:Arial;background:#fff7ef;border-top:1px solid #f3d6b8">➕ '+block.title+' · Ppto $'+fmt(block.metrics.grandTotal)+'</td></tr>';
     }
-    var _sections=Object.entries(block.metrics.bySection);
+    var _sections=_costosSections(block.metrics,block.cot);
     var _indEsps=costoIndEsps(block.metrics);
     if(_indEsps.length){_sections=_sections.concat([['INDIRECTOS',{esps:_indEsps}]]);}
     _sections.forEach(function(secEntry){
