@@ -10021,6 +10021,22 @@ function escAplicarC(cbId){
     (cot.especialidades||[]).forEach(function(e){if(!(e.asesores&&e.asesores.length)||!(e.nombre in perSel))return;var idx=parseInt(perSel[e.nombre]);e.asesores.forEach(function(a,j){a.elegido=(j===idx);});});});
   saveCots(cots);window.__escCB=null;closeModal();renderCotizaciones();
 }
+function escCombToggleAlcance(ci){
+  var st=window.__escCB;if(!st)return;st.collapsed=st.collapsed||{};st.collapsed[ci]=!st.collapsed[ci];
+  var b=document.getElementById('esccbody_'+ci);var ch=document.getElementById('esccchev_'+ci);
+  if(b)b.style.display=st.collapsed[ci]?'none':'';if(ch)ch.textContent=st.collapsed[ci]?'▸':'▾';
+}
+function escHacerOficialComb(cbId,escId){
+  var combs=getCombinadas();var cb=combs.find(function(c){return String(c.id)===String(cbId);});if(!cb)return;
+  var s=(cb.escenarios||[]).find(function(x){return String(x.id)===String(escId);});if(!s)return;
+  if(!confirm('¿Hacer OFICIAL este escenario?\n\nSe aplicarán sus asesores como los elegidos en cada alcance, y la combinada quedará marcada como Oficial.'))return;
+  var sel=s.sel||{};var cots=getCots();
+  (cb.componentes||[]).forEach(function(id,ci){var cot=cots.find(function(c){return String(c.id)===String(id);});if(!cot)return;var perSel=_escCombPerCotSel(sel,ci);
+    (cot.especialidades||[]).forEach(function(e){if(!(e.asesores&&e.asesores.length)||!(e.nombre in perSel))return;var idx=parseInt(perSel[e.nombre]);e.asesores.forEach(function(a,j){a.elegido=(j===idx);});});});
+  saveCots(cots);
+  cb.oficial=true;cb.escenarioOficial=escId;saveCombinadas(combs);
+  window.__escCB=null;closeModal();renderCotizaciones();
+}
 function openEscenariosComb(cbId){
   var cb=getCombinadas().find(function(c){return String(c.id)===String(cbId);});if(!cb)return;
   var cots=getCots();
@@ -10031,7 +10047,7 @@ function openEscenariosComb(cbId){
     window.__escCB={cbId:String(cbId),comps:comps,sel:{}};
     comps.forEach(function(cm,ci){cm.espsA.forEach(function(e){window.__escCB.sel[ci+'|'+e.nombre]=e.asesores.findIndex(function(a){return a.elegido;});});});
   } else { window.__escCB.comps=comps; }
-  var st=window.__escCB;
+  var st=window.__escCB;st.collapsed=st.collapsed||{};
   var fmt=function(n){return '$'+Math.round(n||0).toLocaleString('es-MX');};
   var esc=function(s){return String(s==null?'':s).replace(/</g,'&lt;');};
   var tot=_escCombTotalsFor(st.sel);
@@ -10052,9 +10068,10 @@ function openEscenariosComb(cbId){
         +'<button type="button" class="escchip" data-idx="-1" onclick="escPickC('+ci+','+ei+',-1)" style="font-size:9px;padding:3px 9px;border-radius:6px;border:.5px solid '+(selIdx===-1?'#3B6D11':'#bfd1e5')+';background:'+(selIdx===-1?'#3B6D11':'#fff')+';color:'+(selIdx===-1?'#fff':'#67727a')+';cursor:pointer;font-family:Arial;margin-top:2px">— ninguno —</button>'
         +'</div>';
     }).join('');
+    var _col=!!st.collapsed[ci];
     return '<div style="border:.5px solid #e5ddf7;border-radius:8px;padding:8px 12px;margin-bottom:10px;background:#fcfbff">'
-      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><span style="font-size:11px;font-weight:800;color:#5B21B6">🧩 '+esc(cm.cot.nombre)+(cm.cot.tipoCotizacion?' <span style="font-size:9px;font-weight:400;color:#8a97a3">· '+esc(cm.cot.tipoCotizacion)+'</span>':'')+'</span><span id="esccsub_'+ci+'" style="font-size:12px;font-weight:800;color:#254467">'+fmt(mt.grandTotal)+'</span></div>'
-      +(rows||'<div style="font-size:10px;color:#a8a8a8">Sin partidas con asesores.</div>')
+      +'<div onclick="escCombToggleAlcance('+ci+')" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;cursor:pointer" title="Clic para colapsar/expandir"><span style="font-size:11px;font-weight:800;color:#5B21B6"><span id="esccchev_'+ci+'" style="color:#7C3AED">'+(_col?'▸':'▾')+'</span> 🧩 '+esc(cm.cot.nombre)+(cm.cot.tipoCotizacion?' <span style="font-size:9px;font-weight:400;color:#8a97a3">· '+esc(cm.cot.tipoCotizacion)+'</span>':'')+'</span><span id="esccsub_'+ci+'" style="font-size:12px;font-weight:800;color:#254467">'+fmt(mt.grandTotal)+'</span></div>'
+      +'<div id="esccbody_'+ci+'" style="'+(_col?'display:none':'')+'">'+(rows||'<div style="font-size:10px;color:#a8a8a8">Sin partidas con asesores.</div>')+'</div>'
       +'</div>';
   }).join('');
   var saved=(cb.escenarios||[]).map(function(s){var t=_escCombTotalsFor(s.sel||{});return {id:s.id,nombre:s.nombre,total:t.total,directo:t.directo};});
@@ -10064,9 +10081,10 @@ function openEscenariosComb(cbId){
     savedHtml='<div style="margin-top:14px;border-top:.5px solid #e2e8f0;padding-top:12px"><div style="font-size:11px;font-weight:800;color:#254467;margin-bottom:8px">📊 Escenarios guardados</div>';
     saved.slice().sort(function(a,b){return a.total-b.total;}).forEach(function(r){
       var isMin=r.total===minV,isMax=r.total===maxV&&maxV!==minV;var col=isMin?'#3B6D11':isMax?'#c0392b':'#254467';
-      savedHtml+='<div style="margin-bottom:7px"><div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:11px;font-weight:700;color:'+col+'">'+esc(r.nombre)+(isMin?' 💚 más bajo':isMax?' 🔺 más alto':'')+'</span><span style="font-size:12px;font-weight:800;color:'+col+'">'+fmt(r.total)+'</span></div>'
+      var esOfic=cb.escenarioOficial&&String(cb.escenarioOficial)===String(r.id);
+      savedHtml+='<div style="margin-bottom:7px'+(esOfic?';background:#f1f8ea;border:.5px solid #c3e6cb;border-radius:6px;padding:5px 8px':'')+'"><div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:11px;font-weight:700;color:'+(esOfic?'#3B6D11':col)+'">'+(esOfic?'✓ ':'')+esc(r.nombre)+(esOfic?' <span style="font-size:8px;background:#3B6D11;color:#fff;border-radius:3px;padding:1px 5px;font-weight:700">OFICIAL</span>':'')+(isMin?' 💚 más bajo':isMax?' 🔺 más alto':'')+'</span><span style="font-size:12px;font-weight:800;color:'+col+'">'+fmt(r.total)+'</span></div>'
         +'<div style="font-size:9px;color:#67727a">Directo '+fmt(r.directo)+' · Indirectos '+fmt(r.total-r.directo)+'</div>'
-        +'<div style="margin-top:3px;display:flex;gap:6px"><button onclick="cargarEscenarioComb(\''+cbId+'\',\''+r.id+'\')" style="font-size:9px;padding:1px 7px;border:.5px solid #bfd1e5;border-radius:4px;background:#fff;cursor:pointer;font-family:Arial;color:#6990ab">Cargar</button><button onclick="borrarEscenarioComb(\''+cbId+'\',\''+r.id+'\')" style="font-size:9px;padding:1px 7px;border:.5px solid #FECACA;border-radius:4px;background:#fff;cursor:pointer;font-family:Arial;color:#e65a27">✕</button></div></div>';
+        +'<div style="margin-top:3px;display:flex;gap:6px;flex-wrap:wrap"><button onclick="cargarEscenarioComb(\''+cbId+'\',\''+r.id+'\')" style="font-size:9px;padding:1px 7px;border:.5px solid #bfd1e5;border-radius:4px;background:#fff;cursor:pointer;font-family:Arial;color:#6990ab">Cargar</button><button onclick="escHacerOficialComb(\''+cbId+'\',\''+r.id+'\')" style="font-size:9px;padding:1px 7px;border:.5px solid #639922;border-radius:4px;background:#fff;cursor:pointer;font-family:Arial;color:#3B6D11;font-weight:700">⭐ Hacer oficial</button><button onclick="borrarEscenarioComb(\''+cbId+'\',\''+r.id+'\')" style="font-size:9px;padding:1px 7px;border:.5px solid #FECACA;border-radius:4px;background:#fff;cursor:pointer;font-family:Arial;color:#e65a27">✕</button></div></div>';
     });
     savedHtml+='</div>';
   }
