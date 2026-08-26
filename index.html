@@ -1303,6 +1303,35 @@ function setProjSubTab(tab){
   if(tab==='carga')renderCargaGantt();else renderProyectos();
 }
 
+function openGanttProjMenu(id){
+  var p=[].concat(activeProjs(),internos(),ld(K.proj,[]).filter(function(x){return x.archivado;})).find(function(x){return String(x.id)===String(id);});
+  if(!p){openProyecto(id);return;}
+  var esc=function(s){return String(s==null?'':s).replace(/</g,'&lt;');};
+  var pTasks=tasks.filter(function(t){return String(t.projId)===String(id)&&!t.archivado;}).sort(function(a,b){return (a.done?1:0)-(b.done?1:0)||((a.fechaCompromiso||'z').localeCompare(b.fechaCompromiso||'z'));});
+  var pComments=comments.filter(function(c){return String(c.projId)===String(id)&&!c.archivado;}).sort(function(a,b){return (b.fecha||'').localeCompare(a.fecha||'');});
+  var s=sem(p);
+  var tasksHtml=pTasks.length?pTasks.map(function(t){
+    var ov=t.fechaCompromiso&&t.fechaCompromiso<todayStr&&!t.done;
+    return '<div onclick="openEditTask('+t.id+')" style="display:flex;align-items:center;gap:8px;padding:6px 8px;border:.5px solid #eef2f6;border-radius:6px;margin-bottom:4px;cursor:pointer;background:'+(t.done?'#f6faf1':'#fff')+'" title="Editar tarea">'
+      +'<span style="font-size:12px">'+(t.done?'✅':'⬜')+'</span>'
+      +'<span style="flex:1;font-size:11px;color:'+(t.done?'#a8a8a8':'#254467')+';'+(t.done?'text-decoration:line-through':'')+'">'+esc(t.texto)+'</span>'
+      +(t.asignado?'<span style="font-size:9px;color:#6990ab;white-space:nowrap">'+esc(t.asignado)+'</span>':'')
+      +(t.fechaCompromiso?'<span style="font-size:9px;color:'+(ov?'#e65a27':'#a8a8a8')+';white-space:nowrap">'+fmtD(t.fechaCompromiso)+'</span>':'')
+      +'</div>';
+  }).join(''):'<div style="font-size:10px;color:#a8a8a8">Sin tareas todavía.</div>';
+  var comHtml=pComments.length?pComments.slice(0,8).map(function(c){return '<div style="font-size:10px;color:#67727a;padding:5px 8px;background:#fafbfc;border-radius:6px;margin-bottom:4px">'+esc(c.texto)+' <span style="color:#a8a8a8">· '+fmtD(c.fecha)+'</span></div>';}).join(''):'<div style="font-size:10px;color:#a8a8a8">Sin comentarios todavía.</div>';
+  document.getElementById('modal-body').innerHTML='<h3 style="margin-bottom:2px">'+esc(p.nombre)+'</h3>'
+    +'<div style="font-size:10px;color:#67727a;margin-bottom:12px">'+(p.cliente?esc(p.cliente)+' · ':'')+(p.etapa||'')+' · '+esc(s.label)+(p.coord?' · Coord: '+esc(p.coord):'')+(p.jefe?' · Jefe: '+esc(p.jefe):'')+'</div>'
+    +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">'
+    +'<button class="btn btn-sm" onclick="openProyecto('+p.id+')">✏ Editar proyecto</button>'
+    +'<button class="btn btn-sm btn-primary" onclick="openAddTaskForProj('+p.id+')">+ Tarea</button>'
+    +'<button class="btn btn-sm" onclick="openAddCommentForProj('+p.id+')">+ Comentario</button>'
+    +'</div>'
+    +'<div style="font-size:11px;font-weight:700;color:#254467;margin-bottom:6px">📋 Tareas ('+pTasks.filter(function(t){return !t.done;}).length+' abiertas)</div>'+tasksHtml
+    +'<div style="font-size:11px;font-weight:700;color:#254467;margin:12px 0 6px">💬 Seguimiento / comentarios</div>'+comHtml
+    +'<div class="btn-row" style="margin-top:14px"><button class="btn" onclick="closeModal()">Cerrar</button></div>';
+  openModal();
+}
 function renderCargaGantt(){
   var el=document.getElementById('carga-gantt');if(!el)return;
   var esc=function(s){return String(s==null?'':s).replace(/</g,'&lt;').replace(/"/g,'&quot;');};
@@ -1354,7 +1383,7 @@ function renderCargaGantt(){
     // barra base arranque -> primera entrega (color), y extensión clara hasta la última
     var extW=xOf(r.endT)-xOf(firstEndT);
     var noArr=!r.hasArr;
-    var bar='<div onclick="openProyecto('+p.id+')" title="'+esc(p.nombre)+' — arranque '+(p.arranque||'(sin fecha)')+(r.ents.length?' · entregas: '+r.ents.map(function(e,i){return (i+1)+') '+e.str;}).join('  '):' · sin entrega')+'" style="position:absolute;left:'+bl+'px;top:7px;height:15px;width:'+Math.max(5,xOf(r.endT)-bl)+'px;cursor:pointer;z-index:1">'
+    var bar='<div onclick="openGanttProjMenu('+p.id+')" title="'+esc(p.nombre)+' — arranque '+(p.arranque||'(sin fecha)')+(r.ents.length?' · entregas: '+r.ents.map(function(e,i){return (i+1)+') '+e.str;}).join('  '):' · sin entrega')+'" style="position:absolute;left:'+bl+'px;top:7px;height:15px;width:'+Math.max(5,xOf(r.endT)-bl)+'px;cursor:pointer;z-index:1">'
       // tramo 1 (arranque -> 1a entrega) color lleno
       +'<div style="position:absolute;left:0;top:0;height:15px;width:'+bwFirst+'px;background:'+col+';border-radius:4px 0 0 4px;box-shadow:0 1px 2px rgba(0,0,0,.12)'+(noArr?';opacity:.5;border:1px dashed rgba(255,255,255,.9)':'')+'"></div>'
       // tramo(s) posteriores (2a, 3a entrega) mismo color más tenue
