@@ -969,6 +969,21 @@ function bootApp(){
     if(changed)sv(K.cat,cat);
   })();
 
+  // ── Migración: números de proyecto únicos (evita "año-#" duplicados) ──
+  (function migrateProjNumUnique(){
+    var changed=false;
+    [false,true].forEach(function(isInt){
+      var list=projects.filter(function(p){return (!!p.interno)===isInt;}).slice().sort(function(a,b){return (a.id||0)-(b.id||0);});
+      var used={},mx=0;
+      list.forEach(function(p){var n=parseInt(p.num)||0;if(n>mx)mx=n;});
+      list.forEach(function(p){var n=parseInt(p.num)||0;
+        if(!n||used[n]){mx++;p.num=mx;changed=true;used[mx]=1;}
+        else{used[n]=1;}
+      });
+    });
+    if(changed)sv(K.proj,projects);
+  })();
+
   // ── Migración de tipos legacy al arrancar ──────────────────
   (function migrateTiposOnLoad(){
     const preOnly={'Obra Nueva':'PRE - Obra Nueva','Obra Nueva con Diseño por Terceros':'PRE - Obra Nueva con Diseño por Terceros','Tenant Improvements':'PRE - Tenant Improvements'};
@@ -1480,7 +1495,8 @@ function cargaGoToday(){
   if(tm&&tm.scrollIntoView){try{tm.scrollIntoView({inline:'center',block:'nearest'});return;}catch(e){}}
   if(sc&&tm){sc.scrollLeft=Math.max(0,tm.offsetLeft-sc.clientWidth*0.4);}
 }
-function histNum(p){return(p.arranque&&p.arranque.length>=4?p.arranque.slice(2,4):(new Date().getFullYear()+'').slice(-2))+'-'+p.num;}
+function histNum(p){return(p.arranque&&p.arranque.length>=4?p.arranque.slice(2,4):(new Date().getFullYear()+'').slice(-2))+'-'+(p.interno?'D':'')+p.num;}
+function _nextProjNum(isInt){var mx=0;projects.forEach(function(p){if((!!p.interno)===(!!isInt)){var n=parseInt(p.num)||0;if(n>mx)mx=n;}});return mx+1;}
 
 function getPptoControl(p){
   if(!p.presupuestoControlCotId) return null;
@@ -1550,7 +1566,7 @@ function importProyectosCSV(input){
         var et=((r[5]||'').trim().toUpperCase());if(ETAPAS.indexOf(et)<0)et='EJECUTIVO';
         var ult=_normFecha(r[11]);
         projects.push({
-          id:Date.now()+idx,num:projects.length+1,interno:false,
+          id:Date.now()+idx,num:_nextProjNum(false),interno:false,
           nombre:nombre,cliente:(r[1]||'').trim(),
           areaProyecto:(r[2]||'').trim(),ubicacion:(r[3]||'').trim(),
           tipo:(r[4]||'').trim(),
@@ -2561,7 +2577,7 @@ function saveAsesorEdit(projId,espIdx){
 // ── PROYECTO MODAL ───────────────────────────────────────────
 function openProyecto(id,isInterno){
   const _newId=Date.now();const _yr=new Date().getFullYear();const _yrStr=String(_yr);const _yrProjs=ld(K.proj,[]).filter(function(p){return (p.arranque&&p.arranque.startsWith(_yrStr))&&!p.interno;});
-  const blank={id:_newId,num:isInterno?internos().length+1:_yrProjs.length+1,interno:isInterno,etapa:isInterno?'INTERNO':'PRECON',nombre:'',cliente:'',tipo:'',coord:'',equipo:[],consultores:[],arranque:'',entrega:'',presentacion:'',estatus:'En tiempo',avance:0,prioridad:'Media',causa:'',sinCliente:0,docs:{ckRev:'❌',ckEnt:'❌',lista:'❌',prog:'❌'},bloqueadoPor:'',archivado:false,archivedAt:'',ultimaActualizacion:todayStr,proximoAvance:''};
+  const blank={id:_newId,num:_nextProjNum(isInterno),interno:isInterno,etapa:isInterno?'INTERNO':'PRECON',nombre:'',cliente:'',tipo:'',coord:'',equipo:[],consultores:[],arranque:'',entrega:'',presentacion:'',estatus:'En tiempo',avance:0,prioridad:'Media',causa:'',sinCliente:0,docs:{ckRev:'❌',ckEnt:'❌',lista:'❌',prog:'❌'},bloqueadoPor:'',archivado:false,archivedAt:'',ultimaActualizacion:todayStr,proximoAvance:''};
   const p=id?projects.find(x=>x.id===id):blank;
   const isInt=p.interno;
   const coordOpts=cat.coordinadores.map(c=>`<option ${p.coord===c?'selected':''}>${c}</option>`).join('');
@@ -2773,7 +2789,7 @@ function saveProyecto(id,isInt){
     id:id||Date.now(),
     interno:isInt,
     etapa:isInt?'INTERNO':(document.getElementById('pet')?document.getElementById('pet').value:'INTERNO'),
-    num:id?projects.find(x=>x.id===id).num:(isInt?internos().length+1:activeProjs().length+1),
+    num:id?projects.find(x=>x.id===id).num:_nextProjNum(isInt),
     nombre:document.getElementById('pn').value,
     cliente:document.getElementById('pc').value,
     descripcion:document.getElementById('pdesc')?document.getElementById('pdesc').value:(id?(projects.find(x=>x.id===id).descripcion||''):''),
@@ -12572,7 +12588,7 @@ function renderEstadisticas(){
                     const s=p.estatusProy||'Ongoing';
                     const c=estatusColors[s]||{bg:'#f8fafc',color:'#475569',border:'#bfd1e5'};
                     return `<tr style="border-bottom:.5px solid #eef2f6;${p.archivado?'opacity:.6':''}">
-                      <td style="padding:6px 10px;color:#bfd1e5;font-weight:700;white-space:nowrap">${shortYr}-${p.num}</td>
+                      <td style="padding:6px 10px;color:#bfd1e5;font-weight:700;white-space:nowrap">${histNum(p)}</td>
                       <td style="padding:6px 10px;font-weight:700;color:#254467;max-width:180px">${p.nombre||'—'}${p.archivado?'<span style="font-size:9px;color:#a8a8a8;margin-left:4px">(arch.)</span>':''}</td>
                       <td style="padding:6px 10px;color:#475569">${p.cliente||'—'}</td>
                       <td style="padding:6px 10px;color:#475569;max-width:130px">${p.tipo||'—'}</td>
