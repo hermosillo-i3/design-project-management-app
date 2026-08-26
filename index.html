@@ -1362,7 +1362,7 @@ function renderCargaGantt(){
   var zoom=parseFloat(ld('gh_carga_zoom','1'))||1;
   var totalMonths=span/MS/30.4;
   var chartW=Math.max(640,Math.round(totalMonths*72*zoom));
-  var LABELW=230,RIGHTW=170;
+  var LABELW=230,RIGHTW=205;
   var xOf=function(t){return (t-minT)/span*chartW;};
   var pxPerDay=chartW/(span/MS);
   var MESES=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
@@ -1424,9 +1424,9 @@ function renderCargaGantt(){
       +'<div style="font-size:8px;color:#a8a8a8;white-space:nowrap">Jefe: '+esc(r.jefe)+' · '+dur+(noArr?' · <span style="color:#e6a817">⚠ sin arranque</span>':'')+'</div>'
       +'<div style="font-size:8px;font-weight:700;color:'+(ultEnt?'#3B6D11':'#c5ccd4')+';white-space:nowrap">📅 Entrega: '+(ultEnt?fmtD(ultEnt):'sin fecha')+'</div>'
       +'</div>'
-      +'<div style="position:relative;height:33px;width:'+chartW+'px;flex-shrink:0">'+grid+todayLine+bar+marks+endLabel+'</div>'
-      +'<div style="position:sticky;right:0;width:'+RIGHTW+'px;flex-shrink:0;background:#fff;z-index:2;padding:4px 8px;border-left:1px solid #eef2f6;overflow:hidden">'
-      +'<div style="font-size:8px;color:#67727a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+esc(equipoFull)+'">👥 '+esc(equipoShort)+'</div>'
+      +'<div style="position:relative;height:38px;width:'+chartW+'px;flex-shrink:0">'+grid+todayLine+bar+marks+endLabel+'</div>'
+      +'<div style="position:sticky;right:0;width:'+RIGHTW+'px;flex-shrink:0;background:#fff;z-index:2;padding:5px 8px;border-left:1px solid #eef2f6">'
+      +'<div style="font-size:8.5px;color:#67727a;line-height:1.3;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical" title="'+esc(equipoFull)+'">👥 '+esc(equipoFull||'—')+'</div>'
       +'</div>'
       +'</div>';
   };
@@ -1463,6 +1463,20 @@ function renderCargaGantt(){
   cargaGoToday();
   if(window.requestAnimationFrame)requestAnimationFrame(cargaGoToday);
   setTimeout(cargaGoToday,120);setTimeout(cargaGoToday,400);
+}
+function _statWrap(key,label,html){
+  var col=(ld('gh_stats_collapsed',[]).indexOf(key)>=0);
+  return '<div style="margin-bottom:1rem">'
+    +'<div onclick="toggleStatSec(\''+key+'\')" style="display:flex;align-items:center;gap:7px;padding:6px 10px;cursor:pointer;color:#254467;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;user-select:none">'
+    +'<span class="_stchev" style="width:11px;color:#6990ab">'+(col?'▸':'▾')+'</span>'+label+'<span style="flex:1;height:1px;background:#e2e8f0;margin-left:8px"></span></div>'
+    +'<div id="statsec_'+key+'" style="'+(col?'display:none':'')+'">'+html+'</div>'
+    +'</div>';
+}
+function toggleStatSec(key){
+  var arr=ld('gh_stats_collapsed',[]);var i=arr.indexOf(key);var willCol=(i<0);
+  if(i>=0)arr.splice(i,1);else arr.push(key);sv('gh_stats_collapsed',arr);
+  var b=document.getElementById('statsec_'+key);if(b)b.style.display=willCol?'none':'';
+  var hdr=b&&b.previousElementSibling;if(hdr){var ch=hdr.querySelector('._stchev');if(ch)ch.textContent=willCol?'▸':'▾';}
 }
 function setCargaZoom(z){sv('gh_carga_zoom',z);renderCargaGantt();}
 function cargaGoToday(){
@@ -12320,6 +12334,11 @@ function renderEstadisticas(){
   var catsToShow=selCatAse?[selCatAse]:catList;
   var maxTotal=1;
   Object.keys(byEsp).forEach(function(en){Object.keys(byEsp[en].ase).forEach(function(ak){var o=byEsp[en].ase[ak];var t=Object.keys(o.precon).length+Object.keys(o.eje).length+Object.keys(o.cons||{}).length+Object.keys(o.noadj||{}).length;if(t>maxTotal)maxTotal=t;});});
+  // Agregado por ASESOR (para vista "por especialista")
+  var byAsesor={};
+  Object.keys(byEsp).forEach(function(en){Object.keys(byEsp[en].ase).forEach(function(ak){var o=byEsp[en].ase[ak];var b=byAsesor[ak]=byAsesor[ak]||{nombre:o.nombre,precon:{},eje:{},cons:{},noadj:{}};['precon','eje','cons','noadj'].forEach(function(bk){Object.keys(o[bk]||{}).forEach(function(pn){b[bk][pn]=1;});});});});
+  Object.keys(byAsesor).forEach(function(ak){var o=byAsesor[ak];var t=Object.keys(o.precon).length+Object.keys(o.eje).length+Object.keys(o.cons).length+Object.keys(o.noadj).length;if(t>maxTotal)maxTotal=t;});
+  var aseView=ld('gh_stats_ase_view','ing');
   var totalEje=projSet.length;
   var sinAseEje=projSet.filter(function(p){
     var b=_bucket(p);var has=false;
@@ -12369,11 +12388,18 @@ function renderEstadisticas(){
     });
     porCatHtml+='</div>';
   });
+  var espArr=Object.keys(byAsesor).map(function(ak){var o=byAsesor[ak];return {nombre:o.nombre,precon:Object.keys(o.precon),eje:Object.keys(o.eje),cons:Object.keys(o.cons),noadj:Object.keys(o.noadj)};}).sort(function(a,b){return (b.precon.length+b.eje.length+b.cons.length+b.noadj.length)-(a.precon.length+a.eje.length+a.cons.length+a.noadj.length)||a.nombre.localeCompare(b.nombre);});
+  var espHtml='<div style="border:.5px solid #e5ddf7;border-radius:10px;padding:12px 14px;background:#fcfbff">'
+    +'<div style="font-size:12px;font-weight:800;color:#5B21B6;text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px">Por especialista <span style="font-size:9px;font-weight:400;color:#a8a8a8">('+espArr.length+' asesor'+(espArr.length!==1?'es':'')+' · todas las ingenierías juntas)</span></div>'
+    +'<div style="display:flex;gap:10px;align-items:flex-end;overflow-x:auto;padding:6px 2px 2px">'+(espArr.length?espArr.map(function(x,i){return _vbar(x,'avbesp',i);}).join(''):'<span style="font-size:10px;color:#a8a8a8">Sin datos.</span>')+'</div>'
+    +'<div id="det_avbesp" style="display:none;font-size:10px;color:#67727a;margin-top:6px;padding:7px 10px;background:#faf8ff;border-radius:6px"></div>'
+    +'</div>';
   var catOptsAse='<option value=""'+(selCatAse===''?' selected':'')+'>Todas las categorías</option>'+catList.map(function(c){return '<option value="'+c.replace(/"/g,'&quot;')+'"'+(c===selCatAse?' selected':'')+'>'+c+'</option>';}).join('');
   var yearOptsAse='<option value="">Todos los años</option>'+aseYearList.map(function(y){return '<option value="'+y+'"'+(y===aseYearSel?' selected':'')+'>'+y+'</option>';}).join('');
   var scopeBtn=function(v,lbl){return '<button onclick="sv(\'gh_stats_ase_scope\',\''+v+'\');renderEstadisticas()" style="font-size:10px;padding:3px 10px;border:.5px solid #bfd1e5;border-radius:5px;cursor:pointer;font-family:Arial;background:'+(aseScope===v?'#254467':'#fff')+';color:'+(aseScope===v?'#fff':'#67727a')+'">'+lbl+'</button>';};
+  var viewBtn=function(v,lbl){return '<button onclick="sv(\'gh_stats_ase_view\',\''+v+'\');renderEstadisticas()" style="font-size:10px;padding:3px 10px;border:.5px solid #7C3AED;border-radius:5px;cursor:pointer;font-family:Arial;font-weight:700;background:'+(aseView===v?'#7C3AED':'#fff')+';color:'+(aseView===v?'#fff':'#7C3AED')+'">'+lbl+'</button>';};
   var aseHtml='<div style="background:#fff;border-radius:12px;border:.5px solid #bfd1e5;padding:16px 18px;margin-bottom:1.25rem">'
-    +'<div class="sec" style="margin-top:0;margin-bottom:4px">🏗️ Contratistas / asesores por especialidad</div>'
+    +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">'+viewBtn('ing','🏗️ Por ingeniería')+viewBtn('esp','👷 Por especialista')+'</div>'
     +'<div style="font-size:10px;color:#67727a;margin-bottom:10px">Cada barra es un asesor · la altura es el número de proyectos · '
     +'<span style="display:inline-block;width:10px;height:10px;background:#CBD5E1;border-radius:2px;vertical-align:middle"></span> cotizado / considerado &nbsp; '
     +'<span style="display:inline-block;width:10px;height:10px;background:#C4B5FD;border-radius:2px;vertical-align:middle"></span> precon (elegido) &nbsp; '
@@ -12383,11 +12409,14 @@ function renderEstadisticas(){
     +'<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px">'
     +'<span style="font-size:10px;color:#67727a">Ámbito:</span>'+scopeBtn('activos','Activos')+scopeBtn('todos','Todos')
     +'<span style="font-size:10px;color:#67727a;margin-left:6px">Año:</span><select onchange="sv(\'gh_stats_ase_year\',this.value);renderEstadisticas()" style="font-size:10px;padding:3px 7px;border-radius:5px;border:.5px solid #bfd1e5;font-family:Arial">'+yearOptsAse+'</select>'
-    +'<span style="font-size:10px;color:#67727a;margin-left:6px">Categoría:</span><select onchange="sv(\'gh_stats_ase_cat\',this.value);renderEstadisticas()" style="font-size:10px;padding:3px 7px;border-radius:5px;border:.5px solid #bfd1e5;font-family:Arial">'+catOptsAse+'</select>'
+    +(aseView==='ing'?'<span style="font-size:10px;color:#67727a;margin-left:6px">Categoría:</span><select onchange="sv(\'gh_stats_ase_cat\',this.value);renderEstadisticas()" style="font-size:10px;padding:3px 7px;border-radius:5px;border:.5px solid #bfd1e5;font-family:Arial">'+catOptsAse+'</select>':'')
     +'</div>'
-    +(porCatHtml||'<div style="font-size:11px;color:#a8a8a8">Aún no hay asesores ligados a especialidades. Esta vista se alimenta del asesor elegido en las cotizaciones, de Costos ejecutivos y del campo <strong>"Asesores / contratistas del proyecto"</strong> de la ficha.</div>')
+    +((aseView==='esp'?espHtml:porCatHtml)||'<div style="font-size:11px;color:#a8a8a8">Aún no hay asesores ligados a especialidades. Esta vista se alimenta del asesor elegido en las cotizaciones, de Costos ejecutivos y del campo <strong>"Asesores / contratistas del proyecto"</strong> de la ficha.</div>')
     +'</div>';
 
+  cargaHtml=_statWrap('cargas','👥 Cargas laborales',cargaHtml);
+  execHtml=_statWrap('financiero','💰 Resumen financiero y ejecutivo',execHtml);
+  aseHtml=_statWrap('contratistas','🏗️ Contratistas / asesores',aseHtml);
   document.getElementById('stats-container').innerHTML=`
     <!-- Filters -->
     <div style="background:#fff;border-radius:10px;padding:14px 16px;border:.5px solid #bfd1e5;margin-bottom:1.25rem">
