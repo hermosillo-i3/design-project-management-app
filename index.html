@@ -1359,52 +1359,75 @@ function renderCargaGantt(){
   var maxT=Math.max.apply(null,rows.map(function(r){return r.endT;}));
   minT=Math.min(minT,today.getTime());maxT=Math.max(maxT,today.getTime());
   var span=Math.max(MS,maxT-minT);
+  var zoom=parseFloat(ld('gh_carga_zoom','1'))||1;
   var totalMonths=span/MS/30.4;
-  var chartW=Math.max(640,Math.round(totalMonths*72));
-  var LABELW=250;
+  var chartW=Math.max(640,Math.round(totalMonths*72*zoom));
+  var LABELW=230,RIGHTW=170;
   var xOf=function(t){return (t-minT)/span*chartW;};
+  var pxPerDay=chartW/(span/MS);
+  var MESES=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
   var mDate=new Date(minT);mDate.setDate(1);
-  var monthTicks='';var monthLabels='';var MESES=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  var monthTicks='';var monthLabels='';
   while(mDate.getTime()<=maxT){
     var lx=xOf(mDate.getTime());
-    monthTicks+='<div style="position:absolute;left:'+lx+'px;top:0;bottom:0;width:1px;background:#eef2f6"></div>';
-    monthLabels+='<div style="position:absolute;left:'+(lx+3)+'px;top:2px;font-size:9px;color:#a8a8a8;white-space:nowrap">'+MESES[mDate.getMonth()]+" '"+String(mDate.getFullYear()).slice(-2)+'</div>';
+    monthTicks+='<div style="position:absolute;left:'+lx+'px;top:0;bottom:0;width:1px;background:#dfe6ee"></div>';
+    monthLabels+='<div style="position:absolute;left:'+(lx+3)+'px;top:1px;font-size:9px;font-weight:700;color:#8a97a3;white-space:nowrap">'+MESES[mDate.getMonth()]+" '"+String(mDate.getFullYear()).slice(-2)+'</div>';
     mDate.setMonth(mDate.getMonth()+1);
   }
+  // Marcas finas (semana / día) según el zoom
+  var fineTicks='',fineLabels='';
+  if(pxPerDay>=14){ // día
+    var dd=new Date(minT);dd.setHours(0,0,0,0);
+    for(;dd.getTime()<=maxT;dd.setDate(dd.getDate()+1)){var dx=xOf(dd.getTime());var wknd=(dd.getDay()===0||dd.getDay()===6);
+      fineTicks+='<div style="position:absolute;left:'+dx+'px;top:0;bottom:0;width:1px;background:'+(wknd?'#eef2f6':'#f6f8fa')+'"></div>';
+      fineLabels+='<div style="position:absolute;left:'+(dx+1)+'px;top:11px;font-size:7px;color:'+(wknd?'#c5ccd4':'#a8b3bf')+';white-space:nowrap">'+dd.getDate()+'</div>';
+    }
+  } else if(pxPerDay>=3){ // semana (lunes)
+    var wd=new Date(minT);wd.setHours(0,0,0,0);while(wd.getDay()!==1)wd.setDate(wd.getDate()+1);
+    for(;wd.getTime()<=maxT;wd.setDate(wd.getDate()+7)){var wx=xOf(wd.getTime());
+      fineTicks+='<div style="position:absolute;left:'+wx+'px;top:0;bottom:0;width:1px;background:#f1f4f7"></div>';
+      if(pxPerDay>=6)fineLabels+='<div style="position:absolute;left:'+(wx+2)+'px;top:11px;font-size:7px;color:#c5ccd4;white-space:nowrap">'+wd.getDate()+'</div>';
+    }
+  }
+  var grid=monthTicks+fineTicks;
   var todayX=xOf(today.getTime());
-  var todayLine='<div style="position:absolute;left:'+todayX+'px;top:0;bottom:0;width:2px;background:#e65a27;opacity:.65;z-index:3"></div>';
+  var todayLine='<div style="position:absolute;left:'+todayX+'px;top:0;bottom:0;width:2px;background:#e65a27;opacity:.7;z-index:3"></div>';
   var durTxt=function(ms){var d=ms/MS;if(d<45)return Math.round(d)+' d';return (d/30.4).toFixed(1)+' meses';};
-  var MW=LABELW+chartW;
+  var MW=LABELW+chartW+RIGHTW;
   var projRow=function(r){
     var p=r.proj;var s=sem(p);var col=semColors[s.cls]||'#6990ab';
     var firstEndT=r.ents.length?r.ents[0].t:r.endT;
     var bl=xOf(r.startT),bwFirst=Math.max(5,xOf(firstEndT)-xOf(r.startT));
     var dur=durTxt(r.endT-r.startT);
-    // barra base arranque -> primera entrega (color), y extensión clara hasta la última
     var extW=xOf(r.endT)-xOf(firstEndT);
     var noArr=!r.hasArr;
+    var ultEnt=r.ents.length?r.ents[r.ents.length-1].str:'';
+    var eq=(p.equipo||[]);var equipoFull=eq.join(', ');var equipoShort=eq.length?(eq.slice(0,2).join(', ')+(eq.length>2?' +'+(eq.length-2):'')):'—';
     var bar='<div onclick="openGanttProjMenu('+p.id+')" title="'+esc(p.nombre)+' — arranque '+(p.arranque||'(sin fecha)')+(r.ents.length?' · entregas: '+r.ents.map(function(e,i){return (i+1)+') '+e.str;}).join('  '):' · sin entrega')+'" style="position:absolute;left:'+bl+'px;top:7px;height:15px;width:'+Math.max(5,xOf(r.endT)-bl)+'px;cursor:pointer;z-index:1">'
-      // tramo 1 (arranque -> 1a entrega) color lleno
       +'<div style="position:absolute;left:0;top:0;height:15px;width:'+bwFirst+'px;background:'+col+';border-radius:4px 0 0 4px;box-shadow:0 1px 2px rgba(0,0,0,.12)'+(noArr?';opacity:.5;border:1px dashed rgba(255,255,255,.9)':'')+'"></div>'
-      // tramo(s) posteriores (2a, 3a entrega) mismo color más tenue
       +(extW>1?'<div style="position:absolute;left:'+bwFirst+'px;top:0;height:15px;width:'+extW+'px;background:'+col+';opacity:.4;border-radius:0 4px 4px 0"></div>':'')
       +'</div>';
-    // marcas de entregas (2ª, 3ª, …) + números
     var marks='';
     r.ents.forEach(function(e,i){
       var mx=xOf(e.t);
       marks+='<div title="Entrega '+(i+1)+': '+e.str+'" style="position:absolute;left:'+(mx-1)+'px;top:4px;height:21px;width:2px;background:#254467;z-index:2"></div>'
         +'<div style="position:absolute;left:'+(mx-2)+'px;top:-2px;font-size:8px;font-weight:800;color:#254467;z-index:2">'+(i+1)+'</div>';
     });
+    // fecha de entrega notoria al final de la barra
+    var endLabel=ultEnt?'<div style="position:absolute;left:'+(xOf(r.endT)+6)+'px;top:6px;font-size:8px;font-weight:800;color:#3B6D11;white-space:nowrap;z-index:2">📅 '+fmtD(ultEnt)+'</div>':'';
     var etBadge=r.sec==='PRECON'
       ? '<span style="font-size:7px;font-weight:800;background:#254467;color:#fff;border-radius:3px;padding:1px 4px;margin-right:4px;vertical-align:middle">PRE</span>'
       : '<span style="font-size:7px;font-weight:800;background:#3B6D11;color:#fff;border-radius:3px;padding:1px 4px;margin-right:4px;vertical-align:middle">EJE</span>';
     return '<div style="display:flex;align-items:center;min-width:'+MW+'px;border-top:1px solid #f4f6f8">'
-      +'<div style="position:sticky;left:0;width:'+LABELW+'px;flex-shrink:0;padding:4px 10px 4px 22px;background:#fff;z-index:2;overflow:hidden">'
+      +'<div style="position:sticky;left:0;width:'+LABELW+'px;flex-shrink:0;padding:4px 10px 4px 20px;background:#fff;z-index:2;overflow:hidden">'
       +'<div style="font-size:10px;font-weight:600;color:#254467;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+esc(p.nombre)+'">'+etBadge+esc(p.nombre)+'</div>'
       +'<div style="font-size:8px;color:#a8a8a8;white-space:nowrap">Jefe: '+esc(r.jefe)+' · '+dur+(noArr?' · <span style="color:#e6a817">⚠ sin arranque</span>':'')+'</div>'
+      +'<div style="font-size:8px;font-weight:700;color:'+(ultEnt?'#3B6D11':'#c5ccd4')+';white-space:nowrap">📅 Entrega: '+(ultEnt?fmtD(ultEnt):'sin fecha')+'</div>'
       +'</div>'
-      +'<div style="position:relative;height:29px;width:'+chartW+'px;flex-shrink:0">'+monthTicks+todayLine+bar+marks+'</div>'
+      +'<div style="position:relative;height:33px;width:'+chartW+'px;flex-shrink:0">'+grid+todayLine+bar+marks+endLabel+'</div>'
+      +'<div style="position:sticky;right:0;width:'+RIGHTW+'px;flex-shrink:0;background:#fff;z-index:2;padding:4px 8px;border-left:1px solid #eef2f6;overflow:hidden">'
+      +'<div style="font-size:8px;color:#67727a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+esc(equipoFull)+'">👥 '+esc(equipoShort)+'</div>'
+      +'</div>'
       +'</div>';
   };
   var byCoord={};rows.forEach(function(r){(byCoord[r.coord]=byCoord[r.coord]||[]).push(r);});
@@ -1414,30 +1437,38 @@ function renderCargaGantt(){
     var list=byCoord[coord].slice().sort(function(a,b){var oa=a.sec==='PRECON'?0:1,ob=b.sec==='PRECON'?0:1;if(oa!==ob)return oa-ob;return a.startT-b.startT;});
     var nPre=list.filter(function(r){return r.sec==='PRECON';}).length;var nEje=list.length-nPre;
     var totMs=list.reduce(function(s,r){return s+(r.endT-r.startT);},0);
-    body+='<div style="display:flex;align-items:center;min-width:'+MW+'px;background:#eef3f9;border-top:2px solid #d5e3f0"><div style="position:sticky;left:0;width:'+LABELW+'px;flex-shrink:0;padding:6px 10px;background:#eef3f9;font-size:11px;font-weight:800;color:#254467;z-index:2">🧭 '+esc(coord)+' <span style="font-size:9px;font-weight:400;color:#6990ab">· '+list.length+' proy'+((nPre&&nEje)?' ('+nPre+' pre · '+nEje+' eje)':'')+' · '+(totMs/MS/30.4).toFixed(1)+' m acum.</span></div><div style="flex:1"></div></div>';
+    body+='<div style="display:flex;align-items:center;min-width:'+MW+'px;background:#eef3f9;border-top:2px solid #d5e3f0">'
+      +'<div style="position:sticky;left:0;width:'+LABELW+'px;flex-shrink:0;padding:6px 10px;background:#eef3f9;font-size:11px;font-weight:800;color:#254467;z-index:2">🧭 '+esc(coord)+' <span style="font-size:9px;font-weight:400;color:#6990ab">· '+list.length+' proy'+((nPre&&nEje)?' ('+nPre+' pre · '+nEje+' eje)':'')+'</span></div>'
+      +'<div style="width:'+chartW+'px;flex-shrink:0"></div>'
+      +'<div style="position:sticky;right:0;width:'+RIGHTW+'px;flex-shrink:0;background:#eef3f9"></div>'
+      +'</div>';
     list.forEach(function(r){body+=projRow(r);});
   });
-  el.innerHTML='<div style="font-size:11px;color:#67727a;margin-bottom:8px">Barras por proyecto, agrupadas por <strong>coordinador</strong> (aparece una sola vez). Cada proyecto trae su etapa: <span style="font-size:7px;font-weight:800;background:#254467;color:#fff;border-radius:3px;padding:1px 4px">PRE</span> preconstrucción · <span style="font-size:7px;font-weight:800;background:#3B6D11;color:#fff;border-radius:3px;padding:1px 4px">EJE</span> ejecutivo. La barra va del <strong>arranque</strong> a la <strong>1ª entrega</strong>; las entregas adicionales salen más tenues con marcas numeradas (2ª, 3ª…). Color = semáforo. Línea roja = hoy.</div>'
-    +'<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:8px;font-size:10px;color:#67727a">'
-    +'<span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#639922;display:inline-block"></span> En tiempo</span>'
-    +'<span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#6990ab;display:inline-block"></span> En riesgo</span>'
-    +'<span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#e65a27;display:inline-block"></span> Crítico/vencido</span>'
-    +'<span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#254467;display:inline-block"></span> Marca de entrega (2ª, 3ª…)</span>'
-    +'<span style="display:flex;align-items:center;gap:4px"><span style="width:14px;height:2px;background:#e65a27;display:inline-block"></span> Hoy</span>'
+  var zoomBtn=function(z,lbl){var on=Math.abs(zoom-z)<0.01;return '<button onclick="setCargaZoom('+z+')" style="font-size:10px;padding:3px 10px;border:.5px solid #bfd1e5;border-radius:5px;cursor:pointer;font-family:Arial;background:'+(on?'#254467':'#fff')+';color:'+(on?'#fff':'#67727a')+'">'+lbl+'</button>';};
+  el.innerHTML='<div style="font-size:11px;color:#67727a;margin-bottom:8px">Barras por proyecto, agrupadas por <strong>coordinador</strong>. Etapa: <span style="font-size:7px;font-weight:800;background:#254467;color:#fff;border-radius:3px;padding:1px 4px">PRE</span> · <span style="font-size:7px;font-weight:800;background:#3B6D11;color:#fff;border-radius:3px;padding:1px 4px">EJE</span>. De <strong>arranque</strong> a <strong>1ª entrega</strong>; entregas extra con marcas (2ª, 3ª…). 📅 = fecha de entrega. Color = semáforo · línea roja = hoy · equipo a la derecha.</div>'
+    +'<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">'
+    +'<button onclick="cargaGoToday()" style="font-size:10px;padding:3px 12px;border:.5px solid #e65a27;border-radius:5px;background:#fff;color:#e65a27;cursor:pointer;font-family:Arial;font-weight:700">⦿ Ir a hoy</button>'
+    +'<span style="font-size:10px;color:#67727a;margin-left:6px">Zoom:</span>'+zoomBtn(1,'Mes')+zoomBtn(2.6,'Semana')+zoomBtn(7,'Día')
+    +'<span style="font-size:9px;color:#a8a8a8;margin-left:6px">(más zoom = fechas más exactas)</span>'
     +'</div>'
     +'<div id="carga-scroll" style="overflow-x:auto;border:.5px solid #e2e8f0;border-radius:8px">'
     +'<div style="min-width:'+MW+'px">'
-    +'<div style="display:flex;align-items:flex-end;height:20px;border-bottom:1px solid #e2e8f0;background:#fafbfc"><div style="position:sticky;left:0;width:'+LABELW+'px;flex-shrink:0;background:#fafbfc;z-index:2"></div><div style="position:relative;height:20px;width:'+chartW+'px;flex-shrink:0">'+monthLabels+'</div></div>'
+    +'<div style="display:flex;align-items:flex-end;height:22px;border-bottom:1px solid #e2e8f0;background:#fafbfc">'
+    +'<div style="position:sticky;left:0;width:'+LABELW+'px;flex-shrink:0;background:#fafbfc;z-index:3"></div>'
+    +'<div style="position:relative;height:22px;width:'+chartW+'px;flex-shrink:0">'+monthLabels+fineLabels+'<div id="carga-today-marker" style="position:absolute;left:'+todayX+'px;top:0;bottom:0;width:2px;background:#e65a27;opacity:.7"></div></div>'
+    +'<div style="position:sticky;right:0;width:'+RIGHTW+'px;flex-shrink:0;background:#fafbfc;font-size:9px;font-weight:700;color:#8a97a3;padding:2px 8px;display:flex;align-items:flex-end">👥 Equipo</div>'
+    +'</div>'
     +body
     +'</div></div>';
-  // Posicionar la vista en HOY (hoy hacia la izquierda para ver lo que sigue)
-  var _sc=document.getElementById('carga-scroll');
-  if(_sc){
-    var _goToday=function(){var vw=_sc.clientWidth||700;var target=LABELW+todayX-vw*0.32;_sc.scrollLeft=Math.max(0,target);};
-    _goToday();
-    if(window.requestAnimationFrame)requestAnimationFrame(_goToday);
-    setTimeout(_goToday,80);
-  }
+  cargaGoToday();
+  if(window.requestAnimationFrame)requestAnimationFrame(cargaGoToday);
+  setTimeout(cargaGoToday,120);setTimeout(cargaGoToday,400);
+}
+function setCargaZoom(z){sv('gh_carga_zoom',z);renderCargaGantt();}
+function cargaGoToday(){
+  var tm=document.getElementById('carga-today-marker');var sc=document.getElementById('carga-scroll');
+  if(tm&&tm.scrollIntoView){try{tm.scrollIntoView({inline:'center',block:'nearest'});return;}catch(e){}}
+  if(sc&&tm){sc.scrollLeft=Math.max(0,tm.offsetLeft-sc.clientWidth*0.4);}
 }
 function histNum(p){return(p.arranque&&p.arranque.length>=4?p.arranque.slice(2,4):(new Date().getFullYear()+'').slice(-2))+'-'+p.num;}
 
