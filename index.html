@@ -12265,7 +12265,7 @@ function renderEstadisticas(){
       Object.keys(espAse).forEach(function(en){var cat=espAse[en].cat;Object.keys(espAse[en].ase).forEach(function(ak){var r=espAse[en].ase[ak];
         _add(en,cat,r.nombre,p.nombre,'noadj');
       });});
-      if(p.costosEjec)Object.keys(p.costosEjec).forEach(function(k){if(k.indexOf(':')>=0||k.indexOf('__')===0)return;var a=p.costosEjec[k]&&p.costosEjec[k].asesor;if(a&&String(a).trim())_add(k,espCatMap[k],a,p.nombre,'noadj');});
+      if(p.costosEjec)Object.keys(p.costosEjec).forEach(function(k){if(k.indexOf(':')>=0||k.indexOf('__')===0)return;var a=p.costosEjec[k]&&p.costosEjec[k].asesor;if(a&&String(a).trim())_add(k,(espAse[k]&&espAse[k].cat)||espCatMap[k],a,p.nombre,'noadj');});
     } else if(b==='precon'){
       // PRECON: elegido -> precon; los demás cotizados (con o sin monto) -> cotizado/considerado
       Object.keys(espAse).forEach(function(en){var cat=espAse[en].cat;Object.keys(espAse[en].ase).forEach(function(ak){var r=espAse[en].ase[ak];
@@ -12275,7 +12275,7 @@ function renderEstadisticas(){
     } else if(b==='eje'){
       // EJECUTIVO: oficial = Costos; los cotizados (no oficiales) -> cotizado/considerado
       var costAse={};
-      if(p.costosEjec)Object.keys(p.costosEjec).forEach(function(k){if(k.indexOf(':')>=0||k.indexOf('__')===0)return;var a=p.costosEjec[k]&&p.costosEjec[k].asesor;if(a&&String(a).trim()){_add(k,espCatMap[k],a,p.nombre,'eje');costAse[k]=String(a).trim().toLowerCase();}});
+      if(p.costosEjec)Object.keys(p.costosEjec).forEach(function(k){if(k.indexOf(':')>=0||k.indexOf('__')===0)return;var a=p.costosEjec[k]&&p.costosEjec[k].asesor;if(a&&String(a).trim()){_add(k,(espAse[k]&&espAse[k].cat)||espCatMap[k],a,p.nombre,'eje');costAse[k]=String(a).trim().toLowerCase();}});
       Object.keys(espAse).forEach(function(en){var cat=espAse[en].cat;Object.keys(espAse[en].ase).forEach(function(ak){var r=espAse[en].ase[ak];
         if(costAse[en]!==ak)_add(en,cat,r.nombre,p.nombre,'cons');
       });});
