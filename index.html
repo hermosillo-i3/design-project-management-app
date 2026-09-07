@@ -1318,6 +1318,11 @@ function setProjSubTab(tab){
   if(tab==='carga')renderCargaGantt();else renderProyectos();
 }
 
+function ganttToggleTask(taskId,projId){
+  var t=tasks.find(function(x){return x.id===taskId;});
+  if(t){t.done=!t.done;sv(K.tasks,tasks);if(typeof renderSeg==='function')renderSeg();if(typeof renderPendientes==='function')renderPendientes();}
+  openGanttProjMenu(projId);
+}
 function openGanttProjMenu(id){
   var p=[].concat(activeProjs(),internos(),ld(K.proj,[]).filter(function(x){return x.archivado;})).find(function(x){return String(x.id)===String(id);});
   if(!p){openProyecto(id);return;}
@@ -1328,7 +1333,7 @@ function openGanttProjMenu(id){
   var tasksHtml=pTasks.length?pTasks.map(function(t){
     var ov=t.fechaCompromiso&&t.fechaCompromiso<todayStr&&!t.done;
     return '<div onclick="openEditTask('+t.id+')" style="display:flex;align-items:center;gap:8px;padding:6px 8px;border:.5px solid #eef2f6;border-radius:6px;margin-bottom:4px;cursor:pointer;background:'+(t.done?'#f6faf1':'#fff')+'" title="Editar tarea">'
-      +'<span style="font-size:12px">'+(t.done?'✅':'⬜')+'</span>'
+      +'<span onclick="event.stopPropagation();ganttToggleTask('+t.id+','+id+')" style="font-size:15px;cursor:pointer" title="'+(t.done?'Marcar como pendiente':'Marcar como hecha')+'">'+(t.done?'✅':'⬜')+'</span>'
       +'<span style="flex:1;font-size:11px;color:'+(t.done?'#a8a8a8':'#254467')+';'+(t.done?'text-decoration:line-through':'')+'">'+esc(t.texto)+'</span>'
       +(t.asignado?'<span style="font-size:9px;color:#6990ab;white-space:nowrap">'+esc(t.asignado)+'</span>':'')
       +(t.fechaCompromiso?'<span style="font-size:9px;color:'+(ov?'#e65a27':'#a8a8a8')+';white-space:nowrap">'+fmtD(t.fechaCompromiso)+'</span>':'')
