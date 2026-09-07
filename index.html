@@ -3250,7 +3250,7 @@ function openAddTask(pidArg){
 function saveTask(pid){
   var f=_readTaskFlags();
   tasks.push(Object.assign({id:Date.now(),projId:pid,tipo:'task',texto:document.getElementById('tt').value,asignado:document.getElementById('ta').value,fechaPedido:document.getElementById('tfp').value,fechaCompromiso:document.getElementById('tfc').value,bloqueante:document.getElementById('tbl').value==='1',done:false,fecha:todayStr},f));
-  sv(K.tasks,tasks);closeModal();renderSeg();renderPendientes();if(typeof renderConsultores==='function')renderConsultores();
+  sv(K.tasks,tasks);closeModal();renderSeg();renderPendientes();if(typeof renderConsultores==='function')renderConsultores();if(typeof renderInternos==='function')renderInternos();
 }
 
 function addTaskNote(taskId){
@@ -8580,10 +8580,17 @@ function saveConsulAsign(projId,consulNombre){
 }
 
 // ── INTERNOS ─────────────────────────────────────────────────
+function toggleIntCollapse(id){
+  var arr=ld('gh_int_collapsed',[]);var i=arr.indexOf(String(id));
+  if(i>=0)arr.splice(i,1);else arr.push(String(id));
+  sv('gh_int_collapsed',arr);renderInternos();
+}
 function renderInternos(){
   const showIntArch=document.getElementById('show-int-arch')&&document.getElementById('show-int-arch').checked;
   const intList=showIntArch?projects.filter(p=>p.interno):internos();
+  const intCol=ld('gh_int_collapsed',[]);
   document.getElementById('tbody-int').innerHTML=intList.map(p=>{
+    const col=intCol.indexOf(String(p.id))>=0;
     const m=momentum(p);
     const daysToNext=p.proximoAvance?Math.round((new Date(p.proximoAvance)-today)/86400000):null;
     // Feed: tasks + comments sorted by date desc
@@ -8599,10 +8606,11 @@ function renderInternos(){
           <div style="display:flex;align-items:flex-start;gap:7px">
             <input type="checkbox" ${item.done?'checked':''} onchange="toggleTask(${item.id},this.checked);setTimeout(()=>renderInternos(),100)" style="width:14px;height:14px;margin-top:3px;cursor:pointer;accent-color:#6990ab;flex-shrink:0">
             <div style="flex:1">
-              <div class="feed-text"><strong>${item.texto}</strong></div>
+              <div class="feed-text" style="cursor:pointer" onclick="openEditTask(${item.id})" title="Editar tarea"><strong>${item.texto}</strong></div>
               <div class="feed-foot" style="margin-top:4px">
                 ${item.fechaCompromiso?`<span class="badge ${ov?'b-crit':'b-blue'}" style="font-size:9px">Compromiso: ${fmtD(item.fechaCompromiso)}</span>`:''}
                 ${ov?'<span style="font-size:9px;font-weight:700;color:#e65a27">VENCIDA</span>':''}
+                <button class="btn btn-xs no-print" onclick="openEditTask(${item.id})">Editar</button>
                 <button class="btn btn-xs no-print" onclick="openTaskNota(${item.id})">+ Nota</button>
                 <button class="btn btn-xs btn-danger no-print" onclick="deleteTask(${item.id});setTimeout(()=>renderInternos(),100)">Eliminar</button>
               </div>
@@ -8613,7 +8621,7 @@ function renderInternos(){
       } else {
         return`<div class="feed-item comment" style="margin-bottom:4px">
           <div class="feed-meta">${item.fecha||'—'}</div>
-          <div class="feed-text">${item.texto}</div>
+          <div class="feed-text" id="int-comment-text-${item.id}">${item.texto}</div>
           <div class="feed-foot" style="margin-top:3px">
             <button class="btn btn-xs no-print" onclick="editIntComment(${item.id},${p.id})">Editar</button>
             <button class="btn btn-xs btn-danger no-print" onclick="deleteComment(${item.id});setTimeout(()=>renderInternos(),100)">Eliminar</button>
@@ -8623,8 +8631,8 @@ function renderInternos(){
     }).join(''):'<div style="font-size:10px;color:#a8a8a8;padding:4px 0">Sin actividad registrada.</div>';
 
     return`<tr>
-      <td style="color:#a8a8a8">${p.num}</td>
-      <td style="font-weight:700;color:#6990ab;max-width:160px">${p.nombre}</td>
+      <td style="color:#a8a8a8;white-space:nowrap"><span onclick="toggleIntCollapse(${p.id})" style="cursor:pointer;color:#6990ab;font-weight:700;margin-right:5px" title="Colapsar/expandir">${col?'▸':'▾'}</span>${p.num}</td>
+      <td style="font-weight:700;color:#6990ab;max-width:160px;cursor:pointer" onclick="toggleIntCollapse(${p.id})">${p.nombre}</td>
       <td style="font-size:10px">${p.tipo||'—'}</td>
       <td style="max-width:130px">${pills(p.equipo)}</td>
       <td>${consulBadges(p.consultores)}</td>
@@ -8639,13 +8647,13 @@ function renderInternos(){
           :`<button class="btn btn-sm btn-danger" onclick="archivar(${p.id})">Arch.</button>`}
       </td>
     </tr>
-    <tr id="int-comments-${p.id}">
+    <tr id="int-comments-${p.id}" style="${col?'display:none':''}">
       <td colspan="9" style="padding:0 8px 8px;background:#f0f5fa">
         <div style="padding:6px 0">${feedHtml}</div>
         <div style="display:flex;gap:5px;margin-top:6px;flex-wrap:wrap;align-items:center" class="no-print">
           <input id="int-comment-${p.id}" placeholder="Agregar comentario..." style="flex:2;min-width:180px;font-size:10px;padding:4px 7px;border-radius:5px;border:.5px solid #DDD6FE;font-family:Arial">
           <button class="btn btn-xs btn-purple" onclick="addIntComment(${p.id})">+ Comentario</button>
-          <button class="btn btn-xs" style="background:#eef3f7;color:#3a6080;border-color:#DDD6FE" onclick="addIntTask(${p.id})">+ Tarea</button>
+          <button class="btn btn-xs" style="background:#eef3f7;color:#3a6080;border-color:#DDD6FE" onclick="openAddTask(${p.id})">+ Tarea</button>
           <label style="font-size:9px;color:#3a6080;display:flex;align-items:center;gap:3px;cursor:pointer;white-space:nowrap">
             <input type="checkbox" id="show-done-${p.id}" onchange="renderInternos()" style="accent-color:#6990ab"> Ver completadas
           </label>
@@ -9281,7 +9289,7 @@ function updateTask(id){
   t.fechaCompromiso=document.getElementById('tfc').value;
   t.bloqueante=document.getElementById('tbl').value==='1';
   Object.assign(t,_readTaskFlags());
-  sv(K.tasks,tasks);closeModal();renderSeg();renderPendientes();if(typeof renderConsultores==='function')renderConsultores();if(typeof renderGerencia==='function')renderGerencia();
+  sv(K.tasks,tasks);closeModal();renderSeg();renderPendientes();if(typeof renderConsultores==='function')renderConsultores();if(typeof renderGerencia==='function')renderGerencia();if(typeof renderInternos==='function')renderInternos();
 }
 function toggleRevTaller(id){var t=tasks.find(function(x){return x.id===id;});if(!t)return;t.revTaller=!t.revTaller;sv(K.tasks,tasks);renderSeg();if(typeof renderConsultores==='function')renderConsultores();if(typeof renderGerencia==='function')renderGerencia();}
 function toggleGerDesarrollo(id){var t=tasks.find(function(x){return x.id===id;});if(!t)return;t.gerDesarrollo=!t.gerDesarrollo;sv(K.tasks,tasks);renderSeg();if(typeof renderConsultores==='function')renderConsultores();if(typeof renderGerencia==='function')renderGerencia();}
