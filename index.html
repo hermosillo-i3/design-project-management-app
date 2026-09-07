@@ -1357,22 +1357,22 @@ function renderCargaGantt(){
   var esc=function(s){return String(s==null?'':s).replace(/</g,'&lt;').replace(/"/g,'&quot;');};
   var semColors={crit:'#e65a27',risk:'#6990ab',ok:'#639922',none:'#a8a8a8'};
   var MS=86400000;
-  var _entregas=function(p){
-    var raw=[p.entregaV1||p.entrega,p.entregaV2,p.entregaV3,p.entregaV4];
-    var arr=[];raw.forEach(function(v){if(v&&String(v).trim()){var t=new Date(v).getTime();if(!isNaN(t))arr.push({str:v,t:t});}});
-    arr.sort(function(a,b){return a.t-b.t;});return arr;
-  };
+  var _mkEnts=function(raw){var arr=[];raw.forEach(function(v){if(v&&String(v).trim()){var t=new Date(v).getTime();if(!isNaN(t))arr.push({str:v,t:t});}});arr.sort(function(a,b){return a.t-b.t;});return arr;};
+  var _entregas=function(p){return _mkEnts([p.entregaV1||p.entrega,p.entregaV2,p.entregaV3,p.entregaV4]);};
+  var _entregasEje=function(p){return _mkEnts([p.ejeEntregaV1,p.ejeEntregaV2,p.ejeEntregaV3,p.ejeEntregaV4]);};
   var rows=[];
   activeProjs().forEach(function(p){
     var sec=p.etapa==='PRECON'?'PRECON':(['EJECUTIVO','REVISIONES'].indexOf(p.etapa)>=0?'EJECUTIVO':null);
     if(!sec)return;
     var ents=_entregas(p);
+    var entsEje=(sec==='EJECUTIVO')?_entregasEje(p):[];
+    var allE=ents.concat(entsEje);
     var arrT=(p.arranque&&!isNaN(new Date(p.arranque).getTime()))?new Date(p.arranque).getTime():null;
     var hasArr=arrT!=null;
-    var startT=hasArr?arrT:(ents.length?ents[0].t:today.getTime());
-    var endT=ents.length?ents[ents.length-1].t:(hasArr?Math.max(today.getTime(),startT+MS):startT+MS);
+    var startT=hasArr?arrT:(allE.length?allE[0].t:today.getTime());
+    var endT=allE.length?Math.max.apply(null,allE.map(function(e){return e.t;})):(hasArr?Math.max(today.getTime(),startT+MS):startT+MS);
     if(endT<startT)endT=Math.max(today.getTime(),startT+MS);
-    rows.push({proj:p,coord:p.coord||'(sin coordinador)',jefe:p.jefe||'—',startT:startT,endT:endT,ents:ents,sec:sec,hasArr:hasArr});
+    rows.push({proj:p,coord:p.coord||'(sin coordinador)',jefe:p.jefe||'—',startT:startT,endT:endT,ents:ents,entsEje:entsEje,sec:sec,hasArr:hasArr});
   });
   if(!rows.length){el.innerHTML='<div style="padding:2rem;text-align:center;color:#a8a8a8;font-size:12px">No hay proyectos activos con fecha de arranque. Captura la F. Arranque en la ficha del proyecto para verlos aquí.</div>';return;}
   var minT=Math.min.apply(null,rows.map(function(r){return r.startT;}));
@@ -1421,7 +1421,8 @@ function renderCargaGantt(){
     var dur=durTxt(r.endT-r.startT);
     var extW=xOf(r.endT)-xOf(firstEndT);
     var noArr=!r.hasArr;
-    var ultEnt=r.ents.length?r.ents[r.ents.length-1].str:'';
+    var _allE=r.ents.concat(r.entsEje||[]);
+    var ultEnt=_allE.length?_allE.reduce(function(a,b){return a.t>=b.t?a:b;}).str:'';
     var eq=(p.equipo||[]);var equipoFull=eq.join(', ');var equipoShort=eq.length?(eq.slice(0,2).join(', ')+(eq.length>2?' +'+(eq.length-2):'')):'—';
     var bar='<div onclick="openGanttProjMenu('+p.id+')" title="'+esc(p.nombre)+' — arranque '+(p.arranque||'(sin fecha)')+(r.ents.length?' · entregas: '+r.ents.map(function(e,i){return (i+1)+') '+e.str;}).join('  '):' · sin entrega')+'" style="position:absolute;left:'+bl+'px;top:7px;height:15px;width:'+Math.max(5,xOf(r.endT)-bl)+'px;cursor:pointer;z-index:1">'
       +'<div style="position:absolute;left:0;top:0;height:15px;width:'+bwFirst+'px;background:'+col+';border-radius:4px 0 0 4px;box-shadow:0 1px 2px rgba(0,0,0,.12)'+(noArr?';opacity:.5;border:1px dashed rgba(255,255,255,.9)':'')+'"></div>'
@@ -1430,8 +1431,13 @@ function renderCargaGantt(){
     var marks='';
     r.ents.forEach(function(e,i){
       var mx=xOf(e.t);
-      marks+='<div title="Entrega '+(i+1)+': '+e.str+'" style="position:absolute;left:'+(mx-1)+'px;top:4px;height:21px;width:2px;background:#254467;z-index:2"></div>'
+      marks+='<div title="Entrega precon '+(i+1)+': '+e.str+'" style="position:absolute;left:'+(mx-1)+'px;top:4px;height:21px;width:2px;background:#254467;z-index:2"></div>'
         +'<div style="position:absolute;left:'+(mx-2)+'px;top:-2px;font-size:8px;font-weight:800;color:#254467;z-index:2">'+(i+1)+'</div>';
+    });
+    (r.entsEje||[]).forEach(function(e,i){
+      var mx=xOf(e.t);
+      marks+='<div title="Entrega ejecutivo '+(i+1)+': '+e.str+'" style="position:absolute;left:'+(mx-1)+'px;top:4px;height:21px;width:2px;background:#3B6D11;z-index:2"></div>'
+        +'<div style="position:absolute;left:'+(mx-3)+'px;top:-2px;font-size:8px;font-weight:800;color:#3B6D11;z-index:2">E'+(i+1)+'</div>';
     });
     // fecha de entrega notoria al final de la barra
     var endLabel=ultEnt?'<div style="position:absolute;left:'+(xOf(r.endT)+6)+'px;top:6px;font-size:8px;font-weight:800;color:#3B6D11;white-space:nowrap;z-index:2">📅 '+fmtD(ultEnt)+'</div>':'';
@@ -1467,7 +1473,7 @@ function renderCargaGantt(){
     list.forEach(function(r){body+=projRow(r);});
   });
   var zoomBtn=function(z,lbl){var on=Math.abs(zoom-z)<0.01;return '<button onclick="setCargaZoom('+z+')" style="font-size:10px;padding:3px 10px;border:.5px solid #bfd1e5;border-radius:5px;cursor:pointer;font-family:Arial;background:'+(on?'#254467':'#fff')+';color:'+(on?'#fff':'#67727a')+'">'+lbl+'</button>';};
-  el.innerHTML='<div style="font-size:11px;color:#67727a;margin-bottom:8px">Barras por proyecto, agrupadas por <strong>coordinador</strong>. Etapa: <span style="font-size:7px;font-weight:800;background:#254467;color:#fff;border-radius:3px;padding:1px 4px">PRE</span> · <span style="font-size:7px;font-weight:800;background:#3B6D11;color:#fff;border-radius:3px;padding:1px 4px">EJE</span>. De <strong>arranque</strong> a <strong>1ª entrega</strong>; entregas extra con marcas (2ª, 3ª…). 📅 = fecha de entrega. Color = semáforo · línea roja = hoy · <span style="color:#185FA5;font-weight:800">◆</span> arranque ejecutivo · 👥 equipo bajo cada proyecto.</div>'
+  el.innerHTML='<div style="font-size:11px;color:#67727a;margin-bottom:8px">Barras por proyecto, agrupadas por <strong>coordinador</strong>. Etapa: <span style="font-size:7px;font-weight:800;background:#254467;color:#fff;border-radius:3px;padding:1px 4px">PRE</span> · <span style="font-size:7px;font-weight:800;background:#3B6D11;color:#fff;border-radius:3px;padding:1px 4px">EJE</span>. De <strong>arranque</strong> a <strong>1ª entrega</strong>; entregas extra con marcas (2ª, 3ª…). 📅 = fecha de entrega. Color = semáforo · línea roja = hoy · <span style="color:#185FA5;font-weight:800">◆</span> arranque ejecutivo · <span style="color:#254467;font-weight:800">1·2</span> entregas precon · <span style="color:#3B6D11;font-weight:800">E1·E2</span> entregas ejecutivo · 👥 equipo.</div>'
     +'<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">'
     +'<button onclick="cargaGoToday()" style="font-size:10px;padding:3px 12px;border:.5px solid #e65a27;border-radius:5px;background:#fff;color:#e65a27;cursor:pointer;font-family:Arial;font-weight:700">⦿ Ir a hoy</button>'
     +'<span style="font-size:10px;color:#67727a;margin-left:6px">Zoom:</span>'+zoomBtn(1,'Mes')+zoomBtn(2.6,'Semana')+zoomBtn(7,'Día')
@@ -2602,7 +2608,8 @@ function openProyecto(id,isInterno){
     <h3 style="${isInt?'color:#6990ab':''};">${id?(isInt?'Editar proyecto interno':'Editar proyecto'):(isInt?'Nuevo proyecto interno':'Nuevo proyecto')}</h3>
     <div style="display:flex;gap:0;border-bottom:.5px solid #bfd1e5;margin-bottom:14px">
       <button onclick="switchProjTab('general')" id="ptab-general" style="padding:6px 14px;font-size:11px;font-family:Arial;border:none;cursor:pointer;background:none;border-bottom:2px solid #254467;color:#254467;font-weight:700">General</button>
-      <button onclick="switchProjTab('hitos')" id="ptab-hitos" style="padding:6px 14px;font-size:11px;font-family:Arial;border:none;cursor:pointer;background:none;border-bottom:2px solid transparent;color:#67727a">Hitos</button>
+      <button onclick="switchProjTab('hitos')" id="ptab-hitos" style="padding:6px 14px;font-size:11px;font-family:Arial;border:none;cursor:pointer;background:none;border-bottom:2px solid transparent;color:#67727a">🏆 Hitos Precon</button>
+      ${!isInt?`<button onclick="switchProjTab('hitosEje')" id="ptab-hitosEje" style="padding:6px 14px;font-size:11px;font-family:Arial;border:none;cursor:pointer;background:none;border-bottom:2px solid transparent;color:#67727a">⚙ Hitos Ejecutivo</button>`:''}
     </div>
     <div id="ptab-content-general">
     <div class="frow"><div class="fg"><label>Nombre</label><input id="pn" value="${p.nombre}"></div><div class="fg"><label>Cliente</label><input id="pc" value="${p.cliente||''}"></div></div>
@@ -2700,6 +2707,16 @@ function openProyecto(id,isInterno){
       </div>
       <button onclick="addHitoRow()" style="font-size:11px;padding:4px 12px;border:.5px dashed #bfd1e5;border-radius:6px;background:#fff;cursor:pointer;font-family:Arial;color:#67727a">+ Agregar hito</button>
     </div><!-- end hitos tab -->
+    ${!isInt?`<div id="ptab-content-hitosEje" style="display:none">
+      <div style="font-size:10px;font-weight:700;color:#3B6D11;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">Fechas de ejecutivo</div>
+      <div class="frow"><div class="fg"><label>Firma de contrato</label><input type="date" id="peje-firma" value="${p.fechaFirma||''}"></div><div class="fg"><label>◆ Arranque ejecutivo (inicio diseño)</label><input type="date" id="peje-inidis" value="${p.fechaInicioDis||''}"></div></div>
+      <div class="frow"><div class="fg"><label>Fin diseño ejecutivo</label><input type="date" id="peje-findis" value="${p.fechaFinDis||''}"></div><div class="fg"><label>Inicio de obra</label><input type="date" id="peje-iniobra" value="${p.fechaInicioObra||''}"></div></div>
+      <div class="fg"><label>Fin de obra</label><input type="date" id="peje-finobra" value="${p.fechaFinObra||''}"></div>
+      <div style="font-size:10px;font-weight:700;color:#3B6D11;text-transform:uppercase;letter-spacing:.05em;margin:16px 0 8px">Entregas de ejecutivo</div>
+      <div class="frow"><div class="fg"><label>Entrega ejec. V1</label><input type="date" id="peje-ent1" value="${p.ejeEntregaV1||''}"></div><div class="fg"><label>Entrega ejec. V2</label><input type="date" id="peje-ent2" value="${p.ejeEntregaV2||''}"></div></div>
+      <div class="frow"><div class="fg"><label>Entrega ejec. V3</label><input type="date" id="peje-ent3" value="${p.ejeEntregaV3||''}"></div><div class="fg"><label>Entrega ejec. V4</label><input type="date" id="peje-ent4" value="${p.ejeEntregaV4||''}"></div></div>
+      <div style="font-size:9px;color:#a8a8a8;margin-top:6px">En el Gantt de Carga: para proyectos ejecutivos se muestran el ◆ arranque ejecutivo y estas entregas (marcadas E1, E2…), separadas de las de precon.</div>
+    </div>`:''}
     <div class="btn-row">
       ${id?`<button class="btn btn-danger btn-sm" onclick="archivar(${p.id},true)" style="margin-right:auto">Archivar</button>`:''}
       <button class="btn" onclick="closeModal()">Cancelar</button>
@@ -2716,7 +2733,7 @@ function openEditDocs(projId){
 }
 
 function switchProjTab(tab){
-  ['general','hitos'].forEach(function(t){
+  ['general','hitos','hitosEje'].forEach(function(t){
     const content=document.getElementById('ptab-content-'+t);
     const btn=document.getElementById('ptab-'+t);
     if(content) content.style.display=t===tab?'block':'none';
@@ -2738,7 +2755,7 @@ function addHitoRow(){
 }
 
 function switchProjTab(tab){
-  ['general','hitos'].forEach(function(t){
+  ['general','hitos','hitosEje'].forEach(function(t){
     var content=document.getElementById('ptab-content-'+t);
     var btn=document.getElementById('ptab-'+t);
     if(content) content.style.display=t===tab?'block':'none';
@@ -2858,6 +2875,15 @@ function saveProyecto(id,isInt){
       });
       return Object.values(map).filter(h=>h.nombre);
     })(),
+    ejeEntregaV1:document.getElementById('peje-ent1')?document.getElementById('peje-ent1').value:(id?(projects.find(x=>x.id===id).ejeEntregaV1||''):''),
+    ejeEntregaV2:document.getElementById('peje-ent2')?document.getElementById('peje-ent2').value:(id?(projects.find(x=>x.id===id).ejeEntregaV2||''):''),
+    ejeEntregaV3:document.getElementById('peje-ent3')?document.getElementById('peje-ent3').value:(id?(projects.find(x=>x.id===id).ejeEntregaV3||''):''),
+    ejeEntregaV4:document.getElementById('peje-ent4')?document.getElementById('peje-ent4').value:(id?(projects.find(x=>x.id===id).ejeEntregaV4||''):''),
+    fechaFirma:document.getElementById('peje-firma')?document.getElementById('peje-firma').value:(id?(projects.find(x=>x.id===id).fechaFirma||''):''),
+    fechaInicioDis:document.getElementById('peje-inidis')?document.getElementById('peje-inidis').value:(id?(projects.find(x=>x.id===id).fechaInicioDis||''):''),
+    fechaFinDis:document.getElementById('peje-findis')?document.getElementById('peje-findis').value:(id?(projects.find(x=>x.id===id).fechaFinDis||''):''),
+    fechaInicioObra:document.getElementById('peje-iniobra')?document.getElementById('peje-iniobra').value:(id?(projects.find(x=>x.id===id).fechaInicioObra||''):''),
+    fechaFinObra:document.getElementById('peje-finobra')?document.getElementById('peje-finobra').value:(id?(projects.find(x=>x.id===id).fechaFinObra||''):''),
     archivado:false,archivedAt:'',
     ultimaActualizacion:todayStr,
     proximoAvance:document.getElementById('ppav')?document.getElementById('ppav').value:'',
@@ -2869,7 +2895,7 @@ function saveProyecto(id,isInt){
       dat.archivado=prev.archivado;
       dat.archivedAt=prev.archivedAt;
       // Restore execution fields not present in the edit form
-      var _keep=['preconSnapshot','fechaFirma','fechaInicioObra','fechaFinObra','fechaInicioDis','fechaFinDis','presupuestoControlCotId','extraordinarios','costosEjec','requiereAtencion','gerPrio'];
+      var _keep=['preconSnapshot','presupuestoControlCotId','extraordinarios','costosEjec','requiereAtencion','gerPrio'];
       _keep.forEach(function(f){if(prev[f]!=null&&prev[f]!==undefined)dat[f]=prev[f];});
       projects[i]=dat;
     }else{projects.push(dat);}
