@@ -1445,6 +1445,13 @@ function renderCargaGantt(){
     var arrEjeStr=(r.sec==='EJECUTIVO')?(p.fechaInicioDis||p.fechaFirma||''):'';
     var arrEjeMark='';
     if(arrEjeStr){var _aet=new Date(arrEjeStr).getTime();if(!isNaN(_aet)){var _aex=xOf(_aet);arrEjeMark='<div title="◆ Arranque ejecutivo: '+arrEjeStr+'" style="position:absolute;left:'+(_aex-6)+'px;top:0px;font-size:13px;color:#185FA5;z-index:3;line-height:1;cursor:default">◆</div>';}}
+    // franja verde de la fase ejecutivo (arranque ejec. -> última entrega ejec.) para que se vea en la barra
+    var ejeSeg='';
+    if((r.entsEje||[]).length){
+      var _esStr=arrEjeStr||p.fechaFirma||'';var _esT=(_esStr&&!isNaN(new Date(_esStr).getTime()))?new Date(_esStr).getTime():r.entsEje[0].t;
+      var _eeT=r.entsEje[r.entsEje.length-1].t;if(_eeT>=_esT){var _sx=xOf(_esT),_sw=Math.max(4,xOf(_eeT)-_sx);
+        ejeSeg='<div title="Fase ejecutivo" style="position:absolute;left:'+_sx+'px;top:24px;height:6px;width:'+_sw+'px;background:#3B6D11;border-radius:3px;opacity:.9"></div>';}
+    }
     var etBadge=r.sec==='PRECON'
       ? '<span style="font-size:7px;font-weight:800;background:#254467;color:#fff;border-radius:3px;padding:1px 4px;margin-right:4px;vertical-align:middle">PRE</span>'
       : '<span style="font-size:7px;font-weight:800;background:#3B6D11;color:#fff;border-radius:3px;padding:1px 4px;margin-right:4px;vertical-align:middle">EJE</span>';
@@ -1456,7 +1463,7 @@ function renderCargaGantt(){
       +(arrEjeStr?'<div style="font-size:8px;font-weight:700;color:#185FA5;white-space:nowrap">◆ Arr. ejec: '+fmtD(arrEjeStr)+'</div>':'')
       +(eq.length?'<div style="font-size:8px;color:#8a97a3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+esc(equipoFull)+'">👥 '+esc(equipoShort)+'</div>':'')
       +'</div>'
-      +'<div style="position:relative;height:'+(arrEjeStr?46:38)+'px;width:'+chartW+'px;flex-shrink:0">'+grid+todayLine+bar+marks+endLabel+arrEjeMark+'</div>'
+      +'<div style="position:relative;height:'+((arrEjeStr||(r.entsEje||[]).length)?46:38)+'px;width:'+chartW+'px;flex-shrink:0">'+grid+todayLine+bar+ejeSeg+marks+endLabel+arrEjeMark+'</div>'
       +'</div>';
   };
   var byCoord={};rows.forEach(function(r){(byCoord[r.coord]=byCoord[r.coord]||[]).push(r);});
