@@ -11026,14 +11026,16 @@ function renderEquipoDetalle(allProjs){
 
     var initials=nombre.split(' ').map(function(w){return w[0];}).slice(0,2).join('');
     var semColors={crit:'#e65a27',risk:'#6990ab',ok:'#639922',none:'#a8a8a8'};
+    var _eqKey=nombre.replace(/\s/g,'_');
+    var _eqCol=ld('gh_eqdet_collapsed',[]).indexOf(nombre)>=0;
 
     html+='<div style="background:#fff;border-radius:10px;border:.5px solid #bfd1e5;margin-bottom:16px;overflow:hidden">';
 
-    // Person header
-    html+='<div style="background:#254467;padding:10px 14px;display:flex;align-items:center;gap:10px">'
+    // Person header (clic para colapsar/expandir)
+    html+='<div onclick="toggleEqDetCollapse(\''+nombre.replace(/\'/g,"\\'")+'\')" title="Clic para colapsar/expandir" style="background:#254467;padding:10px 14px;display:flex;align-items:center;gap:10px;cursor:pointer">'
       +'<div style="width:38px;height:38px;border-radius:50%;background:#6990ab;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;flex-shrink:0">'+initials+'</div>'
       +'<div style="flex:1">'
-      +'<div style="font-size:13px;font-weight:700;color:#fff">'+nombre+'</div>'
+      +'<div style="font-size:13px;font-weight:700;color:#fff"><span id="eqdet-chev-'+_eqKey+'" style="display:inline-block;width:14px;color:#bfd1e5">'+(_eqCol?'▸':'▾')+'</span>'+nombre+'</div>'
       +'<div style="font-size:10px;color:#bfd1e5">'+persona.rol+'</div>'
       +'</div>'
       +'<div style="display:flex;gap:6px;align-items:center">'
@@ -11047,12 +11049,13 @@ function renderEquipoDetalle(allProjs){
         +'<div style="font-size:9px;color:#bfd1e5;text-transform:uppercase;letter-spacing:.04em">PPC</div></div>':'')
       +'</div>'
       +'<div style="display:flex;flex-direction:column;gap:5px;margin-left:6px">'
-      +'<button onclick="openRetroNotes(\''+nombre+'\')" style="font-size:9px;padding:3px 9px;border:none;border-radius:5px;background:rgba(255,255,255,.15);color:#fff;cursor:pointer;font-family:Arial;font-weight:700;white-space:nowrap">✏️ Notas</button>'
-      +'<button onclick="exportRetro(\''+nombre+'\')" style="font-size:9px;padding:3px 9px;border:none;border-radius:5px;background:#6990ab;color:#fff;cursor:pointer;font-family:Arial;font-weight:700;white-space:nowrap">📋 Retro</button>'
-      +'<button onclick="openPersonDetail(\''+nombre+'\',\''+persona.rol+'\')" style="font-size:9px;padding:3px 9px;border:none;border-radius:5px;background:rgba(255,255,255,.15);color:#fff;cursor:pointer;font-family:Arial;font-weight:700;white-space:nowrap">Ver más</button>'
+      +'<button onclick="event.stopPropagation();openRetroNotes(\''+nombre+'\')" style="font-size:9px;padding:3px 9px;border:none;border-radius:5px;background:rgba(255,255,255,.15);color:#fff;cursor:pointer;font-family:Arial;font-weight:700;white-space:nowrap">✏️ Notas</button>'
+      +'<button onclick="event.stopPropagation();exportRetro(\''+nombre+'\')" style="font-size:9px;padding:3px 9px;border:none;border-radius:5px;background:#6990ab;color:#fff;cursor:pointer;font-family:Arial;font-weight:700;white-space:nowrap">📋 Retro</button>'
+      +'<button onclick="event.stopPropagation();openPersonDetail(\''+nombre+'\',\''+persona.rol+'\')" style="font-size:9px;padding:3px 9px;border:none;border-radius:5px;background:rgba(255,255,255,.15);color:#fff;cursor:pointer;font-family:Arial;font-weight:700;white-space:nowrap">Ver más</button>'
       +'</div></div>';
 
-    // 3 columns
+    // 3 columns (envueltas en contenedor colapsable)
+    html+='<div id="eqdet-body-'+_eqKey+'" style="display:'+(_eqCol?'none':'block')+'">';
     html+='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;border-top:.5px solid #bfd1e5">';
 
     // COL 1 — Proyectos (draggable)
@@ -11167,10 +11170,25 @@ function renderEquipoDetalle(allProjs){
     }
     html+='</div>';
 
-    html+='</div></div>'; // end cols + card
+    html+='</div>'; // end cols grid
+    html+='</div>'; // end colapsable body
+    html+='</div>'; // end card
   });
 
   el.innerHTML=html;
+}
+
+function toggleEqDetCollapse(nombre){
+  var arr=ld('gh_eqdet_collapsed',[]);
+  var i=arr.indexOf(nombre);
+  if(i>=0)arr.splice(i,1);else arr.push(nombre);
+  sv('gh_eqdet_collapsed',arr);
+  var key=nombre.replace(/\s/g,'_');
+  var col=arr.indexOf(nombre)>=0;
+  var body=document.getElementById('eqdet-body-'+key);
+  var chev=document.getElementById('eqdet-chev-'+key);
+  if(body)body.style.display=col?'none':'block';
+  if(chev)chev.textContent=col?'▸':'▾';
 }
 
 // ── DRAG-DROP PARA EQUIPO DETALLE ────────────────────────────
