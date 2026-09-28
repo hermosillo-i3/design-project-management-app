@@ -2050,14 +2050,18 @@ function openExtraordinario(projId){
   const extras=p.extraordinarios||[];
   const projCots=getCots().filter(function(c){return String(c.projId)===String(projId);});
   const cotOpts=projCots.map(function(c){var tot=calcCotMetrics(c).grandTotal;return '<option value="'+c.id+'">'+c.nombre+' — $'+Math.round(tot).toLocaleString('es-MX')+'</option>';}).join('');
-  const listaHtml=extras.length?extras.map((e,i)=>`
+  const listaHtml=extras.length?extras.map((e,i)=>{
+    var nm=e.nombre||e.descripcion||'Adicional';
+    var concHtml=(e.conceptos&&e.conceptos.length)?'<div style="margin-top:4px">'+e.conceptos.map(function(c){return '<div style="font-size:9px;color:#67727a;display:flex;justify-content:space-between;gap:10px"><span>• '+(c.concepto||'—')+'</span><span style="color:#94a3b8;white-space:nowrap">$'+Math.round(c.monto||0).toLocaleString('es-MX')+'</span></div>';}).join('')+'</div>':'';
+    var descHtml=(e.descripcion&&e.nombre)?'<div style="font-size:9px;color:#a8a8a8;margin-top:2px;font-style:italic">'+e.descripcion+'</div>':'';
+    return `
     <tr style="border-bottom:.5px solid #eef2f6">
-      <td style="padding:5px 8px;font-size:10px;color:#67727a">${fmtD(e.fecha)}</td>
-      <td style="padding:5px 8px;font-size:11px;font-weight:600">${e.descripcion}${e.cotId?'<span style="font-size:8px;background:#e0eaf2;color:#254467;border-radius:3px;padding:0 4px;margin-left:4px">📄 cotización</span>':''}</td>
-      <td style="padding:5px 8px;font-size:11px;font-weight:700;color:#e65a27;text-align:right">$${Math.round(e.monto||0).toLocaleString('es-MX')}</td>
-      <td style="padding:5px 8px;font-size:10px;color:#67727a">${e.responsable||'—'}</td>
-      <td style="padding:5px 8px"><button class="btn btn-sm btn-danger" onclick="deleteExtraordinario(${projId},${i})">✕</button></td>
-    </tr>`).join('')
+      <td style="padding:5px 8px;font-size:10px;color:#67727a;vertical-align:top">${fmtD(e.fecha)}</td>
+      <td style="padding:5px 8px;font-size:11px;vertical-align:top"><span style="font-weight:700;color:#254467">${nm}</span>${e.cotId?'<span style="font-size:8px;background:#e0eaf2;color:#254467;border-radius:3px;padding:0 4px;margin-left:4px">📄 cotización</span>':''}${descHtml}${concHtml}</td>
+      <td style="padding:5px 8px;font-size:11px;font-weight:700;color:#e65a27;text-align:right;vertical-align:top">$${Math.round(e.monto||0).toLocaleString('es-MX')}</td>
+      <td style="padding:5px 8px;font-size:10px;color:#67727a;vertical-align:top">${e.responsable||'—'}</td>
+      <td style="padding:5px 8px;vertical-align:top"><button class="btn btn-sm btn-danger" onclick="deleteExtraordinario(${projId},${i})">✕</button></td>
+    </tr>`;}).join('')
     :'<tr><td colspan="5" style="padding:1rem;color:#a8a8a8;font-size:11px;text-align:center">Sin extraordinarios registrados</td></tr>';
   const totalExtra=extras.reduce((s,e)=>s+(parseFloat(e.monto)||0),0);
   document.getElementById('modal-body').innerHTML=`
@@ -2066,7 +2070,7 @@ function openExtraordinario(projId){
     <table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:14px">
       <thead><tr style="background:#f8fafc">
         <th style="padding:5px 8px;text-align:left;font-size:9px;color:#67727a">Fecha</th>
-        <th style="padding:5px 8px;text-align:left;font-size:9px;color:#67727a">Descripción</th>
+        <th style="padding:5px 8px;text-align:left;font-size:9px;color:#67727a">Nombre / conceptos</th>
         <th style="padding:5px 8px;text-align:right;font-size:9px;color:#e65a27">Monto MXN</th>
         <th style="padding:5px 8px;text-align:left;font-size:9px;color:#67727a">Responsable</th>
         <th></th>
@@ -2086,16 +2090,31 @@ function openExtraordinario(projId){
         <label style="font-size:10px;font-weight:700;color:#475569">Fecha
           <input type="date" id="ext-fecha" value="${todayStr}" style="display:block;width:100%;margin-top:3px;font-size:11px;padding:4px 7px;border:.5px solid #bfd1e5;border-radius:5px;font-family:Arial">
         </label>
-        <label style="font-size:10px;font-weight:700;color:#475569">Monto MXN
-          <input type="number" id="ext-monto" placeholder="0" style="display:block;width:100%;margin-top:3px;font-size:11px;padding:4px 7px;border:.5px solid #bfd1e5;border-radius:5px;font-family:Arial">
+        <label style="font-size:10px;font-weight:700;color:#475569">Responsable
+          <input type="text" id="ext-resp" placeholder="Nombre..." style="display:block;width:100%;margin-top:3px;font-size:11px;padding:4px 7px;border:.5px solid #bfd1e5;border-radius:5px;font-family:Arial">
         </label>
       </div>
-      <label style="font-size:10px;font-weight:700;color:#475569;display:block;margin-bottom:8px">Descripción
-        <input type="text" id="ext-desc" placeholder="Descripción del cambio de alcance..." style="display:block;width:100%;margin-top:3px;font-size:11px;padding:4px 7px;border:.5px solid #bfd1e5;border-radius:5px;font-family:Arial">
+      <label style="font-size:10px;font-weight:700;color:#475569;display:block;margin-bottom:8px">Nombre del adicional
+        <input type="text" id="ext-nombre" placeholder="Ej. Change Order 10 y 11" style="display:block;width:100%;margin-top:3px;font-size:11px;padding:4px 7px;border:.5px solid #bfd1e5;border-radius:5px;font-family:Arial">
       </label>
-      <label style="font-size:10px;font-weight:700;color:#475569;display:block;margin-bottom:8px">Responsable
-        <input type="text" id="ext-resp" placeholder="Nombre..." style="display:block;width:100%;margin-top:3px;font-size:11px;padding:4px 7px;border:.5px solid #bfd1e5;border-radius:5px;font-family:Arial">
+      <label style="font-size:10px;font-weight:700;color:#475569;display:block;margin-bottom:8px">Descripción <span style="font-weight:400;color:#a8a8a8">(opcional)</span>
+        <input type="text" id="ext-desc" placeholder="Detalle del cambio de alcance..." style="display:block;width:100%;margin-top:3px;font-size:11px;padding:4px 7px;border:.5px solid #bfd1e5;border-radius:5px;font-family:Arial">
       </label>
+      <div id="ext-cot-note" style="display:none;font-size:10px;color:#254467;background:#eef4fa;border-radius:6px;padding:8px 10px;margin-bottom:8px"></div>
+      <div id="ext-conc-block">
+        <div style="font-size:10px;font-weight:700;color:#475569;margin-bottom:6px">Conceptos <span style="font-weight:400;color:#a8a8a8">(se suman)</span></div>
+        <div id="ext-conceptos">
+          <div class="ext-conc-row" style="display:flex;gap:6px;margin-bottom:6px;align-items:center">
+            <input type="text" class="ext-conc-nombre" placeholder="Concepto..." style="flex:1;font-size:11px;padding:4px 7px;border:.5px solid #bfd1e5;border-radius:5px;font-family:Arial">
+            <input type="number" class="ext-conc-monto" oninput="extRecalcTotal()" placeholder="0" style="width:120px;font-size:11px;padding:4px 7px;border:.5px solid #bfd1e5;border-radius:5px;font-family:Arial;text-align:right">
+            <button type="button" onclick="extRemoveConcepto(this)" title="Quitar concepto" style="border:.5px solid #f5b89b;background:#fff8f6;color:#e65a27;border-radius:5px;cursor:pointer;font-family:Arial;font-size:11px;padding:3px 9px">✕</button>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <button type="button" onclick="extAddConcepto()" style="font-size:10px;padding:4px 10px;border:.5px dashed #6990ab;border-radius:5px;background:#fff;color:#254467;cursor:pointer;font-family:Arial;font-weight:700">+ Añadir concepto</button>
+          <div style="font-size:11px;font-weight:700;color:#e65a27;font-family:Arial">Total: <span id="ext-total">$0</span></div>
+        </div>
+      </div>
       <button type="button" class="btn btn-primary" onclick="saveExtraordinario(${projId})" style="background:#e65a27;border-color:#e65a27">+ Agregar</button>
     </div>
     <div class="btn-row" style="position:sticky;bottom:0;background:#fff;padding-top:10px;border-top:1px solid #eef2f6">
@@ -2108,23 +2127,68 @@ function openExtraordinario(projId){
 function extLinkCot(projId){
   var sel=document.getElementById('ext-cot');if(!sel)return;
   var cot=getCots().find(function(c){return String(c.id)===String(sel.value);});
-  var montoEl=document.getElementById('ext-monto');var descEl=document.getElementById('ext-desc');
+  var block=document.getElementById('ext-conc-block');
+  var note=document.getElementById('ext-cot-note');
+  var nombreEl=document.getElementById('ext-nombre');
   if(cot){
     var tot=calcCotMetrics(cot).grandTotal;
-    if(montoEl)montoEl.value=Math.round(tot);
-    if(descEl&&!descEl.value.trim())descEl.value='Adicional — '+cot.nombre;
+    if(block)block.style.display='none';
+    if(note){note.style.display='block';note.textContent='El monto se toma de la cotización ligada: $'+Math.round(tot).toLocaleString('es-MX');}
+    if(nombreEl&&!nombreEl.value.trim())nombreEl.value=cot.nombre||'';
+  } else {
+    if(block)block.style.display='block';
+    if(note)note.style.display='none';
   }
+}
+function extAddConcepto(concepto,monto){
+  var cont=document.getElementById('ext-conceptos');if(!cont)return;
+  var div=document.createElement('div');
+  div.className='ext-conc-row';
+  div.style.cssText='display:flex;gap:6px;margin-bottom:6px;align-items:center';
+  div.innerHTML='<input type="text" class="ext-conc-nombre" placeholder="Concepto..." style="flex:1;font-size:11px;padding:4px 7px;border:.5px solid #bfd1e5;border-radius:5px;font-family:Arial">'
+    +'<input type="number" class="ext-conc-monto" oninput="extRecalcTotal()" placeholder="0" style="width:120px;font-size:11px;padding:4px 7px;border:.5px solid #bfd1e5;border-radius:5px;font-family:Arial;text-align:right">'
+    +'<button type="button" onclick="extRemoveConcepto(this)" title="Quitar concepto" style="border:.5px solid #f5b89b;background:#fff8f6;color:#e65a27;border-radius:5px;cursor:pointer;font-family:Arial;font-size:11px;padding:3px 9px">✕</button>';
+  cont.appendChild(div);
+  if(concepto)div.querySelector('.ext-conc-nombre').value=concepto;
+  if(monto||monto===0)div.querySelector('.ext-conc-monto').value=monto;
+  extRecalcTotal();
+}
+function extRemoveConcepto(btn){
+  var cont=document.getElementById('ext-conceptos');if(!cont)return;
+  var rows=cont.querySelectorAll('.ext-conc-row');
+  if(rows.length<=1){var r=rows[0];if(r){r.querySelector('.ext-conc-nombre').value='';r.querySelector('.ext-conc-monto').value='';}}
+  else{var row=btn.closest('.ext-conc-row');if(row)row.remove();}
+  extRecalcTotal();
+}
+function extRecalcTotal(){
+  var cont=document.getElementById('ext-conceptos');var t=0;
+  if(cont)cont.querySelectorAll('.ext-conc-monto').forEach(function(i){t+=parseFloat(i.value)||0;});
+  var el=document.getElementById('ext-total');if(el)el.textContent='$'+Math.round(t).toLocaleString('es-MX');
+  return t;
 }
 function saveExtraordinario(projId){
   const p=projects.find(x=>x.id===projId);if(!p)return;
+  const nombre=document.getElementById('ext-nombre').value.trim();
   const desc=document.getElementById('ext-desc').value.trim();
-  const monto=parseFloat(document.getElementById('ext-monto').value)||0;
   const fecha=document.getElementById('ext-fecha').value;
   const resp=document.getElementById('ext-resp').value.trim();
   const cotId=document.getElementById('ext-cot')?document.getElementById('ext-cot').value:'';
-  if(!desc){alert('Agrega una descripción.');return;}
+  if(!nombre){alert('Ponle un nombre al adicional.');return;}
+  var conceptos=[];var monto=0;
+  if(cotId){
+    var cot=getCots().find(function(c){return String(c.id)===String(cotId);});
+    monto=cot?Math.round(calcCotMetrics(cot).grandTotal):0;
+  } else {
+    var cont=document.getElementById('ext-conceptos');
+    if(cont)cont.querySelectorAll('.ext-conc-row').forEach(function(r){
+      var cn=r.querySelector('.ext-conc-nombre').value.trim();
+      var cm=parseFloat(r.querySelector('.ext-conc-monto').value)||0;
+      if(cn||cm){conceptos.push({concepto:cn,monto:cm});monto+=cm;}
+    });
+    if(!conceptos.length){alert('Agrega al menos un concepto con su monto.');return;}
+  }
   if(!p.extraordinarios) p.extraordinarios=[];
-  p.extraordinarios.push({id:Date.now(),fecha,descripcion:desc,monto,responsable:resp,cotId:cotId||null});
+  p.extraordinarios.push({id:Date.now(),fecha,nombre,descripcion:desc,conceptos,monto,responsable:resp,cotId:cotId||null});
   p.ultimaActualizacion=todayStr;
   sv(K.proj,projects);
   openExtraordinario(projId);
@@ -2344,7 +2408,7 @@ function renderCostos(){
       var pagTotal=pagos.reduce(function(s,pg){return s+(parseFloat(pg.monto)||0);},0);
       var margen=cobTotal-pagTotal;var monto=parseFloat(e.monto)||0;
       html+='<tr style="border-bottom:.5px solid #eef2f6">'
-        +'<td style="padding:7px 10px;font-size:11px;font-weight:600;color:#1a2a3a;font-family:Arial;vertical-align:top">'+(e.descripcion||'Adicional')+'<div style="font-size:8px;color:#a8a8a8;font-weight:400">'+(e.fecha?fmtD(e.fecha):'')+(e.responsable?' · '+e.responsable:'')+'</div></td>'
+        +'<td style="padding:7px 10px;font-size:11px;font-weight:600;color:#1a2a3a;font-family:Arial;vertical-align:top">'+(e.nombre||e.descripcion||'Adicional')+((e.conceptos&&e.conceptos.length)?'<div style="font-size:8px;color:#94a3b8;font-weight:400;margin-top:2px">'+e.conceptos.map(function(c){return (c.concepto||'—');}).join(' · ')+'</div>':'')+'<div style="font-size:8px;color:#a8a8a8;font-weight:400">'+(e.fecha?fmtD(e.fecha):'')+(e.responsable?' · '+e.responsable:'')+'</div></td>'
         +'<td style="padding:7px 10px;font-size:10px;color:#a8a8a8;font-family:Arial;vertical-align:top">—</td>'
         +'<td style="padding:7px 10px;text-align:right;font-size:11px;color:#67727a;font-family:Arial;vertical-align:top;white-space:nowrap">$'+fmt(monto)+'</td>'
         +'<td style="padding:7px 10px;text-align:right;font-size:11px;color:#3a6080;font-family:Arial;vertical-align:top">—</td>'
