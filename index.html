@@ -10829,17 +10829,22 @@ function renderGerencia(){
       const proj=allProjs.find(function(p){return p.id===t.projId;});
       const drag=nombre==='Diana Gasca';
       const st='padding:7px 12px;border-bottom:.5px solid #e8eef4;background:'+(ov?'#fff8f6':'#fff')+(tIdx>=10?';display:none':'');
-      html+='<div data-task="'+t.id+'" '+(drag?'draggable="true" ondragstart="gerTaskDragStart(event,'+t.id+')" ondragover="event.preventDefault()" ondrop="gerTaskDragDrop(event,'+t.id+')"':'')+' style="'+st+'">'
+      const st2=st+(drag?';cursor:grab':'');
+      html+='<div data-task="'+t.id+'" '+(drag?'draggable="true" ondragstart="gerTaskDragStart(event,'+t.id+')" ondragover="event.preventDefault()" ondrop="gerTaskDragDrop(event,'+t.id+')"':'')+' style="'+st2+'">'
         +'<div style="display:flex;align-items:flex-start;gap:6px;margin-bottom:3px">'
         +'<input type="checkbox" onchange="toggleTask('+t.id+',this.checked)" style="margin-top:2px;flex-shrink:0;cursor:pointer">'
-        +'<div style="font-size:11px;color:#1A1A2E;line-height:1.4;flex:1">'+t.texto.substring(0,65)+(t.texto.length>65?'…':'')+'</div>'
+        +'<div style="font-size:11px;color:#1A1A2E;line-height:1.4;flex:1">'+(t.urgente?'<span style="background:#fdecea;color:#e65a27;border-radius:4px;padding:0 5px;font-size:8px;font-weight:700;margin-right:4px">🔥 URGENTE</span>':'')+t.texto+'</div>'
         +'</div>'
         +'<div style="display:flex;gap:5px;align-items:center;font-size:10px;flex-wrap:wrap;margin-left:18px">'
-        +(proj?'<span style="color:#254467;font-weight:700;font-size:9px">'+proj.nombre.substring(0,22)+'</span>':'')
+        +(proj?'<span style="color:'+(proj.archivado?'#a8a8a8':'#254467')+';font-weight:700;font-size:9px">'+proj.nombre.substring(0,22)+(proj.archivado?' <span style="font-weight:400;border:.5px solid #ccc;border-radius:3px;padding:0 3px">arch</span>':'')+'</span>':'')
         +(t.fechaCompromiso?'<span style="color:'+dc+';font-weight:700">'+fmtD(t.fechaCompromiso)+(ov?' VENC':soon?' ⚠':'')+'</span>':'')
+        +'<button onclick="toggleTaskUrgente('+t.id+')" style="font-size:9px;padding:1px 6px;border:.5px solid '+(t.urgente?'#e65a27':'#bfd1e5')+';border-radius:4px;background:'+(t.urgente?'#fdecea':'#fff')+';cursor:pointer;font-family:Arial;color:'+(t.urgente?'#e65a27':'#a8a8a8')+';font-weight:700" title="Marcar urgente">🔥</button>'
         +'<button onclick="addTaskNote('+t.id+')" style="font-size:9px;padding:1px 6px;border:.5px solid #bfd1e5;border-radius:4px;background:#fff;cursor:pointer;font-family:Arial;color:#67727a">+ Nota</button>'
-        +'<button onclick="archiveTask('+t.id+')" style="font-size:9px;padding:1px 6px;border:.5px solid #bfd1e5;border-radius:4px;background:#fff;cursor:pointer;font-family:Arial;color:#a8a8a8">Arch.</button>'
-        +'</div></div>';
+        +'<button onclick="openEditTask('+t.id+')" style="font-size:9px;padding:1px 6px;border:.5px solid #6990ab;border-radius:4px;background:#fff;cursor:pointer;font-family:Arial;color:#6990ab">✏</button>'
+        +'<button onclick="archiveTask('+t.id+')" style="font-size:9px;padding:1px 6px;border:.5px solid #bfd1e5;border-radius:4px;background:#fff;cursor:pointer;font-family:Arial;color:#a8a8a8" title="Archivar">Arch.</button>'
+        +'</div>'
+        +(t.notas&&t.notas.length?'<div style="margin-left:18px;margin-top:3px">'+t.notas.slice(-1).map(function(n){return'<div style="font-size:10px;color:#67727a;background:#f8fafc;border-radius:4px;padding:2px 6px;margin-top:2px">'+(n.fecha?n.fecha+' · ':'')+n.texto+'</div>';}).join('')+'</div>':'')
+        +'</div>';
     });
     if(myTasks.length>10) html+='<div id="gerVerMas_'+nombre.replace(/\s/g,'_')+'" style="padding:7px 12px;font-size:10px;color:#6990ab;cursor:pointer;font-weight:700" onclick="gerVerMas(\''+nombre.replace(/\s/g,'_')+'\')">Ver '+(myTasks.length-10)+' más...</div>';
     if(!myTasks.length) html+='<div style="padding:12px;font-size:11px;color:#a8a8a8">Sin tareas. ✓</div>';
