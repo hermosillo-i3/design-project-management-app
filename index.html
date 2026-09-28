@@ -10730,8 +10730,7 @@ function renderGerencia(){
 
   // People to show: Diana + Carlos de Regules + anyone with tasks assigned to them in gerencia context
   const GER_PEOPLE=[
-    {nombre:'Diana Gasca',rol:'Gerente de Diseño'},
-    {nombre:'Carlos de Regules',rol:'Director'}
+    {nombre:'Diana Gasca',rol:'Gerente de Diseño'}
   ];
 
   let html='';
@@ -10805,7 +10804,7 @@ function renderGerencia(){
       +'<div style="flex:1"><div style="font-size:13px;font-weight:700;color:#fff">'+nombre+'</div>'
       +'<div style="font-size:10px;color:#bfd1e5">'+person.rol+'</div></div>'
       +'<div style="display:flex;gap:6px">'
-      +[{n:myProjs.length,l:'Proyectos'},{n:myTasks.length,l:'Tareas'},{n:nVenc,l:'Vencidas',warn:nVenc>0},{n:entregas.length,l:'Entregas'}].map(function(s){
+      +[{n:myTasks.length,l:'Tareas'},{n:nVenc,l:'Vencidas',warn:nVenc>0},{n:genTasks.length,l:'Generales'}].map(function(s){
         return '<div style="background:rgba(255,255,255,.12);border-radius:6px;padding:4px 9px;text-align:center">'
           +'<div style="font-size:14px;font-weight:700;color:'+(s.warn?'#f5b89b':'#fff')+'">'+s.n+'</div>'
           +'<div style="font-size:9px;color:#bfd1e5;text-transform:uppercase;letter-spacing:.04em">'+s.l+'</div></div>';
@@ -10814,33 +10813,7 @@ function renderGerencia(){
 
     // 3 cols
     const col3Label=nombre==='Diana Gasca'?'Pendientes generales':'Entregas próximas';
-    html+='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;border-top:.5px solid #bfd1e5">';
-
-    // COL 1 — Proyectos
-    const dragFn=nombre==='Diana Gasca'?'gerDragStart':'gerDragStart';
-    const dropFn=nombre==='Diana Gasca'?'gerDragDrop':'gerDragDrop';
-    html+='<div style="border-right:.5px solid #bfd1e5">'
-      +'<div style="padding:7px 12px;border-bottom:.5px solid #bfd1e5;font-size:9px;font-weight:700;color:#67727a;text-transform:uppercase;letter-spacing:.06em;display:flex;justify-content:space-between">'
-      +'<span>Proyectos'+(nombre==='Diana Gasca'?' <span style="font-weight:400;color:#a8a8a8">(arrastra)</span>':'')+'</span>'
-      +'<span style="background:#eef2f6;color:#67727a;border-radius:10px;padding:1px 6px">'+myProjs.length+'</span></div>';
-
-    myProjs.forEach(function(p,idx){
-      const s=sem(p);const sc=semColors[s.cls]||'#a8a8a8';
-      const ent=entUlt(p)||'';
-      const drag=nombre==='Diana Gasca';
-      html+='<div '+(drag?'draggable="true" ondragstart="gerDragStart(event,'+p.id+')" ondragover="event.preventDefault()" ondrop="gerDragDrop(event,'+p.id+')"':'')+' style="padding:8px 12px;border-bottom:.5px solid #e8eef4;border-left:3px solid '+sc+';background:'+(s.cls==='crit'?'#fff8f6':s.cls==='risk'?'#f0f5fa':'#fff')+(drag?';cursor:grab':'')+'">'
-        +'<div style="font-size:11px;font-weight:700;color:#254467;margin-bottom:2px">'+p.nombre+'</div>'
-        +'<div style="display:flex;gap:5px;align-items:center;font-size:10px;flex-wrap:wrap">'
-        +'<span style="background:#e8edf2;color:#254467;border-radius:20px;padding:1px 6px;font-size:9px;font-weight:700">'+p.etapa+'</span>'
-        +'<span style="color:'+sc+';font-weight:700">'+s.label+'</span>'
-        +(ent?'<span style="color:#67727a">'+fmtD(ent)+'</span>':'')
-        +'</div>'
-        +'<div style="height:3px;background:#bfd1e5;border-radius:2px;margin-top:4px;overflow:hidden">'
-        +'<div style="height:100%;border-radius:2px;background:'+sc+';width:'+p.avance+'%"></div></div>'
-        +'</div>';
-    });
-    if(!myProjs.length) html+='<div style="padding:12px;font-size:11px;color:#a8a8a8">Sin proyectos.</div>';
-    html+='</div>';
+    html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:0;border-top:.5px solid #bfd1e5">';
 
     // COL 2 — Tareas
     html+='<div style="border-right:.5px solid #bfd1e5">'
