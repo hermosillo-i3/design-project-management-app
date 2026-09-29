@@ -517,7 +517,7 @@ body.qas-env{padding-top:32px}
 <div id="p-archivo" class="panel">
   <div style="font-size:10px;color:#67727a;margin-bottom:7px">Proyectos archivados — no aparecen en dashboard ni KPIs.</div>
   <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap">
-    <input type="text" id="arch-search" oninput="renderArchivo()" placeholder="🔎 Buscar por nombre, cliente, coordinador, #, tipo…" style="flex:1;min-width:220px;font-size:12px;padding:7px 11px;border:.5px solid #bfd1e5;border-radius:8px;font-family:Arial">
+    <input type="text" id="arch-search" oninput="renderArchivo()" placeholder="🔎 Buscar en todas las columnas: nombre, cliente, coord, #, tipo, estatus, fechas…" style="flex:1;min-width:220px;font-size:12px;padding:7px 11px;border:.5px solid #bfd1e5;border-radius:8px;font-family:Arial">
     <span id="arch-count" style="font-size:10px;color:#a8a8a8;white-space:nowrap"></span>
     <button class="btn btn-sm" onclick="document.getElementById('arch-search').value='';renderArchivo()" style="white-space:nowrap">Limpiar</button>
   </div>
@@ -9115,7 +9115,12 @@ function renderArchivo(){
   let _list=archived();
   if(_q){
     _list=_list.filter(function(p){
-      var hay=[p.num,p.nombre,p.cliente,p.coord,p.jefe,p.tipo,p.etapa,p.estatusProy,(p.interno?'interno':'')].filter(Boolean).join(' ').toLowerCase();
+      var _ent=entUlt(p)||'';
+      var hay=[p.num,p.nombre,p.cliente,p.coord,p.jefe,p.tipo,p.etapa,p.estatusProy,(p.interno?'interno':''),
+        p.estatusProyFecha,fmtD(p.estatusProyFecha),
+        p.arranque,fmtD(p.arranque),
+        _ent,fmtD(_ent),
+        p.archivedAt,fmtD(p.archivedAt)].filter(Boolean).join(' ').toLowerCase();
       return _q.split(/\s+/).every(function(w){return hay.indexOf(w)!==-1;});
     });
   }
