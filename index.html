@@ -9071,10 +9071,11 @@ function renderLog(){
 function openLog(id){
   const l=id?logItems.find(x=>x.id===id):null;
   const allProjs=[...activeProjs(),...internos()];
+  const archProjs=(typeof archived==='function'?archived():[]).slice().sort((a,b)=>String(a.nombre).localeCompare(String(b.nombre)));
   const personOpts=cat.personas.map(p=>`<option ${l&&l.resp===p.nombre?'selected':''} value="${p.nombre}">${p.nombre} (${p.rol})</option>`).join('');
   const personaOpts=[...cat.personas,...cat.consultores.map(c=>({nombre:c.nombre,rol:'Consultor'}))].sort((a,b)=>a.nombre.localeCompare(b.nombre)).map(p=>`<option value="${p.nombre}" ${l&&l.persona===p.nombre?'selected':''}>${p.nombre}</option>`).join('');
   document.getElementById('modal-body').innerHTML=`<h3>${id?'Editar incidencia':'Nueva incidencia'}</h3>
-    <div class="fg"><label>Proyecto</label><select id="lproy">${allProjs.map(p=>`<option ${l&&l.proyecto===p.nombre?'selected':''}>${p.nombre}${p.interno?' [INT]':''}</option>`).join('')}</select></div>
+    <div class="fg"><label>Proyecto</label><select id="lproy">${allProjs.map(p=>`<option ${l&&l.proyecto===p.nombre?'selected':''}>${p.nombre}${p.interno?' [INT]':''}</option>`).join('')}${archProjs.length?`<optgroup label="📦 Archivados">${archProjs.map(p=>`<option ${l&&l.proyecto===p.nombre?'selected':''}>${p.nombre}${p.interno?' [INT]':''}</option>`).join('')}</optgroup>`:''}</select></div>
     <div class="fg"><label>Tipo</label><select id="ltipo">${['Cliente no aprueba','Cliente no entrega info','Cambio de alcance','Error de diseño','Consultor sin respuesta','Recurso faltante','Cambio de sitio','Obra','Problema de coordinación','Retraso en permisos','Conflicto de planos','Revisión estructural pendiente','Problema BIM/modelo','Cambio de programa','Otro'].map(t=>`<option ${l&&l.tipo===t?'selected':''}>${t}</option>`).join('')}</select></div>
     <div class="fg"><label>Descripción</label><textarea id="ldesc">${l?l.desc:''}</textarea></div>
     <div class="fg"><label>Persona involucrada</label><select id="lpersona"><option value="">— Sin especificar —</option>${personaOpts}</select></div>
