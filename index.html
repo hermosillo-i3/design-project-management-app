@@ -3416,6 +3416,7 @@ function addTaskNote(taskId){
 function saveTaskNote(taskId){
   var txt=document.getElementById('task-note-txt');
   if(!txt||!txt.value.trim()) return;
+  var _ret=window.__segRet;window.__segRet=0;
   var t=tasks.find(function(x){return x.id===taskId;});
   if(!t) return;
   if(!t.notas) t.notas=[];
@@ -3424,6 +3425,8 @@ function saveTaskNote(taskId){
   closeModal();
   renderEquipo();
   if(typeof renderConsultores==='function')renderConsultores();
+  if(typeof renderGerencia==='function')renderGerencia();
+  if(_ret)abrirSeguimientoProyecto(_ret);
 }
 
 function archiveTask(taskId){
@@ -9418,7 +9421,7 @@ function exportExec(){
 
 
 function openModal(){document.getElementById('modal-bg').style.display='flex';}
-function closeModal(){document.getElementById('modal-bg').style.display='none';var m=document.querySelector('.modal');if(m)m.classList.remove('wide');}
+function closeModal(){document.getElementById('modal-bg').style.display='none';var m=document.querySelector('.modal');if(m)m.classList.remove('wide');window.__segRet=0;}
 
 // ── RENDER ALL ───────────────────────────────────────────────
 function renderAll(){
@@ -9447,6 +9450,7 @@ function openEditTask(id){
   openModal();
 }
 function updateTask(id){
+  var _ret=window.__segRet;window.__segRet=0;
   const t=tasks.find(x=>x.id===id);
   t.texto=document.getElementById('tt').value;
   t.asignado=document.getElementById('ta').value;
@@ -9455,6 +9459,7 @@ function updateTask(id){
   t.bloqueante=document.getElementById('tbl').value==='1';
   Object.assign(t,_readTaskFlags());
   sv(K.tasks,tasks);closeModal();renderSeg();renderPendientes();if(typeof renderConsultores==='function')renderConsultores();if(typeof renderGerencia==='function')renderGerencia();if(typeof renderInternos==='function')renderInternos();
+  if(_ret)abrirSeguimientoProyecto(_ret);
 }
 function toggleRevTaller(id){var t=tasks.find(function(x){return x.id===id;});if(!t)return;t.revTaller=!t.revTaller;sv(K.tasks,tasks);renderSeg();if(typeof renderConsultores==='function')renderConsultores();if(typeof renderGerencia==='function')renderGerencia();}
 function toggleGerDesarrollo(id){var t=tasks.find(function(x){return x.id===id;});if(!t)return;t.gerDesarrollo=!t.gerDesarrollo;sv(K.tasks,tasks);renderSeg();if(typeof renderConsultores==='function')renderConsultores();if(typeof renderGerencia==='function')renderGerencia();}
@@ -9489,7 +9494,7 @@ function imprimirReporteDesarrollo(){
   win.document.close();
 }
 function archTask(id){const t=tasks.find(x=>x.id===id);if(t){t.archivado=!t.archivado;sv(K.tasks,tasks);}renderSeg();}
-function deleteTask(id){if(!confirm('¿Eliminar esta tarea?'))return;tasks=tasks.filter(x=>x.id!==id);sv(K.tasks,tasks);renderSeg();renderPendientes();if(typeof renderConsultores==='function')renderConsultores();if(typeof renderGerencia==='function')renderGerencia();}
+function deleteTask(id){if(!confirm('¿Eliminar esta tarea?'))return;var _ret=window.__segRet;window.__segRet=0;tasks=tasks.filter(x=>x.id!==id);sv(K.tasks,tasks);closeModal();renderSeg();renderPendientes();if(typeof renderConsultores==='function')renderConsultores();if(typeof renderGerencia==='function')renderGerencia();if(_ret)abrirSeguimientoProyecto(_ret);}
 function openEditComment(id){
   const c=comments.find(x=>x.id===id);
   document.getElementById('modal-body').innerHTML=`<h3>Editar comentario</h3>
@@ -9501,9 +9506,9 @@ function openEditComment(id){
     </div>`;
   openModal();
 }
-function updateComment(id){const c=comments.find(x=>x.id===id);c.texto=document.getElementById('ct').value;sv(K.comments,comments);closeModal();renderSeg();}
+function updateComment(id){var _ret=window.__segRet;window.__segRet=0;const c=comments.find(x=>x.id===id);c.texto=document.getElementById('ct').value;sv(K.comments,comments);closeModal();renderSeg();if(_ret)abrirSeguimientoProyecto(_ret);}
 function archComment(id){const c=comments.find(x=>x.id===id);if(c){c.archivado=!c.archivado;sv(K.comments,comments);}renderSeg();}
-function deleteComment(id){if(!confirm('¿Eliminar este comentario?'))return;comments=comments.filter(x=>x.id!==id);sv(K.comments,comments);renderSeg();}
+function deleteComment(id){if(!confirm('¿Eliminar este comentario?'))return;var _ret=window.__segRet;window.__segRet=0;comments=comments.filter(x=>x.id!==id);sv(K.comments,comments);closeModal();renderSeg();if(_ret)abrirSeguimientoProyecto(_ret);}
 
 function showKPIDetail(type){
   const ps=activeProjs();
@@ -11714,6 +11719,12 @@ function updateConsulComentario(projId,consulNombre,val){
 }
 
 
+function segEditTask(id,projId){window.__segRet=projId;openEditTask(id);}
+function segNoteTask(id,projId){window.__segRet=projId;addTaskNote(id);}
+function segUrgTask(id,projId){var t=tasks.find(function(x){return x.id===id;});if(t){t.urgente=!t.urgente;sv(K.tasks,tasks);}renderSeg();if(typeof renderGerencia==='function')renderGerencia();abrirSeguimientoProyecto(projId);}
+function segArchTask(id,projId){if(!confirm('¿Archivar esta tarea?'))return;var t=tasks.find(function(x){return x.id===id;});if(t){t.archivado=true;sv(K.tasks,tasks);}renderSeg();renderPendientes();if(typeof renderGerencia==='function')renderGerencia();abrirSeguimientoProyecto(projId);}
+function segEditComment(id,projId){window.__segRet=projId;openEditComment(id);}
+function segArchComment(id,projId){if(!confirm('¿Archivar este comentario?'))return;var c=comments.find(function(x){return x.id===id;});if(c){c.archivado=true;sv(K.comments,comments);}renderSeg();abrirSeguimientoProyecto(projId);}
 function abrirSeguimientoProyecto(projId){
   const p=projects.find(x=>x.id===projId);
   if(!p)return;
@@ -11732,19 +11743,26 @@ function abrirSeguimientoProyecto(projId){
     </div>
     <div id="seg-modal-feed" style="max-height:400px;overflow-y:auto">
       ${feed.length?feed.map(item=>{
+        const _bbtn='font-size:9px;padding:1px 6px;border-radius:4px;background:#fff;cursor:pointer;font-family:Arial';
         if(item._type==='task'){
           const ov=item.fechaCompromiso&&item.fechaCompromiso<todayStr&&!item.done;
+          const lastNote=(item.notas&&item.notas.length)?item.notas[item.notas.length-1]:null;
           return`<div class="feed-item task ${item.done?'done':''}" style="margin-bottom:5px">
             <div class="feed-meta">${item.fechaPedido||'—'} · <strong>${item.asignado||'Sin asignar'}</strong></div>
             <div style="display:flex;gap:7px;align-items:flex-start">
               <input type="checkbox" ${item.done?'checked':''} onchange="toggleTask(${item.id},this.checked);setTimeout(()=>abrirSeguimientoProyecto(${projId}),100)" style="width:14px;height:14px;margin-top:2px;cursor:pointer;accent-color:#254467;flex-shrink:0">
               <div style="flex:1">
-                <div class="feed-text"><strong>${item.texto}</strong></div>
-                <div class="feed-foot">
+                <div class="feed-text">${item.urgente?'<span style="background:#fdecea;color:#e65a27;border-radius:4px;padding:0 5px;font-size:8px;font-weight:700;margin-right:4px">🔥 URGENTE</span>':''}<strong>${item.texto}</strong></div>
+                <div class="feed-foot" style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;margin-top:4px">
                   ${item.fechaCompromiso?`<span class="badge ${ov?'b-crit':'b-blue'}" style="font-size:9px">Comp: ${fmtD(item.fechaCompromiso)}</span>`:''}
                   ${ov?'<span style="font-size:9px;font-weight:700;color:#e65a27">VENCIDA</span>':''}
                   ${item.bloqueante?'<span class="badge b-crit" style="font-size:9px">Bloqueante</span>':''}
+                  <button onclick="segUrgTask(${item.id},${projId})" style="${_bbtn};border:.5px solid ${item.urgente?'#e65a27':'#bfd1e5'};color:${item.urgente?'#e65a27':'#a8a8a8'};font-weight:700" title="Marcar urgente">🔥</button>
+                  <button onclick="segNoteTask(${item.id},${projId})" style="${_bbtn};border:.5px solid #bfd1e5;color:#67727a">+ Nota</button>
+                  <button onclick="segEditTask(${item.id},${projId})" style="${_bbtn};border:.5px solid #6990ab;color:#6990ab">✏ Editar</button>
+                  <button onclick="segArchTask(${item.id},${projId})" style="${_bbtn};border:.5px solid #bfd1e5;color:#a8a8a8" title="Archivar">Arch.</button>
                 </div>
+                ${lastNote?`<div style="font-size:10px;color:#67727a;background:#f8fafc;border-radius:4px;padding:2px 6px;margin-top:4px">${lastNote.fecha?lastNote.fecha+' · ':''}${lastNote.texto}</div>`:''}
               </div>
             </div>
           </div>`;
@@ -11752,6 +11770,10 @@ function abrirSeguimientoProyecto(projId){
           return`<div class="feed-item comment" style="margin-bottom:5px">
             <div class="feed-meta">${item.fecha||'—'}</div>
             <div class="feed-text">${item.texto}</div>
+            <div style="display:flex;gap:5px;margin-top:4px">
+              <button onclick="segEditComment(${item.id},${projId})" style="${_bbtn};border:.5px solid #6990ab;color:#6990ab">✏ Editar</button>
+              <button onclick="segArchComment(${item.id},${projId})" style="${_bbtn};border:.5px solid #bfd1e5;color:#a8a8a8" title="Archivar">Arch.</button>
+            </div>
           </div>`;
         }
       }).join(''):'<div style="color:#67727a;font-size:11px;text-align:center;padding:1rem">Sin actividad registrada.</div>'}
