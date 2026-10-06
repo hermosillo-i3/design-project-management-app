@@ -4595,12 +4595,28 @@ function cotTipoDetalle(cotId,espEnc){
 }
 
 // ─── VISTA TABLA ─────────────────────────────────────────────
+// ── Columnas colapsables de la tabla de cotizaciones ────────────
+var COT_COL_GROUPS=[['m2const','MXN/m² const'],['m2ext','MXN/m² ext'],['hist','Histórico'],['usd','USD'],['ind','Indirectos'],['conind','MXN+indir'],['cob','Cobrado'],['coment','Comentario'],['param','Paramétrico'],['reemb','Reembolso/Neto']];
+var COT_COL_ALL=COT_COL_GROUPS.map(function(g){return g[0];});
+var COT_COL_SIMPLE_HIDE=['hist','usd','ind','cob','coment','param','reemb']; // deja: m2const, m2ext, conind
+function cotHiddenCols(){var h=ld('gh_cot_hidden_cols',null);return (h&&h.filter)?h:COT_COL_SIMPLE_HIDE.slice();}
+function cotColCSS(){return cotHiddenCols().map(function(g){return '.cotcol-'+g+'{display:none !important}';}).join('');}
+function cotApplyColStyle(){var s=document.getElementById('cot-col-style');if(!s){s=document.createElement('style');s.id='cot-col-style';document.head.appendChild(s);}s.textContent=cotColCSS();}
+function cotToggleCol(g){var h=cotHiddenCols();var i=h.indexOf(g);if(i>=0)h.splice(i,1);else h.push(g);sv('gh_cot_hidden_cols',h);cotApplyColStyle();_renderCotChips();}
+function cotColMode(mode){sv('gh_cot_hidden_cols',mode==='simple'?COT_COL_SIMPLE_HIDE.slice():[]);cotApplyColStyle();_renderCotChips();}
+function _renderCotChips(){var el=document.getElementById('cot-chips');if(!el)return;var h=cotHiddenCols();
+  el.innerHTML='<span style="font-size:10px;color:#67727a;font-weight:700;margin-right:2px">Columnas:</span>'
+    +COT_COL_GROUPS.map(function(g){var vis=h.indexOf(g[0])<0;return '<button onclick="cotToggleCol(\''+g[0]+'\')" style="font-size:10px;padding:2px 9px;border-radius:12px;border:.5px solid '+(vis?'#6990ab':'#d7dde5')+';background:'+(vis?'#eef4fa':'#fff')+';color:'+(vis?'#254467':'#a8a8a8')+';cursor:pointer;font-family:Arial;font-weight:600">'+(vis?'●':'○')+' '+g[1]+'</button>';}).join(' ')
+    +' <button onclick="cotColMode(\'simple\')" style="font-size:10px;padding:2px 9px;border-radius:12px;border:.5px solid #bfd1e5;background:#fff;color:#67727a;cursor:pointer;font-family:Arial">Modo simple</button>'
+    +'<button onclick="cotColMode(\'completo\')" style="font-size:10px;padding:2px 9px;border-radius:12px;border:.5px solid #bfd1e5;background:#fff;color:#67727a;cursor:pointer;font-family:Arial;margin-left:4px">Modo completo</button>';
+}
 function renderCotTabla(el,cots,allProjs,filterProj,catCot){
+  cotApplyColStyle();
   var filtered=filterProj?cots.filter(function(c){return String(c.projId)===String(filterProj);}):cots;
   if(!filtered.length){el.innerHTML+='<div style="text-align:center;padding:3rem;color:#a8a8a8;font-size:13px">Sin cotizaciones. Usa "+ Nueva cotización" para agregar una.</div>';return;}
   var byProj={};
   filtered.forEach(function(c){if(!byProj[c.projId])byProj[c.projId]=[];byProj[c.projId].push(c);});
-  var html='';
+  var html='<div id="cot-chips" style="display:flex;flex-wrap:wrap;gap:5px;align-items:center;margin-bottom:10px;padding:8px 10px;background:#f8fafc;border:.5px solid #e3e9ef;border-radius:8px"></div>';
   Object.entries(byProj).forEach(function(entry){
     var projId=entry[0],projCots=entry[1];
     var proj=allProjs.find(function(p){return String(p.id)===String(projId);});
@@ -4628,6 +4644,7 @@ function renderCotTabla(el,cots,allProjs,filterProj,catCot){
     projCots.forEach(function(cot){
       var tc=parseFloat(cot.tipoCambio)||18;
       var m2=parseFloat(cot.areaM2)||0;
+      var mt=parseFloat(cot.areaTerreno)||0;
       var cats=Object.keys(catCot).sort();
       var grandTotMXN=0,grandTotConInd=0,grandTotCob=0,grandTotNeto=0;
 
@@ -4704,19 +4721,21 @@ function renderCotTabla(el,cots,allProjs,filterProj,catCot){
           +'<th style="text-align:left;padding:4px 8px;font-size:9px;font-weight:700;color:#67727a;border-bottom:.5px solid #bfd1e5;min-width:130px">Especialidad</th>'
           +'<th style="text-align:left;padding:4px 8px;font-size:9px;font-weight:700;color:#67727a;border-bottom:.5px solid #bfd1e5;min-width:110px">Asesor elegido</th>'
           +'<th style="text-align:right;padding:4px 8px;font-size:9px;font-weight:700;color:#67727a;border-bottom:.5px solid #bfd1e5">MXN total</th>'
-          +'<th style="text-align:right;padding:4px 8px;font-size:9px;font-weight:700;color:#67727a;border-bottom:.5px solid #bfd1e5">MXN/m²</th>'
-          +'<th style="text-align:right;padding:4px 8px;font-size:9px;font-weight:700;color:#6990ab;border-bottom:.5px solid #bfd1e5" title="Promedio histórico $/m²">Hist. $/m²</th>'
-          +'<th style="text-align:right;padding:4px 8px;font-size:9px;font-weight:700;color:#67727a;border-bottom:.5px solid #bfd1e5">USD total</th>'
-          +'<th style="text-align:right;padding:4px 8px;font-size:9px;font-weight:700;color:#67727a;border-bottom:.5px solid #bfd1e5">USD/m²</th>'
-          +'<th style="text-align:right;padding:4px 8px;font-size:9px;font-weight:700;color:#3a6080;border-bottom:.5px solid #bfd1e5">Indir.%</th>'
-          +'<th style="text-align:right;padding:4px 8px;font-size:9px;font-weight:700;color:#3a6080;border-bottom:.5px solid #bfd1e5">Indir.$</th>'
-          +'<th style="text-align:right;padding:4px 8px;font-size:9px;font-weight:700;color:#254467;border-bottom:.5px solid #bfd1e5">MXN+indir.</th>'
-          +'<th style="text-align:right;padding:4px 8px;font-size:9px;font-weight:700;color:#639922;border-bottom:.5px solid #bfd1e5">Cobrado MXN</th>'
-          +'<th style="text-align:left;padding:4px 8px;font-size:9px;font-weight:700;color:#67727a;border-bottom:.5px solid #bfd1e5;min-width:100px">Comentario</th>'
-          +'<th style="text-align:center;padding:4px 8px;font-size:9px;font-weight:700;color:#67727a;border-bottom:.5px solid #bfd1e5" title="Costo paramétrico = promedio histórico × m²">Param.</th>'
+          +'<th class="cotcol-m2const" style="text-align:right;padding:4px 8px;font-size:9px;font-weight:700;color:#67727a;border-bottom:.5px solid #bfd1e5" title="$/m² sobre m² de construcción">MXN/m² const.</th>'
+          +'<th class="cotcol-m2ext" style="text-align:right;padding:4px 8px;font-size:9px;font-weight:700;color:#2e7d57;border-bottom:.5px solid #bfd1e5" title="$/m² sobre m² de terreno / exteriores">MXN/m² ext.</th>'
+          +'<th class="cotcol-hist" style="text-align:right;padding:4px 8px;font-size:9px;font-weight:700;color:#6990ab;border-bottom:.5px solid #bfd1e5" title="Promedio histórico $/m²">Hist. $/m²</th>'
+          +'<th class="cotcol-usd" style="text-align:right;padding:4px 8px;font-size:9px;font-weight:700;color:#67727a;border-bottom:.5px solid #bfd1e5">USD total</th>'
+          +'<th class="cotcol-usd" style="text-align:right;padding:4px 8px;font-size:9px;font-weight:700;color:#67727a;border-bottom:.5px solid #bfd1e5" title="USD/m² sobre construcción">USD/m² const.</th>'
+          +'<th class="cotcol-usd" style="text-align:right;padding:4px 8px;font-size:9px;font-weight:700;color:#2e7d57;border-bottom:.5px solid #bfd1e5" title="USD/m² sobre terreno / exteriores">USD/m² ext.</th>'
+          +'<th class="cotcol-ind" style="text-align:right;padding:4px 8px;font-size:9px;font-weight:700;color:#3a6080;border-bottom:.5px solid #bfd1e5">Indir.%</th>'
+          +'<th class="cotcol-ind" style="text-align:right;padding:4px 8px;font-size:9px;font-weight:700;color:#3a6080;border-bottom:.5px solid #bfd1e5">Indir.$</th>'
+          +'<th class="cotcol-conind" style="text-align:right;padding:4px 8px;font-size:9px;font-weight:700;color:#254467;border-bottom:.5px solid #bfd1e5">MXN+indir.</th>'
+          +'<th class="cotcol-cob" style="text-align:right;padding:4px 8px;font-size:9px;font-weight:700;color:#639922;border-bottom:.5px solid #bfd1e5">Cobrado MXN</th>'
+          +'<th class="cotcol-coment" style="text-align:left;padding:4px 8px;font-size:9px;font-weight:700;color:#67727a;border-bottom:.5px solid #bfd1e5;min-width:100px">Comentario</th>'
+          +'<th class="cotcol-param" style="text-align:center;padding:4px 8px;font-size:9px;font-weight:700;color:#67727a;border-bottom:.5px solid #bfd1e5" title="Costo paramétrico = promedio histórico × m²">Param.</th>'
           +'<th style="padding:4px 8px;border-bottom:.5px solid #bfd1e5"></th>'
-          +'<th style="text-align:right;padding:4px 8px;font-size:9px;font-weight:700;color:#BA7517;border-bottom:.5px solid #bfd1e5" title="% del costo de diseño reembolsable si se adjudica el proyecto">% Reemb. adj.</th>'
-          +'<th style="text-align:right;padding:4px 8px;font-size:9px;font-weight:700;color:#BA7517;border-bottom:.5px solid #bfd1e5" title="Costo neto que sí pagarías si se adjudica = MXN × (1 − % reembolso)">Neto si adjudica</th>'
+          +'<th class="cotcol-reemb" style="text-align:right;padding:4px 8px;font-size:9px;font-weight:700;color:#BA7517;border-bottom:.5px solid #bfd1e5" title="% del costo de diseño reembolsable si se adjudica el proyecto">% Reemb. adj.</th>'
+          +'<th class="cotcol-reemb" style="text-align:right;padding:4px 8px;font-size:9px;font-weight:700;color:#BA7517;border-bottom:.5px solid #bfd1e5" title="Costo neto que sí pagarías si se adjudica = MXN × (1 − % reembolso)">Neto si adjudica</th>'
           +'</tr></thead><tbody>';
 
         espsEnCot.forEach(function(esp){
@@ -4732,6 +4751,8 @@ function renderCotTabla(el,cots,allProjs,filterProj,catCot){
           var usd=tc?mxn/tc:0;
           var m2v=m2?mxn/m2:0;
           var usdm2=m2&&usd?usd/m2:0;
+          var m2vExt=mt?mxn/mt:0;
+          var usdm2Ext=mt&&usd?usd/mt:0;
           var hasCob=elegido&&elegido.cobradoMXN;
           var over=hasCob&&cob>conInd;
           var reembPct=parseFloat(esp.reembolsoPct)||0;
@@ -4751,33 +4772,42 @@ function renderCotTabla(el,cots,allProjs,filterProj,catCot){
             +'<td style="padding:5px 8px;font-weight:600">'+esp.nombre+'</td>'
             +'<td style="padding:5px 8px;font-size:10px;color:#67727a">'+(elegido?elegido.empresa+(elegido.contacto?'<br><span style="font-size:9px">'+elegido.contacto+'</span>':''):'<button onclick="openEspModal(\''+cotIdEsc+'\',\''+espNombreEsc+'\')" style="font-size:9px;padding:2px 7px;border:.5px solid #bfd1e5;border-radius:4px;background:#fff;cursor:pointer;font-family:Arial">+ Asesores</button>')+'</td>'
             +'<td style="padding:5px 8px;text-align:right;font-style:'+(isParam?'italic':'normal')+'">'+(mxn?'$'+mxn.toLocaleString('es-MX',{maximumFractionDigits:0}):'-')+(isParam?'<span style="font-size:8px;color:#3a6080"> ∿</span>':'')+'</td>'
-            +'<td style="padding:5px 8px;text-align:right;color:#67727a">'+(m2v?'$'+m2v.toFixed(2):'-')+'</td>'
-            +'<td style="padding:5px 8px;text-align:right;color:'+vsHistColor+';cursor:pointer" onclick="openVsHistModal(\''+cotIdEsc+'\',\''+espNombreEsc+'\')" title="Ver comparativa histórica">'+vsHistTxt+vsHistDelta+'</td>'
-            +'<td style="padding:5px 8px;text-align:right;color:#67727a">'+(usd?'$'+usd.toLocaleString('es-MX',{maximumFractionDigits:0}):'-')+'</td>'
-            +'<td style="padding:5px 8px;text-align:right;color:#67727a">'+(usdm2?'$'+usdm2.toFixed(2):'-')+'</td>'
-            +'<td style="padding:5px 8px;text-align:right;color:#3a6080">'+ind+'%</td>'
-            +'<td style="padding:5px 8px;text-align:right;color:#3a6080">'+(indir$?'$'+indir$.toLocaleString('es-MX',{maximumFractionDigits:0}):'-')+'</td>'
-            +'<td style="padding:5px 8px;text-align:right;font-weight:700;color:#254467">'+(conInd?'$'+conInd.toLocaleString('es-MX',{maximumFractionDigits:0}):'-')+'</td>'
-            +'<td style="padding:5px 8px;text-align:right;font-weight:700;color:'+(over?'#e65a27':'#639922')+'">'+(hasCob?'$'+cob.toLocaleString('es-MX',{maximumFractionDigits:0}):'-')+'</td>'
-            +'<td style="padding:5px 8px;font-size:10px;color:#67727a;max-width:130px;word-break:break-word">'+(esp.comentario||'')+'</td>'
-            +'<td style="padding:5px 8px;text-align:center"><input type="checkbox" '+(esp.parametrico?'checked':'')+' onchange="toggleParam(\''+cotIdEsc+'\',\''+espNombreEsc+'\',this.checked)" title="Costo paramétrico"></td>'
+            +'<td class="cotcol-m2const" style="padding:5px 8px;text-align:right;color:#67727a">'+(m2v?'$'+m2v.toFixed(2):'-')+'</td>'
+            +'<td class="cotcol-m2ext" style="padding:5px 8px;text-align:right;color:#2e7d57">'+(m2vExt?'$'+m2vExt.toFixed(2):'-')+'</td>'
+            +'<td class="cotcol-hist" style="padding:5px 8px;text-align:right;color:'+vsHistColor+';cursor:pointer" onclick="openVsHistModal(\''+cotIdEsc+'\',\''+espNombreEsc+'\')" title="Ver comparativa histórica">'+vsHistTxt+vsHistDelta+'</td>'
+            +'<td class="cotcol-usd" style="padding:5px 8px;text-align:right;color:#67727a">'+(usd?'$'+usd.toLocaleString('es-MX',{maximumFractionDigits:0}):'-')+'</td>'
+            +'<td class="cotcol-usd" style="padding:5px 8px;text-align:right;color:#67727a">'+(usdm2?'$'+usdm2.toFixed(2):'-')+'</td>'
+            +'<td class="cotcol-usd" style="padding:5px 8px;text-align:right;color:#2e7d57">'+(usdm2Ext?'$'+usdm2Ext.toFixed(2):'-')+'</td>'
+            +'<td class="cotcol-ind" style="padding:5px 8px;text-align:right;color:#3a6080">'+ind+'%</td>'
+            +'<td class="cotcol-ind" style="padding:5px 8px;text-align:right;color:#3a6080">'+(indir$?'$'+indir$.toLocaleString('es-MX',{maximumFractionDigits:0}):'-')+'</td>'
+            +'<td class="cotcol-conind" style="padding:5px 8px;text-align:right;font-weight:700;color:#254467">'+(conInd?'$'+conInd.toLocaleString('es-MX',{maximumFractionDigits:0}):'-')+'</td>'
+            +'<td class="cotcol-cob" style="padding:5px 8px;text-align:right;font-weight:700;color:'+(over?'#e65a27':'#639922')+'">'+(hasCob?'$'+cob.toLocaleString('es-MX',{maximumFractionDigits:0}):'-')+'</td>'
+            +'<td class="cotcol-coment" style="padding:5px 8px;font-size:10px;color:#67727a;max-width:130px;word-break:break-word">'+(esp.comentario||'')+'</td>'
+            +'<td class="cotcol-param" style="padding:5px 8px;text-align:center"><input type="checkbox" '+(esp.parametrico?'checked':'')+' onchange="toggleParam(\''+cotIdEsc+'\',\''+espNombreEsc+'\',this.checked)" title="Costo paramétrico"></td>'
             +'<td style="padding:5px 8px"><button onclick="openEspModal(\''+cotIdEsc+'\',\''+espNombreEsc+'\')" style="font-size:9px;padding:2px 7px;border:.5px solid #bfd1e5;border-radius:4px;background:#fff;cursor:pointer;font-family:Arial">Ver</button></td>'
-            +'<td style="padding:5px 8px;text-align:right"><input type="number" min="0" max="100" value="'+(esp.reembolsoPct!=null&&esp.reembolsoPct!==''?esp.reembolsoPct:'')+'" placeholder="0" onchange="setReembolso(\''+cotIdEsc+'\',\''+espNombreEsc+'\',this.value)" style="width:48px;font-size:10px;padding:2px 4px;border:.5px solid #bfd1e5;border-radius:4px;font-family:Arial;text-align:right">%</td>'
-            +'<td style="padding:5px 8px;text-align:right;font-weight:700;color:#BA7517">'+(mxn?'$'+Math.round(netoAdj).toLocaleString('es-MX'):'-')+'</td>'
+            +'<td class="cotcol-reemb" style="padding:5px 8px;text-align:right"><input type="number" min="0" max="100" value="'+(esp.reembolsoPct!=null&&esp.reembolsoPct!==''?esp.reembolsoPct:'')+'" placeholder="0" onchange="setReembolso(\''+cotIdEsc+'\',\''+espNombreEsc+'\',this.value)" style="width:48px;font-size:10px;padding:2px 4px;border:.5px solid #bfd1e5;border-radius:4px;font-family:Arial;text-align:right">%</td>'
+            +'<td class="cotcol-reemb" style="padding:5px 8px;text-align:right;font-weight:700;color:#BA7517">'+(mxn?'$'+Math.round(netoAdj).toLocaleString('es-MX'):'-')+'</td>'
             +'</tr>';
         });
 
         html+='<tr style="background:#f8fafc;font-weight:700;font-size:11px">'
           +'<td style="padding:5px 8px;color:#254467" colspan="2">Total '+cat+'</td>'
           +'<td style="padding:5px 8px;text-align:right">'+(catTotMXN?'$'+catTotMXN.toLocaleString('es-MX',{maximumFractionDigits:0}):'-')+'</td>'
-          +'<td style="padding:5px 8px;text-align:right;color:#67727a">'+(m2&&catTotMXN?'$'+(catTotMXN/m2).toFixed(2):'-')+'</td>'
-          +'<td style="padding:5px 8px;text-align:right;color:#67727a">'+(catTotUSD?'$'+catTotUSD.toLocaleString('es-MX',{maximumFractionDigits:0}):'-')+'</td>'
-          +'<td style="padding:5px 8px;text-align:right;color:#67727a">'+(m2&&catTotUSD?'$'+(catTotUSD/m2).toFixed(2):'-')+'</td>'
-          +'<td colspan="2" style="padding:5px 8px;text-align:right;color:#3a6080">'+(catTotIndir?'$'+catTotIndir.toLocaleString('es-MX',{maximumFractionDigits:0}):'-')+'</td>'
-          +'<td style="padding:5px 8px;text-align:right;color:#254467">'+(catTotConInd?'$'+catTotConInd.toLocaleString('es-MX',{maximumFractionDigits:0}):'-')+'</td>'
-          +'<td style="padding:5px 8px;text-align:right;color:'+(catTotCob>catTotConInd?'#e65a27':'#639922')+'">'+(catTotCob?'$'+catTotCob.toLocaleString('es-MX',{maximumFractionDigits:0}):'-')+'</td>'
-          +'<td colspan="4"></td>'
-          +'<td style="padding:5px 8px;text-align:right;color:#BA7517">'+(catTotNeto?'$'+Math.round(catTotNeto).toLocaleString('es-MX'):'-')+'</td></tr>'
+          +'<td class="cotcol-m2const" style="padding:5px 8px;text-align:right;color:#67727a">'+(m2&&catTotMXN?'$'+(catTotMXN/m2).toFixed(2):'-')+'</td>'
+          +'<td class="cotcol-m2ext" style="padding:5px 8px;text-align:right;color:#2e7d57">'+(mt&&catTotMXN?'$'+(catTotMXN/mt).toFixed(2):'-')+'</td>'
+          +'<td class="cotcol-hist"></td>'
+          +'<td class="cotcol-usd" style="padding:5px 8px;text-align:right;color:#67727a">'+(catTotUSD?'$'+catTotUSD.toLocaleString('es-MX',{maximumFractionDigits:0}):'-')+'</td>'
+          +'<td class="cotcol-usd" style="padding:5px 8px;text-align:right;color:#67727a">'+(m2&&catTotUSD?'$'+(catTotUSD/m2).toFixed(2):'-')+'</td>'
+          +'<td class="cotcol-usd" style="padding:5px 8px;text-align:right;color:#2e7d57">'+(mt&&catTotUSD?'$'+(catTotUSD/mt).toFixed(2):'-')+'</td>'
+          +'<td class="cotcol-ind"></td>'
+          +'<td class="cotcol-ind" style="padding:5px 8px;text-align:right;color:#3a6080">'+(catTotIndir?'$'+catTotIndir.toLocaleString('es-MX',{maximumFractionDigits:0}):'-')+'</td>'
+          +'<td class="cotcol-conind" style="padding:5px 8px;text-align:right;color:#254467">'+(catTotConInd?'$'+catTotConInd.toLocaleString('es-MX',{maximumFractionDigits:0}):'-')+'</td>'
+          +'<td class="cotcol-cob" style="padding:5px 8px;text-align:right;color:'+(catTotCob>catTotConInd?'#e65a27':'#639922')+'">'+(catTotCob?'$'+catTotCob.toLocaleString('es-MX',{maximumFractionDigits:0}):'-')+'</td>'
+          +'<td class="cotcol-coment"></td>'
+          +'<td class="cotcol-param"></td>'
+          +'<td></td>'
+          +'<td class="cotcol-reemb"></td>'
+          +'<td class="cotcol-reemb" style="padding:5px 8px;text-align:right;color:#BA7517">'+(catTotNeto?'$'+Math.round(catTotNeto).toLocaleString('es-MX'):'-')+'</td></tr>'
           +'</tbody></table></div></div>';
       });
 
@@ -4855,6 +4885,8 @@ function renderCotTabla(el,cots,allProjs,filterProj,catCot){
         +'<div style="text-align:right"><div style="font-size:9px;color:#6990ab">MXN cotizado</div><div style="font-size:13px;font-weight:700;color:#fff">'+(grandTotMXN?'$'+grandTotMXN.toLocaleString('es-MX',{maximumFractionDigits:0}):'-')+'</div></div>'
         +(m2?'<div style="text-align:right"><div style="font-size:9px;color:#6990ab">MXN/m²</div><div style="font-size:13px;font-weight:700;color:#fff">'+(grandTotMXN?'$'+(grandTotMXN/m2).toFixed(2):'-')+' <span style="font-size:8px;color:#9fb4c9;font-weight:400">dir</span></div>'+(grandTotConInd?'<div style="font-size:10px;font-weight:700;color:#FCD34D">$'+(grandTotConInd/m2).toFixed(2)+' <span style="font-size:8px;color:#c9a94b;font-weight:400">c/ind</span></div>':'')+'</div>':'')
         +(m2&&tc?'<div style="text-align:right"><div style="font-size:9px;color:#6990ab">USD/m²</div><div style="font-size:13px;font-weight:700;color:#fff">'+(grandTotMXN?'$'+(grandTotMXN/m2/tc).toFixed(2):'-')+' <span style="font-size:8px;color:#9fb4c9;font-weight:400">dir</span></div>'+(grandTotConInd?'<div style="font-size:10px;font-weight:700;color:#FCD34D">$'+(grandTotConInd/m2/tc).toFixed(2)+' <span style="font-size:8px;color:#c9a94b;font-weight:400">c/ind</span></div>':'')+'</div>':'')
+        +(mt?'<div style="text-align:right;border-left:1px solid #3a5a80;padding-left:14px"><div style="font-size:9px;color:#7fd3a6">MXN/m² ext.</div><div style="font-size:13px;font-weight:700;color:#bff0d4">'+(grandTotMXN?'$'+(grandTotMXN/mt).toFixed(2):'-')+' <span style="font-size:8px;color:#8cbfa3;font-weight:400">dir</span></div>'+(grandTotConInd?'<div style="font-size:10px;font-weight:700;color:#9be7a0">$'+(grandTotConInd/mt).toFixed(2)+' <span style="font-size:8px;color:#7bbd86;font-weight:400">c/ind</span></div>':'')+'</div>':'')
+        +(mt&&tc?'<div style="text-align:right"><div style="font-size:9px;color:#7fd3a6">USD/m² ext.</div><div style="font-size:13px;font-weight:700;color:#bff0d4">'+(grandTotMXN?'$'+(grandTotMXN/mt/tc).toFixed(2):'-')+' <span style="font-size:8px;color:#8cbfa3;font-weight:400">dir</span></div>'+(grandTotConInd?'<div style="font-size:10px;font-weight:700;color:#9be7a0">$'+(grandTotConInd/mt/tc).toFixed(2)+' <span style="font-size:8px;color:#7bbd86;font-weight:400">c/ind</span></div>':'')+'</div>':'')
         +'<div style="text-align:right"><div style="font-size:9px;color:#6990ab">MXN+indirecto'+(descAmt>0?' (subtotal)':'')+'</div><div style="font-size:13px;font-weight:700;color:'+(descAmt>0?'#9fb4c9':'#FCD34D')+';'+(descAmt>0?'text-decoration:line-through':'')+'">'+(grandTotConInd?'$'+grandTotConInd.toLocaleString('es-MX',{maximumFractionDigits:0}):'-')+'</div></div>'
         +(descAmt>0?'<div style="text-align:right"><div style="font-size:9px;color:#9be7a0">Descuento</div><div style="font-size:13px;font-weight:700;color:#9be7a0">−$'+descAmt.toLocaleString('es-MX',{maximumFractionDigits:0})+'</div></div>':'')
         +(descAmt>0?'<div style="text-align:right"><div style="font-size:9px;color:#FCD34D">TOTAL con desc.</div><div style="font-size:14px;font-weight:700;color:#FCD34D">$'+totalFinal.toLocaleString('es-MX',{maximumFractionDigits:0})+'</div></div>':'')
@@ -4884,6 +4916,7 @@ function renderCotTabla(el,cots,allProjs,filterProj,catCot){
     html+='</div>';
   });
   el.innerHTML+=html;
+  _renderCotChips();
 }
 
 function toggleCotOficial(cotId){
