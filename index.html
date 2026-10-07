@@ -6816,7 +6816,8 @@ function renderKpis(){
 // ── HELPER: TARJETA BASE ─────────────────────────────────────
 function kpiCard(cfg, mes){
   var descId='kpi-desc-'+cfg.id;
-  return '<div style="background:#fff;border-radius:10px;border:.5px solid #bfd1e5;overflow:hidden">'
+  var _ord=cfg.ord!=null?cfg.ord:(parseInt(cfg.num)||0);
+  return '<div style="background:#fff;border-radius:10px;border:.5px solid #bfd1e5;overflow:hidden;order:'+_ord+'">'
     +'<div style="padding:10px 12px;border-bottom:.5px solid #bfd1e5;display:flex;align-items:center;gap:8px">'
     +'<div style="width:30px;height:30px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;background:'+cfg.bg+';color:'+cfg.color+'">'+cfg.num+'</div>'
     +'<div style="flex:1"><div style="font-size:12px;font-weight:500;color:#254467">'+cfg.title+'</div>'
