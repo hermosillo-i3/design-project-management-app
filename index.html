@@ -3356,7 +3356,10 @@ function _taskFlagsBox(t){
   t=t||{};
   var revconNames=Array.from(new Set([...(cat.consultores||[]).map(function(c){return c.nombre;}),...(cat.personas||[]).map(function(p){return p.nombre;}),'Ernesto Muñoz','Luis Macías','Jesús Portillo'].filter(Boolean))).sort(function(a,b){return a.localeCompare(b);});
   var revconOpts=revconNames.map(function(n){return '<option value="'+String(n).replace(/"/g,'&quot;')+'">';}).join('');
-  return '<div class="fg" style="background:#fff8f0;border:.5px solid #f0c98a;border-radius:8px;padding:8px 10px">'
+  return '<div class="fg" style="background:#fdecea;border:.5px solid #f5b89b;border-radius:8px;padding:8px 10px">'
+    +'<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:700;color:#e65a27"><input type="checkbox" id="t-urgente" '+(t.urgente?'checked':'')+' style="width:14px;height:14px"> 🔥 Marcar como urgente</label>'
+    +'</div>'
+    +'<div class="fg" style="background:#fff8f0;border:.5px solid #f0c98a;border-radius:8px;padding:8px 10px">'
     +'<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:700;color:#854f0b"><input type="checkbox" id="t-revtaller" '+(t.revTaller?'checked':'')+' style="width:14px;height:14px"> 🔧 Revisar con jefe de taller / consultor</label>'
     +'<div style="font-size:9px;color:#a8a8a8;margin:3px 0 5px">Aparecerá en la columna Comentarios del Reporte Departamento de Diseño.</div>'
     +'<input id="t-revcon" list="revcon-dl" value="'+String(t.revTallerCon||'').replace(/"/g,'&quot;')+'" placeholder="¿Con quién? (Ernesto Muñoz, Luis Macías, Jesús Portillo…)" style="width:100%;font-family:Arial;font-size:12px;padding:6px 8px;border:.5px solid #bfd1e5;border-radius:6px">'
@@ -3377,6 +3380,7 @@ function _taskFlagsBox(t){
 }
 function _readTaskFlags(){
   return {
+    urgente:document.getElementById('t-urgente')?document.getElementById('t-urgente').checked:false,
     revTaller:document.getElementById('t-revtaller')?document.getElementById('t-revtaller').checked:false,
     revTallerCon:document.getElementById('t-revcon')?document.getElementById('t-revcon').value.trim():'',
     gerDesarrollo:document.getElementById('t-gerdes')?document.getElementById('t-gerdes').checked:false,
