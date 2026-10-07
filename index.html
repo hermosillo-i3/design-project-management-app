@@ -11808,6 +11808,8 @@ function segUrgTask(id,projId){var t=tasks.find(function(x){return x.id===id;});
 function segArchTask(id,projId){if(!confirm('¿Archivar esta tarea?'))return;var t=tasks.find(function(x){return x.id===id;});if(t){t.archivado=true;sv(K.tasks,tasks);}renderSeg();renderPendientes();if(typeof renderGerencia==='function')renderGerencia();abrirSeguimientoProyecto(projId);}
 function segEditComment(id,projId){window.__segRet=projId;openEditComment(id);}
 function segArchComment(id,projId){if(!confirm('¿Archivar este comentario?'))return;var c=comments.find(function(x){return x.id===id;});if(c){c.archivado=true;sv(K.comments,comments);}renderSeg();abrirSeguimientoProyecto(projId);}
+function segToggleComment(id,projId){var c=comments.find(function(x){return x.id===id;});if(c){c.done=!c.done;sv(K.comments,comments);}renderSeg();abrirSeguimientoProyecto(projId);}
+function segDelComment(id,projId){if(!confirm('¿Borrar este comentario? No se puede deshacer.'))return;comments=comments.filter(function(x){return x.id!==id;});sv(K.comments,comments);renderSeg();abrirSeguimientoProyecto(projId);}
 function abrirSeguimientoProyecto(projId){
   const p=projects.find(x=>x.id===projId);
   if(!p)return;
@@ -11850,12 +11852,17 @@ function abrirSeguimientoProyecto(projId){
             </div>
           </div>`;
         }else{
-          return`<div class="feed-item comment" style="margin-bottom:5px">
-            <div class="feed-meta">${item.fecha||'—'}</div>
-            <div class="feed-text">${item.texto}</div>
-            <div style="display:flex;gap:5px;margin-top:4px">
+          var cDone=!!item.done;
+          return`<div class="feed-item comment" style="margin-bottom:5px${cDone?';opacity:.65':''}">
+            <div class="feed-meta">${item.fecha||'—'}${cDone?' · <span style="color:#639922;font-weight:700">✓ resuelto</span>':''}</div>
+            <div style="display:flex;gap:7px;align-items:flex-start">
+              <input type="checkbox" ${cDone?'checked':''} onchange="segToggleComment(${item.id},${projId})" title="Marcar como resuelto" style="margin-top:2px;flex-shrink:0;cursor:pointer;accent-color:#639922">
+              <div class="feed-text" style="flex:1${cDone?';text-decoration:line-through;color:#a8a8a8':''}">${item.texto}</div>
+            </div>
+            <div style="display:flex;gap:5px;margin-top:4px;margin-left:20px;flex-wrap:wrap">
               <button onclick="segEditComment(${item.id},${projId})" style="${_bbtn};border:.5px solid #6990ab;color:#6990ab">✏ Editar</button>
               <button onclick="segArchComment(${item.id},${projId})" style="${_bbtn};border:.5px solid #bfd1e5;color:#a8a8a8" title="Archivar">Arch.</button>
+              <button onclick="segDelComment(${item.id},${projId})" style="${_bbtn};border:.5px solid #FECACA;color:#e65a27" title="Borrar">✕ Borrar</button>
             </div>
           </div>`;
         }
