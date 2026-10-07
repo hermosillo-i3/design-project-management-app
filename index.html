@@ -10809,7 +10809,12 @@ function renderGerencia(){
     {nombre:'Diana Gasca',rol:'Gerente de Diseño'}
   ];
 
-  let html='';
+  let html='<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">'
+    +'<input type="text" id="ger-search" value="'+String(window.__gerSearchQ||'').replace(/"/g,'&quot;')+'" oninput="window.__gerSearchQ=this.value;gerRenderSearch()" placeholder="🔎 Buscar en mis tareas (incluye archivadas y hechas)…" style="flex:1;min-width:220px;font-size:12px;padding:7px 11px;border:.5px solid #bfd1e5;border-radius:8px;font-family:Arial">'
+    +'<button onclick="window.__gerSearchQ=\'\';var s=document.getElementById(\'ger-search\');if(s)s.value=\'\';gerRenderSearch()" class="btn btn-sm" style="white-space:nowrap">Limpiar</button>'
+    +'</div>';
+  html+='<div id="ger-search-results" style="display:none"></div>';
+  html+='<div id="ger-cards">';
 
   GER_PEOPLE.forEach(function(person){
     const nombre=person.nombre;
@@ -11016,8 +11021,56 @@ function renderGerencia(){
     html+='</div></div>';
   });
 
+  html+='</div>'; // cierra #ger-cards
   el.innerHTML=html;
+  gerRenderSearch();
 }
+
+function gerRenderSearch(){
+  var res=document.getElementById('ger-search-results');
+  var cards=document.getElementById('ger-cards');
+  if(!res||!cards)return;
+  var q=String(window.__gerSearchQ||'').trim().toLowerCase();
+  if(!q){res.style.display='none';res.innerHTML='';cards.style.display='';return;}
+  cards.style.display='none';res.style.display='';
+  var words=q.split(/\s+/);
+  var mine=tasks.filter(function(t){return t.asignado==='Diana Gasca';});
+  var hits=mine.filter(function(t){
+    var pr=projects.find(function(p){return p.id===t.projId;});
+    var hay=[t.texto,(pr?pr.nombre:''),t.asignado,t.fechaCompromiso,t.fechaPedido,(t.notas||[]).map(function(n){return n.texto;}).join(' ')].filter(Boolean).join(' ').toLowerCase();
+    return words.every(function(w){return hay.indexOf(w)!==-1;});
+  }).sort(function(a,b){
+    var aa=(a.done||a.archivado)?1:0,bb=(b.done||b.archivado)?1:0;if(aa!==bb)return aa-bb;
+    return (a.fechaCompromiso||'z').localeCompare(b.fechaCompromiso||'z');
+  });
+  var nAct=hits.filter(function(t){return !t.done&&!t.archivado;}).length;
+  var h='<div style="background:#fff;border-radius:10px;border:.5px solid #bfd1e5;overflow:hidden;margin-bottom:14px">'
+    +'<div style="background:#254467;padding:9px 14px;font-size:12px;font-weight:700;color:#fff">🔎 Resultados — '+hits.length+' tarea(s) <span style="font-weight:400;color:#bfd1e5">('+nAct+' activas · '+(hits.length-nAct)+' archivadas/hechas)</span></div>';
+  if(!hits.length){
+    h+='<div style="padding:16px;font-size:12px;color:#a8a8a8;text-align:center">Sin resultados para "'+q.replace(/</g,'&lt;')+'".</div>';
+  } else {
+    hits.forEach(function(t){
+      var pr=projects.find(function(p){return p.id===t.projId;});
+      var ov=t.fechaCompromiso&&t.fechaCompromiso<todayStr&&!t.done;
+      var dim=t.done||t.archivado;
+      h+='<div style="padding:8px 14px;border-top:.5px solid #eef2f6'+(dim?';opacity:.7':'')+'">'
+        +'<div style="font-size:11px;color:#1A1A2E;line-height:1.4'+(t.done?';text-decoration:line-through':'')+'">'
+        +(t.urgente?'<span style="background:#fdecea;color:#e65a27;border-radius:4px;padding:0 5px;font-size:8px;font-weight:700;margin-right:4px">🔥 URGENTE</span>':'')
+        +String(t.texto||'').replace(/</g,'&lt;')+'</div>'
+        +'<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:3px">'
+        +(pr?'<span style="font-size:9px;font-weight:700;color:'+(pr.archivado?'#a8a8a8':'#254467')+'">'+String(pr.nombre).replace(/</g,'&lt;')+'</span>':'<span style="font-size:9px;color:#a8a8a8">Sin proyecto</span>')
+        +(t.fechaCompromiso?'<span style="font-size:9px;font-weight:700;color:'+(ov?'#e65a27':'#67727a')+'">'+fmtD(t.fechaCompromiso)+(ov?' VENC':'')+'</span>':'')
+        +(t.done?'<span style="font-size:8px;font-weight:700;background:#eaf3de;color:#3B6D11;border-radius:4px;padding:1px 6px">✓ hecha</span>':'')
+        +(t.archivado?'<span style="font-size:8px;font-weight:700;background:#eef2f6;color:#67727a;border-radius:4px;padding:1px 6px">📦 archivada</span>':'')
+        +'<button onclick="openEditTask('+t.id+')" style="font-size:9px;padding:1px 7px;border:.5px solid #6990ab;border-radius:4px;background:#fff;cursor:pointer;font-family:Arial;color:#6990ab">✏ Editar</button>'
+        +(t.archivado?'<button onclick="gerDesarchivarTarea('+t.id+')" style="font-size:9px;padding:1px 7px;border:.5px solid #639922;border-radius:4px;background:#fff;cursor:pointer;font-family:Arial;color:#3B6D11">♻ Desarchivar</button>':'<button onclick="archiveTask('+t.id+');gerRenderSearch()" style="font-size:9px;padding:1px 7px;border:.5px solid #bfd1e5;border-radius:4px;background:#fff;cursor:pointer;font-family:Arial;color:#a8a8a8">Arch.</button>')
+        +'</div></div>';
+    });
+  }
+  h+='</div>';
+  res.innerHTML=h;
+}
+function gerDesarchivarTarea(id){var t=tasks.find(function(x){return x.id===id;});if(t){t.archivado=false;sv(K.tasks,tasks);}if(typeof renderSeg==='function')renderSeg();renderGerencia();}
 
 function quitarVerCon(id){var t=tasks.find(function(x){return x.id===id;});if(t){t.verConPersona='';sv(K.tasks,tasks);}renderGerencia();if(typeof renderEquipo==='function')renderEquipo();}
 
