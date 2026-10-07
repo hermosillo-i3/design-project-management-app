@@ -6453,10 +6453,10 @@ function renderKpis(){
     +'<button onclick="imprimirKpiReport()" style="font-size:11px;padding:5px 14px;border-radius:6px;border:none;background:#6990ab;color:#fff;cursor:pointer;font-family:Arial;font-weight:500">🖨 Reporte</button>'
     +'</div>';
 
-  html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:start">';
+  var _kc=[];
 
   // ── BRECHA 6: DELEGACIÓN ──────────────────────────────────
-  html+=kpiCard({
+  _kc.push([6,kpiCard({
     id:'del', num:6, color:'#185FA5', bg:'#e6f1fb',
     title:'Delegación y empowerment', freq:'Semanal',
     desc:'Fortalecer tu capacidad de delegar formalmente con objetivo claro. Se mide cuántas tareas delegas por semana asignando a quién y para qué, y cuántas tuvieron reproceso (idealmente 0).',
@@ -6513,10 +6513,10 @@ function renderKpis(){
         +'</div>';
       return html2;
     })()
-  }, mes);
+  }, mes)]);
 
   // ── BRECHA 1: LIDERAZGO ───────────────────────────────────
-  html+=kpiCard({
+  _kc.push([1,kpiCard({
     id:'lid', num:1, color:'#3B6D11', bg:'#eaf3de',
     title:'Liderazgo con resultados consistentes', freq:'Mensual',
     desc:'Lograr que tu equipo complete proyectos con el proceso establecido sin intervención tuya. NPS interno: encuesta anónima mensual "Del 1 al 10, ¿qué tan probable es que recomiendes trabajar en este equipo?" — 9-10 promotores, 7-8 pasivos, ≤6 detractores.',
@@ -6550,10 +6550,10 @@ function renderKpis(){
         +'</div>';
       return html2;
     })()
-  }, mes);
+  }, mes)]);
 
   // ── BRECHA 3: GESTIÓN EMOCIONAL ───────────────────────────
-  html+=kpiCard({
+  _kc.push([3,kpiCard({
     id:'emo', num:3, color:'#854F0B', bg:'#faeeda',
     title:'Gestión emocional bajo presión', freq:'Semanal',
     desc:'Fortalecer tu capacidad de regular emociones y liderar con claridad en situaciones de presión. Autoevaluación post-reunión: ¿qué tanto me regulé? (1=nada, 10=perfectamente). Escalaciones reactivas: conflictos que escalaron por no haber intervenido a tiempo.',
@@ -6583,10 +6583,10 @@ function renderKpis(){
         +'</div>';
       return html2;
     })()
-  }, mes);
+  }, mes)]);
 
   // ── BRECHA 4: DECISIONES ─────────────────────────────────
-  html+=kpiCard({
+  _kc.push([4,kpiCard({
     id:'dec', num:4, color:'#534AB7', bg:'#EEEDFE',
     title:'Decisiones firmes y límites', freq:'Mensual',
     desc:'IASD = Índice de Acción ante Situaciones Difíciles = (conversaciones difíciles tenidas / situaciones difíciles identificadas) × 100. Lleva registro semanal: ¿cuántas situaciones difíciles hubo? ¿tuve la conversación? Meta escalonada: Mes 1-2 ≥50%, Mes 3-4 ≥70%, Mes 5-6 ≥85%.',
@@ -6641,10 +6641,10 @@ function renderKpis(){
         +'</div>';
       return html2;
     })()
-  }, mes);
+  }, mes)]);
 
   // ── BRECHA 5: EMPATÍA — 1:1 LÍDERES POR SEMANA ───────────
-  html+=kpiCard({
+  _kc.push([5,kpiCard({
     id:'emp', num:5, color:'#185FA5', bg:'#e6f1fb',
     title:'Empatía, armonía y conexión — 1:1 líderes', freq:'Semanal',
     desc:'Desarrollar habilidades de escucha activa. Con líderes (jefes/coordinadores): ≥ 1 sesión por semana por persona. Marca cada semana quién tuvo su 1:1. El módulo muestra 4 semanas dentro del mes.',
@@ -6676,10 +6676,10 @@ function renderKpis(){
         +html2;
       return html2;
     })()
-  }, mes);
+  }, mes)]);
 
   // ── BRECHA 5b: EMPATÍA — 1:1 EQUIPO COMPLETO ─────────────
-  html+=kpiCard({
+  _kc.push([5.5,kpiCard({
     id:'emp2', num:'5b', color:'#185FA5', bg:'#e6f1fb',
     title:'Empatía — 1:1 equipo completo', freq:'Mensual',
     desc:'Con el resto del equipo (no líderes): ≥ 1 sesión por persona por mes. Registra fecha y comentario de cada 1:1.',
@@ -6721,10 +6721,10 @@ function renderKpis(){
       });
       return html2;
     })()
-  }, mes);
+  }, mes)]);
 
   // ── BRECHA 2: EXIGENCIA ───────────────────────────────────
-  html+=kpiCard({
+  _kc.push([2,kpiCard({
     id:'exi', num:2, color:'#3B6D11', bg:'#eaf3de',
     title:'Estilo participativo con mayor exigencia', freq:'Mensual',
     desc:'Equilibrar tu estilo participativo con mayor exigencia en la ejecución. % compromisos: hitos del equipo cumplidos en fecha (se jala de Entregables automáticamente). Autoevaluación: nota libre semanal sobre qué tan exigente fuiste y por qué.',
@@ -6760,10 +6760,10 @@ function renderKpis(){
         +'</div>';
       return html2;
     })()
-  }, mes);
+  }, mes)]);
 
   // ── BRECHA 7: RELACIONES ESTRATÉGICAS ────────────────────
-  html+=kpiCard({
+  _kc.push([7,kpiCard({
     id:'rel', num:7, color:'#993C1D', bg:'#FAECE7',
     title:'Relaciones estratégicas e IRP', freq:'Mensual',
     desc:'IRP interno = Índice de Respaldo Percibido. Encuesta anónima mensual a tu equipo: "Del 1 al 10, ¿qué tan respaldado/a te sientes por tu líder?". IRP 360° = encuesta mensual a personas de otras áreas: "Del 1 al 10, ¿qué tan fácil y productivo es colaborar con el equipo de Diana?"',
@@ -6807,9 +6807,12 @@ function renderKpis(){
         +'</div>';
       return html2;
     })()
-  }, mes);
+  }, mes)]);
 
-  html+='</div>';
+  _kc.sort(function(a,b){return a[0]-b[0];});
+  html+='<div style="columns:2;column-gap:10px">'
+    +_kc.map(function(c){return '<div style="break-inside:avoid;-webkit-column-break-inside:avoid;page-break-inside:avoid;margin-bottom:10px">'+c[1]+'</div>';}).join('')
+    +'</div>';
   el.innerHTML=html;
 }
 
