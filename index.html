@@ -2847,7 +2847,7 @@ function openProyecto(id,isInterno){
     ${!isInt?`
     <div class="fg"><label>Tipo de proyecto</label><select id="ptipo">${TIPOS.map(t=>`<option ${(p.tipo||'')=== t?'selected':''}>${t}</option>`).join('')}</select></div>
     <div class="frow"><div class="fg"><label>F. Arranque</label><input type="date" id="par" value="${p.arranque||(id?'':todayStr)}"></div><div class="fg"><label>F. Entrega V1</label><input type="date" id="pev1" value="${p.entregaV1||p.entrega||''}"></div></div>
-    <div class="fg"><label>F. Entrega V2</label><input type="date" id="pev2" value="${p.entregaV2||''}"></div></div>
+    <div class="fg"><label>F. Entrega V2</label><input type="date" id="pev2" value="${p.entregaV2||''}"></div>
     <div class="frow"><div class="fg"><label>F. Entrega V3</label><input type="date" id="pev3" value="${p.entregaV3||''}"></div>
     <div class="fg"><label>F. Entrega V4</label><input type="date" id="pev4" value="${p.entregaV4||''}"></div></div>
     <div class="fg"><label>Entregas adicionales <span style="font-size:9px;font-weight:400;color:#a8a8a8">(V5, V6…)</span></label>
