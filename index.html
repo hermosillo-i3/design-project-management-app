@@ -1007,6 +1007,22 @@ function bootApp(){
     if(changed) sv(K.proj,projects);
   })();
 
+  (function migrateEjeDeliverables(){
+    var changed=false;
+    projects.forEach(function(p){
+      if(p.interno)return;
+      if(p.ejeIFC||p.ejeAsBuilt||p.ejeCO)return; // ya migrado
+      var ds=[p.ejeEntregaV1,p.ejeEntregaV2,p.ejeEntregaV3,p.ejeEntregaV4].filter(function(d){return d&&String(d).trim();});
+      if(p.etapa==='EJECUTIVO'||ds.length){
+        p.ejeIFC={fechas:ds,avance:0};
+        p.ejeAsBuilt={fechas:[],avance:0};
+        p.ejeCO=[];
+        changed=true;
+      }
+    });
+    if(changed) sv(K.proj,projects);
+  })();
+
   renderAll();
 }
 
@@ -1016,6 +1032,63 @@ function bootApp(){
 const activeProjs=()=>projects.filter(p=>!p.archivado&&!p.interno);
 const internos=()=>projects.filter(p=>!p.archivado&&p.interno);
 const archived=()=>projects.filter(p=>p.archivado);
+
+// ── Entregables de EJECUTIVO (IFC / As-builts / Change Orders) ──
+function _ejeDates(d){return (d&&d.fechas&&d.fechas.filter)?d.fechas.filter(function(x){return x&&String(x).trim();}):[];}
+function ejeVig(d){var a=_ejeDates(d);return a.length?a[a.length-1]:'';} // fecha vigente = última
+function ejeAvance(p){
+  if(!p)return null;
+  var av=[];
+  if(p.ejeIFC&&p.ejeIFC.avance!=null&&p.ejeIFC.avance!=='')av.push(parseFloat(p.ejeIFC.avance)||0);
+  if(p.ejeAsBuilt&&p.ejeAsBuilt.avance!=null&&p.ejeAsBuilt.avance!=='')av.push(parseFloat(p.ejeAsBuilt.avance)||0);
+  (p.ejeCO||[]).forEach(function(c){if(c&&c.avance!=null&&c.avance!=='')av.push(parseFloat(c.avance)||0);});
+  if(!av.length)return null;
+  return Math.round(av.reduce(function(s,x){return s+x;},0)/av.length);
+}
+function _pejeDateRowHtml(t,f){return '<div class="peje-'+t+'-date-row" style="display:flex;gap:6px;align-items:center;margin-bottom:5px"><input type="date" class="peje-'+t+'-date" value="'+(f||'')+'" style="flex:1;font-family:Arial;font-size:11px;padding:4px 7px;border:.5px solid #bfd1e5;border-radius:5px"><button type="button" onclick="pejeRemoveRow(this)" class="btn btn-xs btn-danger">✕</button></div>';}
+function _pejeCORowHtml(nombre,avance,fecha){return '<div class="peje-co" style="display:flex;gap:6px;align-items:center;margin-bottom:6px"><input class="peje-co-nombre" value="'+String(nombre||'').replace(/"/g,'&quot;')+'" placeholder="Nombre del Change Order" style="flex:1;font-family:Arial;font-size:11px;padding:4px 7px;border:.5px solid #bfd1e5;border-radius:5px"><input type="number" class="peje-co-avance" min="0" max="100" value="'+((avance!=null&&avance!=='')?avance:'')+'" placeholder="%" style="width:52px;font-family:Arial;font-size:11px;padding:4px;border:.5px solid #bfd1e5;border-radius:5px;text-align:right" title="% avance"><input type="date" class="peje-co-fecha" value="'+(fecha||'')+'" style="font-family:Arial;font-size:11px;padding:3px 5px;border:.5px solid #bfd1e5;border-radius:5px"><button type="button" onclick="pejeRemoveRow(this)" class="btn btn-xs btn-danger">✕</button></div>';}
+function pejeAddDate(t,fecha){var c=document.getElementById('peje-'+t+'-dates');if(!c)return;var tmp=document.createElement('div');tmp.innerHTML=_pejeDateRowHtml(t,fecha||'');c.appendChild(tmp.firstChild);}
+function pejeAddCO(nombre,avance,fecha){var c=document.getElementById('peje-co-list');if(!c)return;var tmp=document.createElement('div');tmp.innerHTML=_pejeCORowHtml(nombre||'',avance,fecha||'');c.appendChild(tmp.firstChild);}
+function pejeRemoveRow(btn){var r=btn.closest('.peje-ifc-date-row,.peje-asb-date-row,.peje-co');if(r)r.remove();}
+function _readEjeDeliv(t,id,field){
+  var c=document.getElementById('peje-'+t+'-dates');
+  if(!c)return id?(((projects.find(function(x){return x.id===id;})||{})[field])||{fechas:[],avance:0}):{fechas:[],avance:0};
+  var fechas=[].slice.call(document.querySelectorAll('.peje-'+t+'-date')).map(function(i){return i.value;}).filter(function(v){return v&&v.trim();});
+  var avEl=document.getElementById('peje-'+t+'-avance');
+  return {fechas:fechas,avance:avEl?(parseInt(avEl.value)||0):0};
+}
+function _readEjeCO(id){
+  var c=document.getElementById('peje-co-list');
+  if(!c)return id?(((projects.find(function(x){return x.id===id;})||{}).ejeCO)||[]):[];
+  return [].slice.call(c.querySelectorAll('.peje-co')).map(function(b){
+    return {nombre:(b.querySelector('.peje-co-nombre').value||'').trim(),avance:(parseInt(b.querySelector('.peje-co-avance').value)||0),fecha:b.querySelector('.peje-co-fecha').value||''};
+  }).filter(function(co){return co.nombre||co.fecha||co.avance;});
+}
+function _pejeDelivHtml(p){
+  var dateRows=function(t,d){return _ejeDates(d).map(function(f){return _pejeDateRowHtml(t,f);}).join('');};
+  var block=function(t,title,color,d){
+    d=d||{fechas:[],avance:0};
+    var av=(d.avance!=null&&d.avance!=='')?(parseInt(d.avance)||0):0;
+    return '<div class="fg" style="background:#f8fafc;border:.5px solid #bfd1e5;border-radius:8px;padding:10px 12px;margin-bottom:8px">'
+      +'<div style="font-size:11px;font-weight:700;color:'+color+';margin-bottom:6px">'+title+'</div>'
+      +'<label style="font-size:10px;color:#475569">% Avance: <span id="peje-'+t+'-avlbl">'+av+'</span>%</label>'
+      +'<input type="range" min="0" max="100" step="5" id="peje-'+t+'-avance" value="'+av+'" oninput="document.getElementById(\'peje-'+t+'-avlbl\').textContent=this.value" style="width:100%">'
+      +'<div style="font-size:9px;color:#a8a8a8;margin:4px 0 4px">Fechas — la última es la vigente; agrega una nueva si se reprograma.</div>'
+      +'<div id="peje-'+t+'-dates">'+dateRows(t,d)+'</div>'
+      +'<button type="button" onclick="pejeAddDate(\''+t+'\')" class="btn btn-xs" style="margin-top:3px">+ Reprogramar fecha</button>'
+      +'</div>';
+  };
+  var coRows=(p.ejeCO||[]).map(function(c){return _pejeCORowHtml(c.nombre,c.avance,c.fecha);}).join('');
+  return '<div style="font-size:10px;font-weight:700;color:#3B6D11;text-transform:uppercase;letter-spacing:.05em;margin:16px 0 8px">Entregables de ejecutivo</div>'
+    +block('ifc','📐 IFC (Issued For Construction)','#185FA5',p.ejeIFC)
+    +block('asb','🏗️ As-builts','#BA7517',p.ejeAsBuilt)
+    +'<div class="fg" style="background:#fbf7ef;border:.5px solid #e8d4ad;border-radius:8px;padding:10px 12px">'
+    +'<div style="font-size:11px;font-weight:700;color:#8a5a12;margin-bottom:6px">📝 Change Orders <span style="font-weight:400;color:#a8a8a8">(opcional — agrega los que haya)</span></div>'
+    +'<div id="peje-co-list">'+coRows+'</div>'
+    +'<button type="button" onclick="pejeAddCO()" class="btn btn-xs" style="margin-top:3px">+ Añadir Change Order</button>'
+    +'</div>'
+    +'<div style="font-size:9px;color:#a8a8a8;margin-top:8px">El % general del proyecto se calcula solo (promedio de IFC, As-builts y Change Orders). En Carga se muestran estas barras y los hitos de IFC/As-builts.</div>';
+}
 
 function sem(p){
   if(p.interno)return{label:p.estatus||'En proceso',cls:'none'};
@@ -1370,7 +1443,16 @@ function renderCargaGantt(){
   var MS=86400000;
   var _mkEnts=function(raw){var arr=[];raw.forEach(function(v){if(v&&String(v).trim()){var t=new Date(v).getTime();if(!isNaN(t))arr.push({str:v,t:t});}});arr.sort(function(a,b){return a.t-b.t;});return arr;};
   var _entregas=function(p){return _mkEnts(entVers(p));};
-  var _entregasEje=function(p){return _mkEnts([p.ejeEntregaV1,p.ejeEntregaV2,p.ejeEntregaV3,p.ejeEntregaV4]);};
+  var _entregasEje=function(p){
+    var out=[];
+    var _add=function(str,lbl){if(str&&!isNaN(new Date(str).getTime()))out.push({str:str,t:new Date(str).getTime(),lbl:lbl});};
+    _add(ejeVig(p.ejeIFC),'IFC');
+    _add(ejeVig(p.ejeAsBuilt),'AB');
+    (p.ejeCO||[]).forEach(function(c){if(c)_add(c.fecha,'CO');});
+    if(!out.length){_mkEnts([p.ejeEntregaV1,p.ejeEntregaV2,p.ejeEntregaV3,p.ejeEntregaV4]).forEach(function(e,i){out.push({str:e.str,t:e.t,lbl:'E'+(i+1)});});}
+    out.sort(function(a,b){return a.t-b.t;});
+    return out;
+  };
   var rows=[];
   activeProjs().forEach(function(p){
     var sec=p.etapa==='PRECON'?'PRECON':(['EJECUTIVO','REVISIONES'].indexOf(p.etapa)>=0?'EJECUTIVO':null);
@@ -1475,8 +1557,9 @@ function renderCargaGantt(){
     });
     (r.entsEje||[]).forEach(function(e,i){
       var mx=xOf(e.t);
-      marks+='<div title="Entrega ejecutivo '+(i+1)+': '+e.str+'" style="position:absolute;left:'+(mx-1)+'px;top:4px;height:21px;width:2px;background:#3B6D11;z-index:2"></div>'
-        +'<div style="position:absolute;left:'+(mx-3)+'px;top:-2px;font-size:8px;font-weight:800;color:#3B6D11;z-index:2">E'+(i+1)+'</div>';
+      var _elbl=e.lbl||('E'+(i+1));
+      marks+='<div title="'+_elbl+': '+e.str+'" style="position:absolute;left:'+(mx-1)+'px;top:4px;height:21px;width:2px;background:#3B6D11;z-index:2"></div>'
+        +'<div style="position:absolute;left:'+(mx-6)+'px;top:-2px;font-size:7px;font-weight:800;color:#3B6D11;z-index:2;white-space:nowrap">'+_elbl+'</div>';
     });
     // fecha de entrega notoria al final de la barra
     var endLabel=ultEnt?'<div style="position:absolute;left:'+(xOf(r.endT)+6)+'px;top:6px;font-size:8px;font-weight:800;color:#3B6D11;white-space:nowrap;z-index:2">📅 '+fmtD(ultEnt)+'</div>':'';
@@ -1508,9 +1591,16 @@ function renderCargaGantt(){
       +((preconDurTxt||ejeDurTxt)?'<div style="font-size:8px;color:#8a97a3;white-space:nowrap">'+(preconDurTxt?'<span style="color:#7f93aa;font-weight:700">Precon: '+preconDurTxt+'</span>':'')+(preconDurTxt&&ejeDurTxt?' · ':'')+(ejeDurTxt?'<span style="color:#3B6D11;font-weight:700">Ejec: '+ejeDurTxt+'</span>':'')+'</div>':'')
       +'<div style="font-size:8px;font-weight:700;color:'+(ultEnt?'#3B6D11':'#c5ccd4')+';white-space:nowrap">📅 Entrega: '+(ultEnt?fmtD(ultEnt):'sin fecha')+'</div>'
       +(arrEjeStr?'<div style="font-size:8px;font-weight:700;color:#185FA5;white-space:nowrap">◆ Arr. ejec: '+fmtD(arrEjeStr)+'</div>':'')
+      +((r.sec==='EJECUTIVO')?(function(){
+        var _av=function(d){return (d&&d.avance!=null&&d.avance!=='')?(parseInt(d.avance)||0):null;};
+        var _coA=null;if(p.ejeCO&&p.ejeCO.length){var s=0,n=0;p.ejeCO.forEach(function(c){if(c&&c.avance!=null&&c.avance!==''){s+=parseInt(c.avance)||0;n++;}});if(n)_coA=Math.round(s/n);}
+        var _mb=function(lbl,val,col){if(val==null)return '';return '<div style="display:flex;align-items:center;gap:3px;margin-top:1px"><span style="font-size:7px;font-weight:800;color:'+col+';width:22px">'+lbl+'</span><div style="flex:1;height:4px;background:#eef2f6;border-radius:2px;overflow:hidden"><div style="height:100%;width:'+val+'%;background:'+col+'"></div></div><span style="font-size:7px;color:'+col+';width:20px;text-align:right">'+val+'%</span></div>';};
+        var b=_mb('IFC',_av(p.ejeIFC),'#185FA5')+_mb('AB',_av(p.ejeAsBuilt),'#BA7517')+_mb('CO',_coA,'#7C3AED');
+        return b?'<div style="margin-top:2px">'+b+'</div>':'';
+      })():'')
       +(eq.length?'<div style="font-size:8px;color:#8a97a3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+esc(equipoFull)+'">👥 '+esc(equipoShort)+'</div>':'')
       +'</div>'
-      +'<div style="position:relative;height:'+(r.sec==='EJECUTIVO'?62:38)+'px;width:'+chartW+'px;flex-shrink:0">'+grid+todayLine+bar+marks+ejePhaseMarks+endLabel+arrEjeMark+'</div>'
+      +'<div style="position:relative;height:'+(r.sec==='EJECUTIVO'?84:38)+'px;width:'+chartW+'px;flex-shrink:0">'+grid+todayLine+bar+marks+ejePhaseMarks+endLabel+arrEjeMark+'</div>'
       +'</div>';
   };
   var byCoord={};rows.forEach(function(r){(byCoord[r.coord]=byCoord[r.coord]||[]).push(r);});
@@ -2834,10 +2924,7 @@ function openProyecto(id,isInterno){
       <div class="frow"><div class="fg"><label>Firma de contrato</label><input type="date" id="peje-firma" value="${p.fechaFirma||''}"></div><div class="fg"><label>◆ Arranque ejecutivo (inicio diseño)</label><input type="date" id="peje-inidis" value="${p.fechaInicioDis||''}"></div></div>
       <div class="frow"><div class="fg"><label>Fin diseño ejecutivo</label><input type="date" id="peje-findis" value="${p.fechaFinDis||''}"></div><div class="fg"><label>Inicio de obra</label><input type="date" id="peje-iniobra" value="${p.fechaInicioObra||''}"></div></div>
       <div class="fg"><label>Fin de obra</label><input type="date" id="peje-finobra" value="${p.fechaFinObra||''}"></div>
-      <div style="font-size:10px;font-weight:700;color:#3B6D11;text-transform:uppercase;letter-spacing:.05em;margin:16px 0 8px">Entregas de ejecutivo</div>
-      <div class="frow"><div class="fg"><label>Entrega ejec. V1</label><input type="date" id="peje-ent1" value="${p.ejeEntregaV1||''}"></div><div class="fg"><label>Entrega ejec. V2</label><input type="date" id="peje-ent2" value="${p.ejeEntregaV2||''}"></div></div>
-      <div class="frow"><div class="fg"><label>Entrega ejec. V3</label><input type="date" id="peje-ent3" value="${p.ejeEntregaV3||''}"></div><div class="fg"><label>Entrega ejec. V4</label><input type="date" id="peje-ent4" value="${p.ejeEntregaV4||''}"></div></div>
-      <div style="font-size:9px;color:#a8a8a8;margin-top:6px">En el Gantt de Carga: para proyectos ejecutivos se muestran el ◆ arranque ejecutivo y estas entregas (marcadas E1, E2…), separadas de las de precon.</div>
+      ${_pejeDelivHtml(p)}
     </div>`:''}
     <div class="btn-row">
       ${id?`<button class="btn btn-danger btn-sm" onclick="archivar(${p.id},true)" style="margin-right:auto">Archivar</button>`:''}
@@ -3002,6 +3089,9 @@ function saveProyecto(id,isInt){
     ejeEntregaV2:document.getElementById('peje-ent2')?document.getElementById('peje-ent2').value:(id?(projects.find(x=>x.id===id).ejeEntregaV2||''):''),
     ejeEntregaV3:document.getElementById('peje-ent3')?document.getElementById('peje-ent3').value:(id?(projects.find(x=>x.id===id).ejeEntregaV3||''):''),
     ejeEntregaV4:document.getElementById('peje-ent4')?document.getElementById('peje-ent4').value:(id?(projects.find(x=>x.id===id).ejeEntregaV4||''):''),
+    ejeIFC:_readEjeDeliv('ifc',id,'ejeIFC'),
+    ejeAsBuilt:_readEjeDeliv('asb',id,'ejeAsBuilt'),
+    ejeCO:_readEjeCO(id),
     fechaFirma:document.getElementById('peje-firma')?document.getElementById('peje-firma').value:(id?(projects.find(x=>x.id===id).fechaFirma||''):''),
     fechaInicioDis:document.getElementById('peje-inidis')?document.getElementById('peje-inidis').value:(id?(projects.find(x=>x.id===id).fechaInicioDis||''):''),
     fechaFinDis:document.getElementById('peje-findis')?document.getElementById('peje-findis').value:(id?(projects.find(x=>x.id===id).fechaFinDis||''):''),
@@ -3011,6 +3101,8 @@ function saveProyecto(id,isInt){
     ultimaActualizacion:todayStr,
     proximoAvance:document.getElementById('ppav')?document.getElementById('ppav').value:'',
   };
+  // % general de ejecutivo = promedio de IFC / As-builts / Change Orders
+  (function(){var _a=ejeAvance(dat);if(dat.etapa==='EJECUTIVO'&&_a!=null)dat.avance=_a;})();
   if(id){
     const i=projects.findIndex(x=>x.id===id);
     if(i>=0){
