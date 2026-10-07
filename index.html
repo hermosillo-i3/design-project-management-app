@@ -1071,8 +1071,8 @@ function _pejeDelivHtml(p){
     var av=(d.avance!=null&&d.avance!=='')?(parseInt(d.avance)||0):0;
     return '<div class="fg" style="background:#f8fafc;border:.5px solid #bfd1e5;border-radius:8px;padding:10px 12px;margin-bottom:8px">'
       +'<div style="font-size:11px;font-weight:700;color:'+color+';margin-bottom:6px">'+title+'</div>'
-      +'<label style="font-size:10px;color:#475569">% Avance: <span id="peje-'+t+'-avlbl">'+av+'</span>%</label>'
-      +'<input type="range" min="0" max="100" step="5" id="peje-'+t+'-avance" value="'+av+'" oninput="document.getElementById(\'peje-'+t+'-avlbl\').textContent=this.value" style="width:100%">'
+      +'<label style="font-size:10px;color:#475569;display:flex;align-items:center;gap:6px">% Avance: <input type="number" min="0" max="100" id="peje-'+t+'-avnum" value="'+av+'" oninput="var v=Math.max(0,Math.min(100,parseInt(this.value)||0));document.getElementById(\'peje-'+t+'-avance\').value=v" style="width:56px;font-family:Arial;font-size:11px;padding:3px 5px;border:.5px solid #bfd1e5;border-radius:5px;text-align:right">%</label>'
+      +'<input type="range" min="0" max="100" step="1" id="peje-'+t+'-avance" value="'+av+'" oninput="var n=document.getElementById(\'peje-'+t+'-avnum\');if(n)n.value=this.value" style="width:100%">'
       +'<div style="font-size:9px;color:#a8a8a8;margin:4px 0 4px">Fechas — la última es la vigente; agrega una nueva si se reprograma.</div>'
       +'<div id="peje-'+t+'-dates">'+dateRows(t,d)+'</div>'
       +'<button type="button" onclick="pejeAddDate(\''+t+'\')" class="btn btn-xs" style="margin-top:3px">+ Reprogramar fecha</button>'
@@ -2863,7 +2863,7 @@ function openProyecto(id,isInterno){
     <div class="fg"><label>Razón</label><input id="prazon" value="${p.razon||''}" placeholder="Detalle adicional..."></div></div>
     <div class="fg"><label>Depende de</label><input id="pbl" value="${p.bloqueadoPor||''}"></div>`:`
     <div class="frow"><div class="fg"><label>Estatus</label><select id="pest"><option>En proceso</option><option>Pausado</option><option>Completado</option></select></div><div class="fg"><label>Próximo avance</label><input type="date" id="ppav" value="${p.proximoAvance||''}"></div></div>`}
-    <div class="fg"><label>% Avance: <span id="avzlbl">${p.avance}</span>%</label><input type="range" min="0" max="100" step="5" id="pavz" value="${p.avance}" oninput="document.getElementById('avzlbl').textContent=this.value"></div>
+    <div class="fg"><label style="display:flex;align-items:center;gap:6px">% Avance: <input type="number" min="0" max="100" id="avznum" value="${p.avance}" oninput="var v=Math.max(0,Math.min(100,parseInt(this.value)||0));document.getElementById('pavz').value=v" style="width:56px;font-family:Arial;font-size:12px;padding:4px 6px;border:.5px solid #bfd1e5;border-radius:6px;text-align:right">%</label><input type="range" min="0" max="100" step="1" id="pavz" value="${p.avance}" oninput="document.getElementById('avznum').value=this.value"></div>
     <div style="border-top:.5px solid #bfd1e5;margin-top:.75rem;padding-top:.75rem">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
         <div style="font-size:10px;font-weight:700;color:#67727a;text-transform:uppercase;letter-spacing:.05em">Historial de entregas</div>
