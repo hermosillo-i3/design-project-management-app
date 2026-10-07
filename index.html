@@ -9475,8 +9475,15 @@ function openEditTask(id){
   const personOpts=_asigNames.map(n=>`<option ${n===t.asignado?'selected':''} value="${String(n).replace(/"/g,'&quot;')}">${n}</option>`).join('');
   const revconNames=Array.from(new Set([...(cat.consultores||[]).map(c=>c.nombre),...(cat.personas||[]).map(p=>p.nombre),'Ernesto Muñoz','Luis Macías','Jesús Portillo'].filter(Boolean))).sort((a,b)=>a.localeCompare(b));
   const revconOpts=revconNames.map(n=>`<option value="${String(n).replace(/"/g,'&quot;')}">`).join('');
+  const _actInt=[...activeProjs(),...internos()].sort((a,b)=>String(a.nombre).localeCompare(String(b.nombre)));
+  const _archP=projects.filter(p=>p.archivado).sort((a,b)=>String(a.nombre).localeCompare(String(b.nombre)));
+  const _po=p=>`<option value="${p.id}" ${String(t.projId)===String(p.id)?'selected':''}>${p.nombre}${p.interno?' [INT]':''}</option>`;
+  const projOpts='<option value="">— Sin proyecto —</option>'
+    +(_actInt.length?'<optgroup label="Activos / internos">'+_actInt.map(_po).join('')+'</optgroup>':'')
+    +(_archP.length?'<optgroup label="📦 Archivados">'+_archP.map(_po).join('')+'</optgroup>':'');
   document.getElementById('modal-body').innerHTML=`<h3>Editar tarea</h3>
     <div class="fg"><label>Tarea</label><textarea id="tt">${t.texto}</textarea></div>
+    <div class="fg"><label>Proyecto</label><select id="tproj">${projOpts}</select></div>
     <div class="frow"><div class="fg"><label>Asignado a</label><select id="ta"><option value="">—</option>${personOpts}</select></div><div class="fg"><label>Fecha pedido</label><input type="date" id="tfp" value="${t.fechaPedido||''}"></div></div>
     <div class="frow"><div class="fg"><label>Fecha compromiso</label><input type="date" id="tfc" value="${t.fechaCompromiso||''}"></div><div class="fg"><label>Bloqueante</label><select id="tbl"><option value="0" ${!t.bloqueante?'selected':''}>No</option><option value="1" ${t.bloqueante?'selected':''}>Sí</option></select></div></div>
     ${_taskFlagsBox(t)}
@@ -9495,6 +9502,7 @@ function updateTask(id){
   t.fechaPedido=document.getElementById('tfp').value;
   t.fechaCompromiso=document.getElementById('tfc').value;
   t.bloqueante=document.getElementById('tbl').value==='1';
+  var _pe=document.getElementById('tproj');if(_pe)t.projId=_pe.value?parseInt(_pe.value):null;
   Object.assign(t,_readTaskFlags());
   sv(K.tasks,tasks);closeModal();renderSeg();renderPendientes();if(typeof renderConsultores==='function')renderConsultores();if(typeof renderGerencia==='function')renderGerencia();if(typeof renderInternos==='function')renderInternos();
   if(_ret)abrirSeguimientoProyecto(_ret);
