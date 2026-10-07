@@ -10931,6 +10931,7 @@ function renderGerencia(){
     if(nombre==='Diana Gasca'){
       myTasks=tasks.filter(function(t){return t.asignado===nombre&&!t.done&&!t.archivado&&t.projId;})
         .sort(function(a,b){
+          var ua=a.urgente?0:1,ub=b.urgente?0:1;if(ua!==ub)return ua-ub;
           if(a.eqTaskPrio!=null&&b.eqTaskPrio!=null) return a.eqTaskPrio-b.eqTaskPrio;
           if(a.eqTaskPrio!=null) return -1; if(b.eqTaskPrio!=null) return 1;
           return (a.fechaCompromiso||'z').localeCompare(b.fechaCompromiso||'z');
@@ -10965,7 +10966,12 @@ function renderGerencia(){
     hitos.sort(function(a,b){return a.fecha.localeCompare(b.fecha);});
 
     // Pendientes generales (only Diana)
-    const genTasks=nombre==='Diana Gasca'?tasks.filter(function(t){return !t.projId&&!t.done&&!t.archivado&&t.gerGeneral;}):[];
+    const genTasks=nombre==='Diana Gasca'?tasks.filter(function(t){return !t.projId&&!t.done&&!t.archivado&&t.gerGeneral;}).sort(function(a,b){
+      var ua=a.urgente?0:1,ub=b.urgente?0:1;if(ua!==ub)return ua-ub;
+      if(a.eqTaskPrio!=null&&b.eqTaskPrio!=null) return a.eqTaskPrio-b.eqTaskPrio;
+      if(a.eqTaskPrio!=null) return -1; if(b.eqTaskPrio!=null) return 1;
+      return (a.fechaCompromiso||'z').localeCompare(b.fechaCompromiso||'z');
+    }):[];
 
     const initials=nombre.split(' ').map(function(w){return w[0];}).slice(0,2).join('');
 
@@ -11273,21 +11279,17 @@ function renderEquipoDetalle(allProjs){
   var el=document.getElementById('equipo-list');
   if(!el) return;
 
-  // Mostrar TODAS las personas activas del equipo (las que tienen tareas activas primero; las demás después, para que las recién agregadas también aparezcan)
-  var _hasTask=function(p){return tasks.some(function(t){return t.asignado===p.nombre&&!t.done&&!t.archivado;});};
-  var personasConTareas=cat.personas.filter(function(p){return !p.baja;}).sort(function(a,b){
-    var ta=_hasTask(a)?0:1,tb=_hasTask(b)?0:1;
-    if(ta!==tb)return ta-tb;
-    return a.nombre.localeCompare(b.nombre);
-  });
+  // Mostrar todas las personas del equipo (incluidos los consultores, ya integrados al equipo) con tareas activas
+  var personasConTareas=cat.personas.filter(function(p){
+    return tasks.some(function(t){return t.asignado===p.nombre&&!t.done&&!t.archivado;});
+  }).sort(function(a,b){return a.nombre.localeCompare(b.nombre);});
 
   if(!personasConTareas.length){
-    el.innerHTML='<div style="padding:2rem;text-align:center;color:#a8a8a8;font-size:12px">Sin personas en el equipo. Usa "+ Agregar persona".</div>';
+    el.innerHTML='<div style="padding:2rem;text-align:center;color:#a8a8a8;font-size:12px">Sin personas con tareas activas. ✓</div>';
     return;
   }
 
-  var _nConTareas=personasConTareas.filter(_hasTask).length;
-  var html='<div style="font-size:9px;color:#a8a8a8;margin-bottom:12px">Mostrando '+personasConTareas.length+' persona(s) del equipo ('+_nConTareas+' con tareas activas) · Arrastra tareas y proyectos para reordenar por prioridad</div>';
+  var html='<div style="font-size:9px;color:#a8a8a8;margin-bottom:12px">Mostrando '+personasConTareas.length+' persona(s) con tareas activas · Arrastra tareas y proyectos para reordenar por prioridad</div>';
 
   personasConTareas.forEach(function(persona){
     var nombre=persona.nombre;
