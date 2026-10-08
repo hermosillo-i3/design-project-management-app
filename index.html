@@ -3581,6 +3581,7 @@ function toggleTaskUrgente(id){
   if(typeof renderConsultores==='function')renderConsultores();
   if(typeof renderEquipo==='function')renderEquipo();
   if(typeof renderPendientes==='function')renderPendientes();
+  if(typeof renderGerencia==='function')renderGerencia();
 }
 function openAddComment(pidArg){
   const pid=(pidArg!=null&&!isNaN(pidArg))?parseInt(pidArg):parseInt(document.getElementById('seg-sel').value);
@@ -11033,13 +11034,14 @@ function renderGerencia(){
         html+='<div draggable="true" ondragstart="gerGenDragStart(event,'+t.id+')" ondragover="event.preventDefault()" ondrop="gerGenDragDrop(event,'+t.id+')" style="padding:7px 12px;border-bottom:.5px solid #e8eef4;border-left:3px solid '+(ov?'#e65a27':'#6990ab')+';cursor:grab;background:'+(ov?'#fff8f6':'#fff')+'">'
           +'<div style="display:flex;align-items:flex-start;gap:6px">'
           +'<input type="checkbox" onchange="doneGerGenTask('+t.id+')" style="margin-top:2px;flex-shrink:0;cursor:pointer">'
-          +'<div style="flex:1"><div style="font-size:11px;color:#1A1A2E;line-height:1.4;margin-bottom:2px">'+t.texto+'</div>'
+          +'<div style="flex:1"><div style="font-size:11px;color:#1A1A2E;line-height:1.4;margin-bottom:2px">'+(t.urgente?'<span style="background:#fdecea;color:#e65a27;border-radius:4px;padding:0 5px;font-size:8px;font-weight:700;margin-right:4px">🔥 URGENTE</span>':'')+t.texto+'</div>'
           +(t.fechaCompromiso?'<div style="font-size:10px;font-weight:700;color:'+(ov?'#e65a27':'#67727a')+'">'+fmtDY(t.fechaCompromiso)+'</div>':'')
           +((t.revTaller||t.gerDesarrollo)?'<div style="margin-top:3px">'
             +(t.revTaller?'<span style="font-size:8px;font-weight:700;background:#fff4e5;color:#854f0b;border:.5px solid #f0c98a;border-radius:4px;padding:1px 6px;margin-right:3px">🔧 '+(t.revTallerCon||'taller/consultor')+'</span>':'')
             +(t.gerDesarrollo?'<span style="font-size:8px;font-weight:700;background:#eef3ff;color:#254a8b;border:.5px solid #b9c9ee;border-radius:4px;padding:1px 6px">📌 '+(t.gerDesarrolloDe||'Desarrollo')+'</span>':'')
             +'</div>':'')
           +'<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:5px">'
+            +'<button onclick="toggleTaskUrgente('+t.id+')" title="Marcar urgente" style="font-size:9px;padding:2px 7px;border:.5px solid '+(t.urgente?'#e65a27':'#bfd1e5')+';border-radius:4px;background:'+(t.urgente?'#fdecea':'#fff')+';cursor:pointer;font-family:Arial;color:'+(t.urgente?'#e65a27':'#a8a8a8')+';font-weight:700">🔥</button>'
             +'<button onclick="openEditTask('+t.id+')" style="font-size:9px;padding:2px 7px;border:.5px solid #bfd1e5;border-radius:4px;background:#fff;cursor:pointer;font-family:Arial;color:#67727a">Editar</button>'
             +'<button onclick="toggleRevTaller('+t.id+')" style="font-size:9px;padding:2px 7px;border:.5px solid '+(t.revTaller?'#f0c98a':'#bfd1e5')+';border-radius:4px;background:'+(t.revTaller?'#fff4e5':'#fff')+';cursor:pointer;font-family:Arial;color:'+(t.revTaller?'#854f0b':'#67727a')+'">🔧 Taller</button>'
             +'<button onclick="toggleGerDesarrollo('+t.id+')" style="font-size:9px;padding:2px 7px;border:.5px solid '+(t.gerDesarrollo?'#b9c9ee':'#bfd1e5')+';border-radius:4px;background:'+(t.gerDesarrollo?'#eef3ff':'#fff')+';cursor:pointer;font-family:Arial;color:'+(t.gerDesarrollo?'#254a8b':'#67727a')+'">📌 Desarrollo</button>'
@@ -11087,9 +11089,10 @@ function renderGerencia(){
             var pr=allProjs.find(function(x){return x.id===t.projId;});
             var ov=t.fechaCompromiso&&t.fechaCompromiso<todayStr;
             html+='<div style="padding:7px 12px;border-bottom:.5px solid #e8eef4">'
-              +'<div style="font-size:11px;color:#1A1A2E;line-height:1.4">'+String(t.texto||'').replace(/</g,'&lt;')+'</div>'
+              +'<div style="font-size:11px;color:#1A1A2E;line-height:1.4">'+(t.urgente?'<span style="background:#fdecea;color:#e65a27;border-radius:4px;padding:0 5px;font-size:8px;font-weight:700;margin-right:4px">🔥 URGENTE</span>':'')+String(t.texto||'').replace(/</g,'&lt;')+'</div>'
               +'<div style="font-size:9px;color:#67727a;margin-top:2px">'+(pr?String(pr.nombre).replace(/</g,'&lt;')+' · ':'')+(t.asignado?'pedido a '+String(t.asignado).replace(/</g,'&lt;'):'')+(t.fechaCompromiso?' · <span style="color:'+(ov?'#e65a27':'#67727a')+';font-weight:700">'+fmtD(t.fechaCompromiso)+(ov?' VENC':'')+'</span>':'')+'</div>'
               +'<div style="display:flex;gap:5px;margin-top:4px">'
+              +'<button onclick="toggleTaskUrgente('+t.id+')" title="Marcar urgente" style="font-size:9px;padding:1px 7px;border:.5px solid '+(t.urgente?'#e65a27':'#bfd1e5')+';border-radius:4px;background:'+(t.urgente?'#fdecea':'#fff')+';cursor:pointer;font-family:Arial;color:'+(t.urgente?'#e65a27':'#a8a8a8')+';font-weight:700">🔥</button>'
               +'<button onclick="openEditTask('+t.id+')" title="Editar tarea" style="font-size:9px;padding:1px 7px;border:.5px solid #6990ab;border-radius:4px;background:#fff;cursor:pointer;font-family:Arial;color:#6990ab">✏ Editar</button>'
               +'<button onclick="quitarVerCon('+t.id+')" title="Ya lo vi / quitar recordatorio" style="font-size:9px;padding:1px 7px;border:.5px solid #cfe3c4;border-radius:4px;background:#fff;cursor:pointer;font-family:Arial;color:#639922;font-weight:700">✓ Ya lo vi</button>'
               +'</div>'
