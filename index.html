@@ -287,20 +287,6 @@ body.qas-env{padding-top:32px}
 <div id="p-dashboard" class="panel active">
   <div class="pdf-break">
     <h2 class="pdf-sh" style="display:none">Dashboard general</h2>
-    <div style="display:flex;gap:8px;margin-bottom:.5rem;align-items:flex-start;flex-wrap:wrap">
-      <div style="flex:1;min-width:200px">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
-          <div>
-            <div class="sec" style="margin-top:0">Notas rápidas</div>
-            <textarea class="notes-area no-print" id="quick-notes" placeholder="Recordatorios rápidos..." oninput="saveNotes()"></textarea>
-          </div>
-          <div>
-            <div class="sec" style="margin-top:0">Comentarios ejecutivos <span style="font-size:9px;color:#a8a8a8;font-weight:400">(van al Resumen Ejecutivo)</span></div>
-            <textarea class="notes-area no-print" id="exec-notes" placeholder="Resumen para dirección..." oninput="saveExecNotes()" style="background:#e0eaf2;border-color:#bfd1e5"></textarea>
-          </div>
-        </div>
-      </div>
-    </div>
     <div class="kpi-grid" id="kpi-grid"></div>
     <div class="sec">Alertas y red flags</div>
     <div id="alert-list"></div>
