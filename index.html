@@ -4016,7 +4016,8 @@ function buildFichaPersona(p){
       +'<button onclick="'+btnFn+'" style="font-size:9px;padding:2px 8px;border:.5px solid #bfd1e5;border-radius:5px;background:#fff;color:#254467;cursor:pointer;font-family:Arial">'+btnLabel+'</button></div>'
       +'<div style="padding:8px 12px">'+body+'</div></div>';
   }
-  return '<div style="margin-top:12px"><div style="font-size:11px;font-weight:700;color:#254467;margin-bottom:8px">📌 Ficha de la persona</div>'
+  return '<div style="margin-top:12px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div style="font-size:11px;font-weight:700;color:#254467">📌 Ficha de la persona</div>'
+    +'<button onclick="openDesempeno('+p.id+',false)" style="font-size:10px;padding:3px 10px;border:.5px solid #6990ab;border-radius:5px;background:#eef4fa;color:#254467;cursor:pointer;font-family:Arial;font-weight:700">📊 Desempeño</button></div>'
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
     +block('📄 Contrato','✏ Editar','openContratoEdit('+p.id+')',contratoBody)
     +block('💰 Compensaciones','+ Agregar','openCompensacionAdd('+p.id+')',compsBody)
@@ -4202,6 +4203,7 @@ function openEditPersona(id){
     <div class="frow"><div class="fg"><label>Nombre</label><input id="pname" value="${p.nombre}"></div><div class="fg"><label>Rol</label><input id="prole" value="${p.rol}"></div></div>
     <div class="frow"><div class="fg"><label>Coordinador</label><select id="pcoord"><option value="">—</option>${coordOpts}</select></div><div class="fg"><label>Máx. proyectos simultáneos</label><input type="number" id="pcap" value="${p.capacidad||3}" min="1" max="20"></div></div>
     <div class="btn-row">
+      <button class="btn btn-sm" onclick="openDesempeno(${id},false)" style="margin-right:6px;background:#eef4fa;color:#254467;border-color:#bfd1e5;font-weight:700" title="Ver resumen de desempeño">📊 Desempeño</button>
       ${p.baja
         ? `<button class="btn btn-sm" onclick="reactivarPersona(${id})" style="margin-right:auto;background:#eaf3de;color:#3B6D11;border-color:#a9d18e">Reactivar</button>`
         : `<button class="btn btn-sm" onclick="bajaPersona(${id})" style="margin-right:6px;background:#fff4e5;color:#854f0b;border-color:#f0c98a" title="Sale del equipo pero se conserva su historial">Dar de baja</button>`}
@@ -4237,7 +4239,8 @@ function _personaResumen(p){
   return {nombre:nombre,projs:projs,activos:activos,arch:arch,total:myTasks.length,done:done,conComp:conComp.length,compCumpl:compCumpl,ppc:ppc,abiertas:abiertas,vencAbiertas:vencAbiertas,unoAunos:(p.seguimiento||[]),comps:(p.compensaciones||[]),caps:(p.capacitaciones||[]),retro:ld('retro_notes_'+nombre,{logros:'',atencion:'',compromisos:''})};
 }
 function _resSec(title,body){return '<div style="background:#fff;border:.5px solid #e3e9ef;border-radius:8px;margin-bottom:10px;overflow:hidden"><div style="padding:6px 12px;background:#f8fafc;border-bottom:.5px solid #e3e9ef;font-size:10px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.04em">'+title+'</div><div style="padding:8px 12px">'+body+'</div></div>';}
-function openBajaResumen(id){
+function openBajaResumen(id){openDesempeno(id,true);}
+function openDesempeno(id,showBaja){
   var p=cat.personas.find(function(x){return x.id===id;});if(!p)return;
   var r=_personaResumen(p);
   var esc=function(s){return String(s==null?'':s).replace(/</g,'&lt;');};
@@ -4264,9 +4267,17 @@ function openBajaResumen(id){
   if(r.retro.compromisos)retroBody+='<div style="font-size:11px"><strong style="color:#254467">🎯 Compromisos:</strong> '+esc(r.retro.compromisos)+'</div>';
   html+=_resSec('🔁 Retro', retroBody||'<div style="font-size:10px;color:#a8a8a8">Sin notas de retro</div>');
   html+=_resSec('💰 Reconocimientos ('+r.comps.length+')', r.comps.length?r.comps.map(function(x){return '<div style="font-size:11px;padding:2px 0">'+(x.tipo==='Bono'?'💰 Bono':'📈 Aumento')+(x.pct?' '+x.pct+'%':'')+' <span style="color:#a8a8a8;font-size:9px">'+(x.fecha?fmtD(x.fecha):'')+(x.nota?' · '+esc(x.nota):'')+'</span></div>';}).join(''):'<div style="font-size:10px;color:#a8a8a8">Sin registros</div>');
+  html+='<details style="margin-bottom:10px"><summary style="cursor:pointer;font-size:10px;font-weight:700;color:#6990ab;padding:4px 0">ⓘ ¿Cómo se calcula?</summary>'
+    +'<div style="font-size:10px;color:#67727a;line-height:1.7;background:#f8fafc;border:.5px solid #e3e9ef;border-radius:8px;padding:8px 12px;margin-top:4px">'
+    +'<b>Proyectos:</b> todos (activos y archivados) donde la persona es Jefe, Coordinador o parte del Equipo.<br>'
+    +'<b>Tareas totales / Cumplidas:</b> todas las tareas asignadas a la persona; "cumplidas" = marcadas como hechas (incluye archivadas).<br>'
+    +'<b>PPC (cumplidas vs prometidas):</b> de las tareas con <i>fecha de compromiso</i>, qué % quedaron hechas = cumplidas ÷ prometidas. Verde ≥80%, amarillo 60–79%, rojo &lt;60%.<br>'
+    +'<b>Abiertas (vencidas):</b> tareas no hechas ni archivadas; entre paréntesis las que ya pasaron su fecha de compromiso.<br>'
+    +'<b>1:1 / Seguimiento, Retro y Reconocimientos:</b> lo que has ido registrando en su ficha (notas de 1:1, logros/puntos de atención/compromisos de la retro, y bonos/aumentos).'
+    +'</div></details>';
   html+='<div class="btn-row" style="position:sticky;bottom:0;background:#fff;padding-top:10px;border-top:1px solid #eef2f6">'
-    +'<button class="btn btn-sm" onclick="confirmBajaPersona('+id+')" style="margin-right:auto;background:#fff4e5;color:#854f0b;border-color:#f0c98a;font-weight:700">Dar de baja definitiva</button>'
-    +'<button class="btn btn-sm" onclick="imprimirResumenBaja('+id+')" style="border:.5px solid #6990ab;color:#6990ab">🖨 Imprimir</button>'
+    +(showBaja?'<button class="btn btn-sm" onclick="confirmBajaPersona('+id+')" style="margin-right:auto;background:#fff4e5;color:#854f0b;border-color:#f0c98a;font-weight:700">Dar de baja definitiva</button>':'')
+    +'<button class="btn btn-sm" onclick="imprimirResumenBaja('+id+')" style="'+(showBaja?'':'margin-right:auto;')+'border:.5px solid #6990ab;color:#6990ab">🖨 Imprimir</button>'
     +'<button class="btn" onclick="fichaReopen('+id+')">Cerrar</button>'
     +'</div>';
   document.getElementById('modal-body').innerHTML=html;
