@@ -3088,6 +3088,7 @@ function saveProyecto(id,isInt){
   };
   // % general de ejecutivo = promedio de IFC / As-builts / Change Orders
   (function(){var _a=ejeAvance(dat);if(dat.etapa==='EJECUTIVO'&&_a!=null)dat.avance=_a;})();
+  var _prevEP=id?((projects.find(function(x){return x.id===id;})||{}).estatusProy||''):'';
   if(id){
     const i=projects.findIndex(x=>x.id===id);
     if(i>=0){
@@ -3095,7 +3096,7 @@ function saveProyecto(id,isInt){
       dat.archivado=prev.archivado;
       dat.archivedAt=prev.archivedAt;
       // Restore execution fields not present in the edit form
-      var _keep=['preconSnapshot','presupuestoControlCotId','extraordinarios','costosEjec','requiereAtencion','gerPrio'];
+      var _keep=['preconSnapshot','presupuestoControlCotId','extraordinarios','costosEjec','requiereAtencion','gerPrio','feedbackPerdida'];
       _keep.forEach(function(f){if(prev[f]!=null&&prev[f]!==undefined)dat[f]=prev[f];});
       projects[i]=dat;
     }else{projects.push(dat);}
@@ -3112,7 +3113,9 @@ function saveProyecto(id,isInt){
     });
     if(_ch)sv(K.cot,_cots);
   })();
+  var _newLost=['Perdido','Cancelado'].indexOf(dat.estatusProy)>=0 && _prevEP!==dat.estatusProy && !dat.feedbackPerdida;
   closeModal();renderAll();
+  if(_newLost)openFeedbackPerdida(dat.id,'');
 }
 
 function archivar(id,fromModal){
@@ -9353,6 +9356,7 @@ function renderArchivo(){
     <td style="font-size:10px;white-space:nowrap;color:#67727a">${fmtD(ent)||'—'}</td>
     <td style="font-size:10px;white-space:nowrap;color:#a8a8a8">${fmtD(p.archivedAt)||'—'}</td>
     <td class="no-print" style="white-space:nowrap">
+      ${['Perdido','Cancelado'].indexOf(ep)>=0?`<button class="btn btn-sm" onclick="openFeedbackPerdida(${p.id},'archivo')" style="margin-right:3px;background:${p.feedbackPerdida?'#eaf3de':'#fff8f6'};color:${p.feedbackPerdida?'#3B6D11':'#c0392b'};border-color:${p.feedbackPerdida?'#a9d18e':'#f5b89b'}" title="${p.feedbackPerdida?'Ver/editar por qué se perdió':'Registrar por qué se perdió'}">📝${p.feedbackPerdida?' ✓':''}</button>`:''}
       <button class="btn btn-sm" onclick="desarchivar(${p.id})" style="margin-right:3px">Restaurar</button>
       <button class="btn btn-sm btn-danger" onclick="eliminarProyecto(${p.id})">Eliminar</button>
     </td>
@@ -9363,11 +9367,53 @@ function renderArchivo(){
 function updateArchEstatus(id, val){
   const p=projects.find(x=>x.id===id);
   if(p){
+    var _era=p.estatusProy||'';
     p.estatusProy=val;
     p.estatusProyFecha=val?todayStr:'';
     sv(K.proj,projects);
     renderArchivo();
+    if(['Perdido','Cancelado'].indexOf(val)>=0 && _era!==val) openFeedbackPerdida(id,'archivo');
   }
+}
+
+// ── FEEDBACK DE CONCURSO PERDIDO ─────────────────────────────
+var MOTIVOS_PERDIDA=['Precio (muy alto)','Plazo / tiempo de entrega','Propuesta técnica / alcance','Experiencia / portafolio','Relación / contacto con el cliente','Decisión interna del cliente','Ganó la competencia','Proyecto cancelado / sin presupuesto','Otro'];
+function openFeedbackPerdida(projId, returnTo){
+  var p=projects.find(function(x){return x.id===projId;});if(!p)return;
+  var f=p.feedbackPerdida||{};
+  var esc=function(s){return String(s==null?'':s).replace(/"/g,'&quot;');};
+  var escT=function(s){return String(s==null?'':s).replace(/</g,'&lt;');};
+  var motOpts='<option value="">— Selecciona —</option>'+MOTIVOS_PERDIDA.map(function(m){return '<option'+(f.motivo===m?' selected':'')+'>'+m+'</option>';}).join('');
+  document.getElementById('modal-body').innerHTML='<h3 style="margin-bottom:2px">📝 ¿Por qué se perdió? — '+escT(p.nombre)+'</h3>'
+    +'<div style="font-size:11px;color:#67727a;margin-bottom:12px">Registra el aprendizaje del concurso para detectar patrones y no repetirlo.</div>'
+    +'<div class="frow"><div class="fg"><label>Fecha</label><input type="date" id="fp-fecha" value="'+(f.fecha||p.estatusProyFecha||todayStr)+'"></div>'
+    +'<div class="fg"><label>Motivo principal</label><select id="fp-motivo">'+motOpts+'</select></div></div>'
+    +'<div class="fg"><label>¿Quién ganó? (competidor)</label><input id="fp-ganador" value="'+esc(f.ganador)+'" placeholder="Despacho / empresa que ganó, si se sabe"></div>'
+    +'<div class="frow"><div class="fg"><label>Nuestro monto (MXN)</label><input type="number" id="fp-precionuestro" value="'+(f.precioNuestro!=null?f.precioNuestro:'')+'" placeholder="opcional"></div>'
+    +'<div class="fg"><label>Monto del ganador (MXN)</label><input type="number" id="fp-precioganador" value="'+(f.precioGanador!=null?f.precioGanador:'')+'" placeholder="opcional"></div></div>'
+    +'<div class="fg"><label>Notas / lecciones aprendidas</label><textarea id="fp-notas" rows="4" placeholder="¿Qué aprendimos? ¿Qué haríamos diferente la próxima vez?">'+escT(f.notas||'')+'</textarea></div>'
+    +'<div class="btn-row">'
+    +(p.feedbackPerdida?'<button class="btn btn-danger btn-sm" onclick="deleteFeedbackPerdida('+projId+',\''+(returnTo||'')+'\')" style="margin-right:auto">Borrar</button>':'')
+    +'<button class="btn" onclick="closeModal()">Cancelar</button>'
+    +'<button class="btn btn-primary" onclick="saveFeedbackPerdida('+projId+',\''+(returnTo||'')+'\')">Guardar</button></div>';
+  openModal();
+}
+function saveFeedbackPerdida(projId, returnTo){
+  var p=projects.find(function(x){return x.id===projId;});if(!p)return;
+  var g=function(id){var e=document.getElementById(id);return e?e.value:'';};
+  var pn=parseFloat(g('fp-precionuestro')),pg=parseFloat(g('fp-precioganador'));
+  p.feedbackPerdida={fecha:g('fp-fecha'),motivo:g('fp-motivo'),ganador:g('fp-ganador').trim(),precioNuestro:isNaN(pn)?null:pn,precioGanador:isNaN(pg)?null:pg,notas:g('fp-notas').trim()};
+  p.ultimaActualizacion=todayStr;
+  sv(K.proj,projects);closeModal();
+  if(returnTo==='archivo'){if(typeof renderArchivo==='function')renderArchivo();}
+  else if(typeof renderAll==='function')renderAll();
+}
+function deleteFeedbackPerdida(projId, returnTo){
+  var p=projects.find(function(x){return x.id===projId;});if(!p)return;
+  if(!confirm('¿Borrar el feedback de este concurso?'))return;
+  delete p.feedbackPerdida;sv(K.proj,projects);closeModal();
+  if(returnTo==='archivo'){if(typeof renderArchivo==='function')renderArchivo();}
+  else if(typeof renderAll==='function')renderAll();
 }
 
 // ── CATÁLOGO ─────────────────────────────────────────────────
@@ -12943,6 +12989,37 @@ function renderEstadisticas(){
   cargaHtml=_statWrap('cargas','👥 Cargas laborales',cargaHtml);
   execHtml=_statWrap('financiero','💰 Resumen financiero y ejecutivo',execHtml);
   aseHtml=_statWrap('contratistas','🏗️ Contratistas / asesores',aseHtml);
+
+  // ── Concursos perdidos — motivos ──────────────────────────
+  var perdidasHtml='';
+  (function(){
+    var _esc=function(s){return String(s==null?'':s).replace(/</g,'&lt;');};
+    var _lost=filtered.filter(function(p){return ['Perdido','Cancelado'].indexOf(p.estatusProy||'')>=0;});
+    if(!_lost.length){perdidasHtml='';return;}
+    var _lostFb=_lost.filter(function(p){return p.feedbackPerdida&&(p.feedbackPerdida.motivo||p.feedbackPerdida.notas);});
+    var _motCount={};
+    _lost.forEach(function(p){var m=(p.feedbackPerdida&&p.feedbackPerdida.motivo)||'Sin registrar';_motCount[m]=(_motCount[m]||0)+1;});
+    var _motSorted=Object.entries(_motCount).sort(function(a,b){return b[1]-a[1];});
+    var _maxMot=_motSorted.length?_motSorted[0][1]:1;
+    var _fdate=function(p){return String((p.feedbackPerdida&&p.feedbackPerdida.fecha)||p.estatusProyFecha||'');};
+    var inner='<div style="font-size:10px;color:#67727a;margin-bottom:10px">'+_lost.length+' concurso(s) perdido(s)/cancelado(s) en el rango · '+_lostFb.length+' con feedback registrado</div>'
+      +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem">'
+      +'<div style="background:#fff;border-radius:12px;border:.5px solid #bfd1e5;padding:16px 18px"><div class="sec" style="margin-top:0;margin-bottom:12px">Por motivo</div>'
+      +_motSorted.map(function(m){return '<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:10px;font-weight:700;color:'+(m[0]==='Sin registrar'?'#a8a8a8':'#c0392b')+'">'+_esc(m[0])+'</span></div>'+bar(m[1],_maxMot,m[0]==='Sin registrar'?'#cbd5e1':'#e65a27')+'</div>';}).join('')
+      +'</div>'
+      +'<div style="background:#fff;border-radius:12px;border:.5px solid #bfd1e5;padding:16px 18px"><div class="sec" style="margin-top:0;margin-bottom:12px">Detalle</div>'
+      +_lost.slice().sort(function(a,b){return _fdate(b).localeCompare(_fdate(a));}).map(function(p){
+        var f=p.feedbackPerdida||{};
+        return '<div style="border-bottom:.5px solid #eef2f6;padding:6px 0">'
+          +'<div style="font-size:11px;font-weight:700;color:#254467">'+_esc(p.nombre)+'</div>'
+          +'<div style="font-size:9px;color:#a8a8a8">'+_esc(p.cliente||'')+(_fdate(p)?' · '+fmtD(_fdate(p)):'')+'</div>'
+          +(f.motivo?'<div style="font-size:10px;color:#c0392b;font-weight:600;margin-top:2px">'+_esc(f.motivo)+(f.ganador?' · ganó: '+_esc(f.ganador):'')+'</div>':'<div style="font-size:9px;color:#a8a8a8;margin-top:2px">Sin feedback · <a href="#" onclick="openFeedbackPerdida('+p.id+',\'\');return false" style="color:#6990ab;font-weight:700">registrar</a></div>')
+          +(f.notas?'<div style="font-size:10px;color:#67727a;margin-top:2px">'+_esc(f.notas)+'</div>':'')
+          +'</div>';
+      }).join('')
+      +'</div></div>';
+    perdidasHtml=_statWrap('perdidas','❌ Concursos perdidos — motivos',inner);
+  })();
   document.getElementById('stats-container').innerHTML=`
     <!-- Filters -->
     <div style="background:#fff;border-radius:10px;padding:14px 16px;border:.5px solid #bfd1e5;margin-bottom:1.25rem">
@@ -12972,6 +13049,7 @@ function renderEstadisticas(){
     ${cargaHtml}
     ${execHtml}
     ${aseHtml}
+    ${perdidasHtml}
 
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem">
 
