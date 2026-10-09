@@ -507,9 +507,10 @@ body.qas-env{padding-top:32px}
     <span id="arch-count" style="font-size:10px;color:#a8a8a8;white-space:nowrap"></span>
     <button class="btn btn-sm" onclick="document.getElementById('arch-search').value='';renderArchivo()" style="white-space:nowrap">Limpiar</button>
   </div>
+  <div id="arch-chips" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px"></div>
   <div class="tbl-wrap">
     <table>
-      <thead><tr><th>#</th><th>Proyecto</th><th>Tipo</th><th>Etapa</th><th>Cliente</th><th>Coord.</th><th>Estatus Proy.</th><th>F.Cambio</th><th>F.Arranque</th><th>Últ.Entrega</th><th>F.Archivado</th><th class="no-print"></th></tr></thead>
+      <thead><tr><th>#</th><th>Proyecto</th><th>Tipo</th><th>Etapa</th><th>Cliente</th><th>Coord.</th><th>Sección</th><th>Estatus Proy.</th><th>F.Cambio</th><th>F.Arranque</th><th>Últ.Entrega</th><th>F.Archivado</th><th class="no-print"></th></tr></thead>
       <tbody id="tbody-arch"></tbody>
     </table>
   </div>
@@ -3096,7 +3097,7 @@ function saveProyecto(id,isInt){
       dat.archivado=prev.archivado;
       dat.archivedAt=prev.archivedAt;
       // Restore execution fields not present in the edit form
-      var _keep=['preconSnapshot','presupuestoControlCotId','extraordinarios','costosEjec','requiereAtencion','gerPrio','feedbackPerdida'];
+      var _keep=['preconSnapshot','presupuestoControlCotId','extraordinarios','costosEjec','requiereAtencion','gerPrio','feedbackPerdida','archivoMotivo'];
       _keep.forEach(function(f){if(prev[f]!=null&&prev[f]!==undefined)dat[f]=prev[f];});
       projects[i]=dat;
     }else{projects.push(dat);}
@@ -3125,6 +3126,7 @@ function archivar(id,fromModal){
   if(!confirm(msg))return;
   const i=projects.findIndex(x=>x.id===id);
   projects[i].archivado=true;projects[i].archivedAt=todayStr;
+  if(!projects[i].archivoMotivo)projects[i].archivoMotivo=_archMotivo(projects[i]);
   sv(K.proj,projects);if(fromModal)closeModal();renderAll();
 }
 function desarchivar(id){
@@ -9317,35 +9319,64 @@ function saveLog(id){
   }
   sv(K.log,logItems);closeModal();renderLog();
 }
+var ARCH_SECS=[
+  {key:'completado',label:'✅ Completados',motivos:['Completado'],color:'#3B6D11',bg:'#eaf3de',bd:'#a9d18e'},
+  {key:'perdcanc',label:'❌ Perdidos / Cancelados',motivos:['Perdido','Cancelado'],color:'#c0392b',bg:'#fdecea',bd:'#f5b89b'},
+  {key:'standby',label:'⏸ StandBy',motivos:['StandBy'],color:'#92400E',bg:'#fff4e5',bd:'#f0c98a'},
+  {key:'otros',label:'📦 Otros',motivos:['Otro'],color:'#67727a',bg:'#eef2f6',bd:'#bfd1e5'}
+];
+function _archMotivo(p){
+  if(p.archivoMotivo)return p.archivoMotivo;
+  var ep=p.estatusProy||'';
+  if(ep==='Perdido')return 'Perdido';
+  if(ep==='Cancelado')return 'Cancelado';
+  if(ep==='StandBy')return 'StandBy';
+  if(p.estatus==='Completado'||(parseInt(p.avance)||0)>=100)return 'Completado';
+  return 'Otro';
+}
+function _archSecKey(p){var m=_archMotivo(p);for(var i=0;i<ARCH_SECS.length;i++){if(ARCH_SECS[i].motivos.indexOf(m)>=0)return ARCH_SECS[i].key;}return 'otros';}
+function setArchMotivo(id,val){var p=projects.find(function(x){return x.id===id;});if(p){p.archivoMotivo=val;p.ultimaActualizacion=todayStr;sv(K.proj,projects);renderArchivo();}}
+function archSetSection(k){sv('gh_arch_section',k);renderArchivo();}
 function renderArchivo(){
   const epCls={Ongoing:'b-ok',StandBy:'b-risk',Perdido:'b-crit',Ganado:'b-purple',Cancelado:'b-pause'};
   const epOpts=['','Ongoing','StandBy','Perdido','Ganado','Cancelado'];
   const _sEl=document.getElementById('arch-search');
   const _q=_sEl?_sEl.value.trim().toLowerCase():'';
-  let _list=archived();
+  var _all=archived();
+  var _searched=_all.slice();
   if(_q){
-    _list=_list.filter(function(p){
+    _searched=_searched.filter(function(p){
       var _ent=entUlt(p)||'';
-      var hay=[p.num,p.nombre,p.cliente,p.coord,p.jefe,p.tipo,p.etapa,p.estatusProy,(p.interno?'interno':''),
-        p.estatusProyFecha,fmtD(p.estatusProyFecha),
-        p.arranque,fmtD(p.arranque),
-        _ent,fmtD(_ent),
-        p.archivedAt,fmtD(p.archivedAt)].filter(Boolean).join(' ').toLowerCase();
+      var hay=[p.num,p.nombre,p.cliente,p.coord,p.jefe,p.tipo,p.etapa,p.estatusProy,_archMotivo(p),(p.interno?'interno':''),
+        p.estatusProyFecha,fmtD(p.estatusProyFecha),p.arranque,fmtD(p.arranque),
+        _ent,fmtD(_ent),p.archivedAt,fmtD(p.archivedAt)].filter(Boolean).join(' ').toLowerCase();
       return _q.split(/\s+/).every(function(w){return hay.indexOf(w)!==-1;});
     });
   }
+  // conteos por sección (sobre lo buscado)
+  var _secCount={};_searched.forEach(function(p){var k=_archSecKey(p);_secCount[k]=(_secCount[k]||0)+1;});
+  var _sec=ld('gh_arch_section','');
+  var chipsEl=document.getElementById('arch-chips');
+  if(chipsEl){
+    var _chip=function(k,label,n,active,bg,bd,col){return '<button onclick="archSetSection(\''+k+'\')" style="font-size:11px;padding:4px 12px;border-radius:14px;border:.5px solid '+(active?(bd||'#254467'):'#d7dde5')+';background:'+(active?(bg||'#254467'):'#fff')+';color:'+(active?(col||'#254467'):'#67727a')+';cursor:pointer;font-family:Arial;font-weight:700">'+label+' ('+n+')</button>';};
+    chipsEl.innerHTML=_chip('','Todos',_searched.length,_sec==='','#254467','#254467','#fff')
+      +ARCH_SECS.map(function(s){return _chip(s.key,s.label,_secCount[s.key]||0,_sec===s.key,s.bg,s.bd,s.color);}).join('');
+  }
+  var _list=_sec?_searched.filter(function(p){return _archSecKey(p)===_sec;}):_searched;
   const _cnt=document.getElementById('arch-count');
-  if(_cnt)_cnt.textContent=_q?(_list.length+' de '+archived().length):(archived().length+' archivados');
-  document.getElementById('tbody-arch').innerHTML=_list.length?_list.map(p=>{
-    const ep=p.estatusProy||'';
-    const ent=entUlt(p)||'';
-    return`<tr>
+  if(_cnt)_cnt.textContent=_q?(_list.length+' de '+_all.length):(_all.length+' archivados');
+  var rowHtml=function(p){
+    const ep=p.estatusProy||'';const ent=entUlt(p)||'';
+    return `<tr>
     <td style="color:#a8a8a8">${p.num}</td>
     <td style="font-weight:700;color:#67727a;max-width:140px;font-size:11px">${p.nombre}</td>
     <td><span class="badge ${p.interno?'b-int':'b-pause'}" style="font-size:9px">${p.interno?'INTERNO':p.tipo||'—'}</span></td>
     <td>${etapaBadge(p.etapa,p.interno)}</td>
     <td style="font-size:10px;max-width:90px">${p.cliente||'—'}</td>
     <td style="font-size:10px"><span class="badge b-blue">${p.coord||'—'}</span></td>
+    <td><select onchange="setArchMotivo(${p.id},this.value)" style="font-size:9px;padding:1px 3px;border-radius:4px;border:.5px solid #bfd1e5;font-family:Arial;cursor:pointer;background:transparent">
+      ${['Completado','Perdido','Cancelado','StandBy','Otro'].map(o=>`<option ${_archMotivo(p)===o?'selected':''}>${o}</option>`).join('')}
+    </select></td>
     <td>
       <select onchange="updateArchEstatus(${p.id},this.value)" style="font-size:9px;padding:1px 3px;border-radius:4px;border:.5px solid #bfd1e5;font-family:Arial;cursor:pointer;background:transparent" class="${epCls[ep]||''}">
         ${epOpts.map(o=>`<option value="${o}" ${ep===o?'selected':''}>${o||'— sin estatus —'}</option>`).join('')}
@@ -9361,7 +9392,21 @@ function renderArchivo(){
       <button class="btn btn-sm btn-danger" onclick="eliminarProyecto(${p.id})">Eliminar</button>
     </td>
   </tr>`;
-  }).join(''):'<tr><td colspan="12" style="color:#67727a;font-size:11px;text-align:center;padding:1rem">'+(_q?'Sin resultados para "'+_q+'".':'Sin proyectos archivados.')+'</td></tr>';
+  };
+  var body='';
+  if(!_list.length){
+    body='<tr><td colspan="13" style="color:#67727a;font-size:11px;text-align:center;padding:1rem">'+(_q?'Sin resultados para "'+_q+'".':(_sec?'Sin proyectos en esta sección.':'Sin proyectos archivados.'))+'</td></tr>';
+  } else if(_sec){
+    body=_list.map(rowHtml).join('');
+  } else {
+    ARCH_SECS.forEach(function(s){
+      var grp=_list.filter(function(p){return _archSecKey(p)===s.key;});
+      if(!grp.length)return;
+      body+='<tr><td colspan="13" style="background:'+s.bg+';color:'+s.color+';font-weight:800;font-size:10px;padding:5px 9px;text-transform:uppercase;letter-spacing:.04em">'+s.label+' · '+grp.length+'</td></tr>';
+      body+=grp.map(rowHtml).join('');
+    });
+  }
+  document.getElementById('tbody-arch').innerHTML=body;
 }
 
 function updateArchEstatus(id, val){
