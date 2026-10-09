@@ -9383,11 +9383,12 @@ function openFeedbackPerdida(projId, returnTo){
   var f=p.feedbackPerdida||{};
   var esc=function(s){return String(s==null?'':s).replace(/"/g,'&quot;');};
   var escT=function(s){return String(s==null?'':s).replace(/</g,'&lt;');};
-  var motOpts='<option value="">— Selecciona —</option>'+MOTIVOS_PERDIDA.map(function(m){return '<option'+(f.motivo===m?' selected':'')+'>'+m+'</option>';}).join('');
+  var curMot=(f.motivos&&f.motivos.length)?f.motivos:(f.motivo?[f.motivo]:[]);
+  var motChecks=MOTIVOS_PERDIDA.map(function(m){var ck=curMot.indexOf(m)>=0;return '<label style="display:flex;align-items:center;gap:6px;font-size:11px;padding:3px 2px;cursor:pointer"><input type="checkbox" class="fp-motivo-ck" value="'+esc(m)+'" '+(ck?'checked':'')+' style="width:14px;height:14px"> '+m+'</label>';}).join('');
   document.getElementById('modal-body').innerHTML='<h3 style="margin-bottom:2px">📝 ¿Por qué se perdió? — '+escT(p.nombre)+'</h3>'
     +'<div style="font-size:11px;color:#67727a;margin-bottom:12px">Registra el aprendizaje del concurso para detectar patrones y no repetirlo.</div>'
-    +'<div class="frow"><div class="fg"><label>Fecha</label><input type="date" id="fp-fecha" value="'+(f.fecha||p.estatusProyFecha||todayStr)+'"></div>'
-    +'<div class="fg"><label>Motivo principal</label><select id="fp-motivo">'+motOpts+'</select></div></div>'
+    +'<div class="fg"><label>Fecha</label><input type="date" id="fp-fecha" value="'+(f.fecha||p.estatusProyFecha||todayStr)+'"></div>'
+    +'<div class="fg"><label>Motivos <span style="font-weight:400;color:#a8a8a8">(puedes marcar varios)</span></label><div style="background:#f8fafc;border:.5px solid #bfd1e5;border-radius:6px;padding:8px 10px;display:grid;grid-template-columns:1fr 1fr;gap:0 14px">'+motChecks+'</div></div>'
     +'<div class="fg"><label>¿Quién ganó? <span style="font-weight:400;color:#a8a8a8">(opcional — si se sabe)</span></label><input id="fp-ganador" value="'+esc(f.ganador)+'" placeholder="Despacho / empresa que ganó, si se sabe"></div>'
     +'<div class="frow"><div class="fg"><label>Nuestro monto (MXN)</label><input type="number" id="fp-precionuestro" value="'+(f.precioNuestro!=null?f.precioNuestro:'')+'" placeholder="opcional"></div>'
     +'<div class="fg"><label>Monto del ganador (MXN)</label><input type="number" id="fp-precioganador" value="'+(f.precioGanador!=null?f.precioGanador:'')+'" placeholder="opcional"></div></div>'
@@ -9402,7 +9403,8 @@ function saveFeedbackPerdida(projId, returnTo){
   var p=projects.find(function(x){return x.id===projId;});if(!p)return;
   var g=function(id){var e=document.getElementById(id);return e?e.value:'';};
   var pn=parseFloat(g('fp-precionuestro')),pg=parseFloat(g('fp-precioganador'));
-  p.feedbackPerdida={fecha:g('fp-fecha'),motivo:g('fp-motivo'),ganador:g('fp-ganador').trim(),precioNuestro:isNaN(pn)?null:pn,precioGanador:isNaN(pg)?null:pg,notas:g('fp-notas').trim()};
+  var motivos=[].slice.call(document.querySelectorAll('.fp-motivo-ck:checked')).map(function(c){return c.value;});
+  p.feedbackPerdida={fecha:g('fp-fecha'),motivos:motivos,motivo:motivos.join(', '),ganador:g('fp-ganador').trim(),precioNuestro:isNaN(pn)?null:pn,precioGanador:isNaN(pg)?null:pg,notas:g('fp-notas').trim()};
   p.ultimaActualizacion=todayStr;
   sv(K.proj,projects);closeModal();
   if(returnTo==='archivo'){if(typeof renderArchivo==='function')renderArchivo();}
@@ -13010,7 +13012,7 @@ function renderEstadisticas(){
     if(!_lost.length){perdidasHtml='';return;}
     var _lostFb=_lost.filter(function(p){return p.feedbackPerdida&&(p.feedbackPerdida.motivo||p.feedbackPerdida.notas);});
     var _motCount={};
-    _lost.forEach(function(p){var m=(p.feedbackPerdida&&p.feedbackPerdida.motivo)||'Sin registrar';_motCount[m]=(_motCount[m]||0)+1;});
+    _lost.forEach(function(p){var ms=(p.feedbackPerdida&&p.feedbackPerdida.motivos&&p.feedbackPerdida.motivos.length)?p.feedbackPerdida.motivos:((p.feedbackPerdida&&p.feedbackPerdida.motivo)?[p.feedbackPerdida.motivo]:['Sin registrar']);ms.forEach(function(m){_motCount[m]=(_motCount[m]||0)+1;});});
     var _motSorted=Object.entries(_motCount).sort(function(a,b){return b[1]-a[1];});
     var _maxMot=_motSorted.length?_motSorted[0][1]:1;
     var _fdate=function(p){return String((p.feedbackPerdida&&p.feedbackPerdida.fecha)||p.estatusProyFecha||'');};
