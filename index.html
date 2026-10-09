@@ -1168,7 +1168,7 @@ function renderDashboard(){
     {l:'Críticos',v:nCrit,s:'semáforo rojo',f:'crit',detail:'crit',c:'#e65a27'},
     {l:'En riesgo',v:nRisk,s:'semáforo amarillo',f:'risk',detail:'risk',c:'#6990ab'},
     {l:'Avance prom.',v:avgAvz+'%',s:'portafolio',f:null,detail:'avance'},
-    {l:'Tareas abiertas',v:pendOpen,s:'pendientes',f:null,detail:'tareas',c:pendOpen>5?'#e65a27':undefined},
+    {l:'Tareas abiertas',v:pendOpen,s:'de todo el equipo',f:null,detail:'tareas',c:pendOpen>5?'#e65a27':undefined},
     {l:'Internos',v:internos().length,s:'proyectos',f:'interno',detail:'internos'},
   ];
 
@@ -9778,7 +9778,19 @@ function showKPIDetail(type){
   else if(t==='crit'){title='Proyectos críticos o vencidos';items=ps.filter(p=>sem(p).cls==='crit').map(p=>`<div class="detail-modal-item"><span style="flex:1;font-weight:700">${p.nombre}</span><span class="sem crit">${sem(p).label}</span><button class="btn btn-xs no-print" onclick="closeModal();openProyecto(${p.id},false)" style="margin-left:6px">Editar</button></div>`);}
   else if(t==='risk'){title='Proyectos en riesgo';items=ps.filter(p=>sem(p).cls==='risk').map(p=>`<div class="detail-modal-item"><span style="flex:1;font-weight:700">${p.nombre}</span><span class="sem risk">${sem(p).label}</span><button class="btn btn-xs no-print" onclick="closeModal();openProyecto(${p.id},false)" style="margin-left:6px">Editar</button></div>`);}
   else if(t==='avance'){title='Avance por proyecto';const sorted=[...ps].sort((a,b)=>a.avance-b.avance);items=sorted.map(p=>`<div class="detail-modal-item"><span style="flex:1;font-weight:700">${p.nombre}</span><div style="display:flex;align-items:center;gap:4px"><div class="pbar"><div class="pfill" style="width:${p.avance}%"></div></div><span style="font-size:10px;font-weight:700">${p.avance}%</span></div></div>`);}
-  else if(t==='tareas'){title='Tareas abiertas';const open=tasks.filter(t=>!t.done&&!t.archivado);const byP={};open.forEach(t=>{const p=projects.find(x=>x.id===t.projId);const n=p?p.nombre:'?';if(!byP[n])byP[n]=[];byP[n].push(t);});items=Object.entries(byP).map(([proj,ts])=>`<div style="margin-bottom:6px"><div style="font-weight:700;font-size:11px;color:#254467;padding:3px 7px;background:#EEF2FF;border-radius:4px;margin-bottom:3px">${proj}</div>${ts.map(t=>{const ov=t.fechaCompromiso&&t.fechaCompromiso<todayStr;return`<div style="font-size:10px;padding:3px 7px;border-bottom:.5px solid #eef2f6">${t.texto} · <span style="${ov?'color:#e65a27;font-weight:700':'color:#67727a'}">Comp: ${fmtD(t.fechaCompromiso)}</span></div>`;}).join('')}</div>`);}
+  else if(t==='tareas'){
+    title='Tareas abiertas por responsable';
+    const open=tasks.filter(t=>!t.done&&!t.archivado);
+    const byR={};open.forEach(t=>{const n=t.asignado||'— Sin responsable —';if(!byR[n])byR[n]=[];byR[n].push(t);});
+    const names=Object.keys(byR).sort((a,b)=>{if(a==='Diana Gasca')return -1;if(b==='Diana Gasca')return 1;return byR[b].length-byR[a].length;});
+    items=names.map(n=>{
+      const ts=byR[n].slice().sort((a,b)=>(a.fechaCompromiso||'z').localeCompare(b.fechaCompromiso||'z'));
+      const nVenc=ts.filter(t=>t.fechaCompromiso&&t.fechaCompromiso<todayStr).length;
+      return `<div style="margin-bottom:8px"><div style="font-weight:700;font-size:11px;color:#254467;padding:4px 8px;background:#EEF2FF;border-radius:4px;margin-bottom:3px;display:flex;justify-content:space-between;gap:8px"><span>${n}</span><span style="font-weight:400;color:#67727a">${ts.length}${nVenc?` · <span style="color:#e65a27;font-weight:700">${nVenc} venc.</span>`:''}</span></div>`
+        +ts.map(t=>{const ov=t.fechaCompromiso&&t.fechaCompromiso<todayStr;const proj=projects.find(x=>x.id===t.projId);return `<div style="font-size:10px;padding:3px 8px;border-bottom:.5px solid #eef2f6">${t.urgente?'🔥 ':''}${String(t.texto||'').substring(0,70)}${(t.texto||'').length>70?'…':''}${proj?` · <span style="color:#254467;font-weight:700">${String(proj.nombre).substring(0,20)}</span>`:''}${t.fechaCompromiso?` · <span style="${ov?'color:#e65a27;font-weight:700':'color:#67727a'}">${fmtD(t.fechaCompromiso)}${ov?' VENC':''}</span>`:''}</div>`;}).join('')
+        +`</div>`;
+    });
+  }
   else if(t==='consul'){title='Consultores con resp. pendiente >7d';ps.forEach(p=>(p.consultores||[]).filter(c=>c.diasSinResp>7).forEach(c=>{items.push(`<div class="detail-modal-item"><span class="badge b-purple">${c.nombre}</span><span style="flex:1;margin-left:6px">${p.nombre}</span><span style="color:#e65a27;font-weight:700;font-size:10px">${c.diasSinResp}d</span></div>`);}));}
   else if(t==='internos'){title='Proyectos internos';items=internos().map(p=>`<div class="detail-modal-item"><span class="badge b-int">INT</span><span style="flex:1;font-weight:700;margin-left:6px">${p.nombre}</span><span class="momentum ${momentum(p).cls}">${momentum(p).label}</span><button class="btn btn-xs no-print" onclick="closeModal();openProyecto(${p.id},true)" style="margin-left:6px">Editar</button></div>`);}
   else if(t.startsWith('tipo_')){
