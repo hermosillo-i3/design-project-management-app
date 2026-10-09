@@ -12742,7 +12742,7 @@ function renderEstadisticas(){
   var margenAnual=generado-gastado;
   var _nowM=todayStr.slice(0,7);
   var cargaMes={};months.forEach(function(m){var mS=m+'-01',mE=m+'-31';cargaMes[m]=allP.filter(function(p){if(p.interno)return false;var ini=p.arranque||'';var fin=entUlt(p)||'';if(!ini)return false;if(ini>mE)return false;if(fin){if(fin<mS)return false;}else{if(m>_nowM)return false;}return true;}).length;});
-  var decididos=ganados+perdidos+cancelados;var winRate=decididos?Math.round(ganados/decididos*100):0;
+  var decididos=ganados+perdidos;var winRate=decididos?Math.round(ganados/decididos*100):0;
   var m2Total=filtered.filter(function(p){return !p.interno;}).reduce(function(s,p){return s+(parseFloat(p.areaM2)||0);},0);
   var _cotsAll=getCots();
   var pipeline=filtered.filter(function(p){return p.etapa==='PRECON'&&!p.interno&&['Perdido','Cancelado'].indexOf(p.estatusProy||'')<0;}).reduce(function(s,p){var pc=_cotsAll.filter(function(c){return String(c.projId)===String(p.id);});if(!pc.length)return s;var cot=pc.filter(function(c){return String(c.id)===String(p.presupuestoControlCotId);})[0]||pc.slice().sort(function(a,b){return (b.fecha||'').localeCompare(a.fecha||'');})[0];return s+(cot?calcCotMetrics(cot).grandTotal:0);},0);
