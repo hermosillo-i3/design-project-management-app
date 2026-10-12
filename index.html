@@ -4042,7 +4042,7 @@ function buildFichaPersona(p){
     +block('📄 Contrato','✏ Editar','openContratoEdit('+p.id+')',contratoBody)
     +block('💰 Compensaciones','+ Agregar','openCompensacionAdd('+p.id+')',compsBody)
     +block('🎓 Capacitaciones','+ Agregar','openCapacitacionAdd('+p.id+')',capsBody)
-    +block('📝 Seguimiento / 1:1','+ Agregar','openSeguimientoAdd('+p.id+')',segsBody)
+    +block('📝 1:1 y compromisos','🎯 Gestionar','openCompromisos(\''+String(p.nombre).replace(/'/g,"\\'")+'\')',segsBody)
     +'</div></div>';
 }
 function toggleArchPersona(id){var d=document.getElementById('archp-'+id);if(d)d.style.display=d.style.display==='none'?'block':'none';}
@@ -4399,23 +4399,29 @@ function _s1a1CompRowHtml(c){
     +'<label style="font-size:9px;color:#67727a;display:flex;flex-direction:column;gap:2px">¿Para cuándo?<input type="date" class="rc-paracuando" value="'+esc(_pc)+'" style="'+inp+'"></label>'
     +'</div></div>';
 }
-function _s1a1SessionHtml(s){
+function _s1a1SessionHtml(s,collapsed){
   s=s||{};
   var esc=function(v){return String(v==null?'':v).replace(/"/g,'&quot;');};
   var sid=s.id||('s'+Date.now()+Math.floor(Math.random()*10000));
   var comps=(s.compromisos||[]).map(_s1a1CompRowHtml).join('');
+  var nComp=(s.compromisos||[]).length;
   return '<div class="s1a1-session" data-sid="'+esc(sid)+'" style="border:.5px solid #cbd5e1;border-radius:10px;padding:10px;margin-bottom:10px;background:#faf9ff">'
     +'<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">'
+    +'<button type="button" onclick="s1a1ToggleSession(this)" class="s1a1-chev" style="border:none;background:none;cursor:pointer;font-size:13px;color:#7C3AED;padding:0 2px" title="Colapsar/expandir">'+(collapsed?'▸':'▾')+'</button>'
     +'<span style="font-size:11px;font-weight:800;color:#7C3AED;white-space:nowrap">📅 Sesión 1:1</span>'
     +'<input type="date" class="s1a1-fecha" value="'+esc(s.fecha||todayStr)+'" style="font-family:Arial;font-size:11px;padding:4px 6px;border:.5px solid #bfd1e5;border-radius:6px">'
     +'<input class="s1a1-nota" value="'+esc(s.nota)+'" placeholder="Nota general de la sesión (opcional)" style="flex:1;font-family:Arial;font-size:11px;padding:4px 7px;border:.5px solid #bfd1e5;border-radius:6px">'
+    +'<span style="font-size:9px;color:#a8a8a8;white-space:nowrap">'+nComp+' comp.</span>'
     +'<button type="button" onclick="if(confirm(\'¿Quitar esta sesión 1:1?\'))this.closest(\'.s1a1-session\').remove()" class="btn btn-xs btn-danger" title="Quitar sesión">✕</button>'
     +'</div>'
+    +'<div class="s1a1-body" style="'+(collapsed?'display:none':'')+'">'
     +'<div class="s1a1-comps">'+comps+'</div>'
     +'<button type="button" onclick="s1a1AddComp(this)" class="btn btn-xs" style="font-size:9px;margin-top:2px">+ Agregar compromiso</button>'
+    +'</div>'
     +'</div>';
 }
-function s1a1AddSession(){var c=document.getElementById('s1a1-list');if(!c)return;var d=document.createElement('div');d.innerHTML=_s1a1SessionHtml({fecha:todayStr,compromisos:[{}]});c.insertBefore(d.firstChild,c.firstChild);}
+function s1a1ToggleSession(btn){var s=btn.closest('.s1a1-session');if(!s)return;var b=s.querySelector('.s1a1-body');if(!b)return;var hidden=b.style.display==='none';b.style.display=hidden?'':'none';btn.textContent=hidden?'▾':'▸';}
+function s1a1AddSession(){var c=document.getElementById('s1a1-list');if(!c)return;var d=document.createElement('div');d.innerHTML=_s1a1SessionHtml({fecha:todayStr,compromisos:[{}]},false);c.insertBefore(d.firstChild,c.firstChild);}
 function s1a1AddComp(btn){var sess=btn.closest('.s1a1-session');if(!sess)return;var list=sess.querySelector('.s1a1-comps');var d=document.createElement('div');d.innerHTML=_s1a1CompRowHtml({});list.appendChild(d.firstChild);}
 function _s1a1Sessions(notes){
   if(notes.sesiones1a1&&notes.sesiones1a1.length)return notes.sesiones1a1;
@@ -4428,8 +4434,8 @@ function _s1a1EditorHtml(notes){
   return '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
     +'<label style="font-size:10px;font-weight:700;color:#7C3AED;text-transform:uppercase;letter-spacing:.05em">📅 Sesiones 1:1 y compromisos</label>'
     +'<button type="button" class="btn btn-xs btn-primary" onclick="s1a1AddSession()" style="background:#7C3AED;border-color:#7C3AED">+ Añadir seguimiento 1:1</button></div>'
-    +'<div style="font-size:9px;color:#a8a8a8;margin-bottom:8px;font-style:italic">Cada 1:1 tiene su fecha; dentro metes los compromisos que revisaste o agregaste. La fecha del 1:1 se registra también en la ficha de la persona (Equipo).</div>'
-    +'<div id="s1a1-list">'+ses.map(_s1a1SessionHtml).join('')+'</div>';
+    +'<div style="font-size:9px;color:#a8a8a8;margin-bottom:8px;font-style:italic">Cada 1:1 tiene su fecha; dentro metes los compromisos que revisaste o agregaste. La fecha del 1:1 se registra también en la ficha de la persona (Equipo). Clic en la flechita para colapsar/expandir cada sesión.</div>'
+    +'<div id="s1a1-list">'+ses.map(function(s,i){return _s1a1SessionHtml(s,i>0);}).join('')+'</div>';
 }
 function _collectS1a1(){
   return [].slice.call(document.querySelectorAll('#s1a1-list .s1a1-session')).map(function(sess){
@@ -7116,24 +7122,24 @@ function renderKpis(){
   _kc.push([8,kpiCard({
     id:'retroc', num:8, color:'#7C3AED', bg:'#efe9fb',
     title:'Retros en cascada (seguimiento de líderes)', freq:'Mensual',
-    desc:'Asegurar que tus reportes directos estén dando seguimiento (retro / 1:1) a SUS reportes, igual que tú con ellos. Marca quién ya hizo su retro del mes y anota en qué brecha está trabajando cada líder. Meta: 100% de líderes con retro al mes.',
+    desc:'Asegurar que tus reportes directos estén dando seguimiento (retro / 1:1) a SUS reportes. Se detecta SOLO si cada líder registró una sesión 1:1 este mes (en su ficha de Equipo). Clic en "Compromisos" para ver/registrar. Meta: 100% de líderes con 1:1 al mes.',
     content:(function(){
       var lideres=KPI_EQUIPO_LIDERES;
-      var doneCount=lideres.filter(function(p){return data['retroc__done__'+p.replace(/\s/g,'_')+'__m'+mes];}).length;
+      var _cm=todayStr.slice(0,7);
+      var _did1a1=function(p){var rn=ld('retro_notes_'+p,{});return (rn.sesiones1a1||[]).some(function(s){return String(s.fecha||'').slice(0,7)===_cm;});};
+      var doneCount=lideres.filter(_did1a1).length;
       var pct=lideres.length?Math.round(doneCount/lideres.length*100):0;
-      var html2='<div style="font-size:11px;font-weight:500;color:#254467;margin-bottom:2px">Seguimiento de retros por líder</div>'
-        +'<div style="font-size:10px;color:#a8a8a8;margin-bottom:6px;font-style:italic">Marca quién ya dio su retro / 1:1 a su equipo este mes, y en qué brecha está trabajando.</div>'
-        +'<div style="font-size:10px;font-weight:700;color:'+(pct>=100?'#3B6D11':pct>=60?'#e6a817':'#e65a27')+';margin-bottom:6px">'+doneCount+'/'+lideres.length+' líderes con retro ('+pct+'%)</div>'
+      var html2='<div style="font-size:11px;font-weight:500;color:#254467;margin-bottom:2px">¿Quién hizo su 1:1 este mes?</div>'
+        +'<div style="font-size:10px;color:#a8a8a8;margin-bottom:6px;font-style:italic">Se marca ✓ automáticamente si el líder registró una sesión 1:1 con fecha de este mes (desde su ficha). El registro vive en la tarjeta de cada persona.</div>'
+        +'<div style="font-size:10px;font-weight:700;color:'+(pct>=100?'#3B6D11':pct>=60?'#e6a817':'#e65a27')+';margin-bottom:6px">'+doneCount+'/'+lideres.length+' líderes con 1:1 este mes ('+pct+'%)</div>'
         +'<div style="display:flex;flex-direction:column;gap:4px;margin-bottom:8px">'
         +lideres.map(function(p){
-          var pk=p.replace(/\s/g,'_');
-          var dk='retroc__done__'+pk+'__m'+mes;
-          var done=!!data[dk];
           var rn=ld('retro_notes_'+p,{});var cl=(rn.compromisosList||[]);
           var cumpl=cl.filter(function(c){return c.estatus==='Completado';}).length;
-          return '<div style="display:flex;align-items:center;gap:6px;padding:3px 5px;border-radius:4px;background:'+(done?'#f0f8ec':'#f8fafc')+'">'
-            +'<input type="checkbox" '+(done?'checked':'')+' onchange="kpiSaveCheck(\''+dk+'\',this.checked);renderKpis()" style="cursor:pointer;flex-shrink:0" title="Hizo su retro este mes">'
-            +'<span style="font-size:10px;color:'+(done?'#3B6D11':'#67727a')+';flex:1;font-weight:'+(done?'700':'400')+'">'+p+'</span>'
+          var did=_did1a1(p);
+          return '<div style="display:flex;align-items:center;gap:6px;padding:3px 5px;border-radius:4px;background:'+(did?'#f0f8ec':'#f8fafc')+'">'
+            +'<span style="font-size:13px;color:'+(did?'#3B6D11':'#cbd5e1')+';flex-shrink:0;width:14px;text-align:center" title="'+(did?'1:1 registrado este mes':'sin 1:1 este mes')+'">'+(did?'✓':'○')+'</span>'
+            +'<span style="font-size:10px;color:'+(did?'#3B6D11':'#67727a')+';flex:1;font-weight:'+(did?'700':'400')+'">'+p+'</span>'
             +'<span style="font-size:9px;color:#67727a;white-space:nowrap">'+cl.length+' comp'+(cl.length?' · '+cumpl+' ✅':'')+'</span>'
             +'<button onclick="openCompromisos(\''+p.replace(/'/g,"\\'")+'\')" style="font-size:9px;padding:2px 8px;border:.5px solid #7C3AED;border-radius:4px;background:#fff;color:#7C3AED;cursor:pointer;font-family:Arial;font-weight:700;white-space:nowrap">📝 Compromisos</button>'
             +'</div>';
