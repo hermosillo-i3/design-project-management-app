@@ -1440,8 +1440,8 @@ function renderCargaGantt(){
     return out;
   };
   var rows=[];
-  activeProjs().forEach(function(p){
-    var sec=p.etapa==='PRECON'?'PRECON':(['EJECUTIVO','REVISIONES'].indexOf(p.etapa)>=0?'EJECUTIVO':null);
+  [...activeProjs(),...internos()].forEach(function(p){
+    var sec=p.interno?'INTERNO':(p.etapa==='PRECON'?'PRECON':(['EJECUTIVO','REVISIONES'].indexOf(p.etapa)>=0?'EJECUTIVO':null));
     if(!sec)return;
     var ents=_entregas(p);
     var arrT=(p.arranque&&!isNaN(new Date(p.arranque).getTime()))?new Date(p.arranque).getTime():null;
@@ -1462,10 +1462,13 @@ function renderCargaGantt(){
       endT=Math.max.apply(null,[_ejeEndT||0,preconEndT||0,ejeStartT||0,today.getTime(),startT+MS]);
     } else {
       startT=hasArr?arrT:(ents.length?ents[0].t:today.getTime());
-      endT=ents.length?ents[ents.length-1].t:(hasArr?Math.max(today.getTime(),startT+MS):startT+MS);
+      var _endCands=[];
+      if(ents.length)_endCands.push(ents[ents.length-1].t);
+      if(p.interno&&p.proximoAvance){var _pa=new Date(p.proximoAvance).getTime();if(!isNaN(_pa))_endCands.push(_pa);}
+      endT=_endCands.length?Math.max.apply(null,_endCands):(hasArr?Math.max(today.getTime(),startT+MS):startT+MS);
     }
     if(endT<startT)endT=Math.max(today.getTime(),startT+MS);
-    rows.push({proj:p,coord:p.coord||'(sin coordinador)',jefe:p.jefe||'—',startT:startT,endT:endT,ents:ents,entsEje:entsEje,ejeEndStr:ejeEndStr,preconEndT:preconEndT,ejeStartT:ejeStartT,sec:sec,hasArr:hasArr});
+    rows.push({proj:p,coord:p.interno?'🏢 Desarrollo interno':(p.coord||'(sin coordinador)'),jefe:p.jefe||'—',startT:startT,endT:endT,ents:ents,entsEje:entsEje,ejeEndStr:ejeEndStr,preconEndT:preconEndT,ejeStartT:ejeStartT,sec:sec,hasArr:hasArr});
   });
   if(!rows.length){el.innerHTML='<div style="padding:2rem;text-align:center;color:#a8a8a8;font-size:12px">No hay proyectos activos con fecha de arranque. Captura la F. Arranque en la ficha del proyecto para verlos aquí.</div>';return;}
   var minT=Math.min.apply(null,rows.map(function(r){return r.startT;}));
@@ -1516,7 +1519,7 @@ function renderCargaGantt(){
     var ejeDurTxt=(r.sec==='EJECUTIVO'&&r.ejeStartT!=null&&r.endT>r.ejeStartT)?durTxt(r.endT-r.ejeStartT):'';
     var extW=xOf(r.endT)-xOf(firstEndT);
     var noArr=!r.hasArr;
-    var ultEnt=(r.sec==='EJECUTIVO')?(r.ejeEndStr||''):(r.ents.length?r.ents[r.ents.length-1].str:'');
+    var ultEnt=(r.sec==='EJECUTIVO')?(r.ejeEndStr||''):(r.ents.length?r.ents[r.ents.length-1].str:((r.sec==='INTERNO'&&r.proj.proximoAvance)?r.proj.proximoAvance:''));
     var eq=(p.equipo||[]);var equipoFull=eq.join(', ');var equipoShort=eq.length?(eq.slice(0,2).join(', ')+(eq.length>2?' +'+(eq.length-2):'')):'—';
     var bar;
     if(r.sec==='EJECUTIVO'){
@@ -1569,6 +1572,8 @@ function renderCargaGantt(){
     }
     var etBadge=r.sec==='PRECON'
       ? '<span style="font-size:7px;font-weight:800;background:#254467;color:#fff;border-radius:3px;padding:1px 4px;margin-right:4px;vertical-align:middle">PRE</span>'
+      : r.sec==='INTERNO'
+      ? '<span style="font-size:7px;font-weight:800;background:#7C3AED;color:#fff;border-radius:3px;padding:1px 4px;margin-right:4px;vertical-align:middle">INT</span>'
       : '<span style="font-size:7px;font-weight:800;background:#3B6D11;color:#fff;border-radius:3px;padding:1px 4px;margin-right:4px;vertical-align:middle">EJE</span>';
     return '<div style="display:flex;align-items:center;min-width:'+MW+'px;border-top:1px solid #f4f6f8">'
       +'<div style="position:sticky;left:0;width:'+LABELW+'px;flex-shrink:0;padding:4px 10px 4px 20px;background:#fff;z-index:2;overflow:hidden">'
