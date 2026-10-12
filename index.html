@@ -4404,6 +4404,29 @@ function _retroCompRowHtml(c){
     +'</div></div>';
 }
 function retroAddComp(c){var cont=document.getElementById('retro-comp-list');if(!cont)return;var d=document.createElement('div');d.innerHTML=_retroCompRowHtml(c||{});cont.appendChild(d.firstChild);}
+function openCompromisos(nombre){
+  var notes=ld('retro_notes_'+nombre,{});
+  var list=(notes.compromisosList&&notes.compromisosList.length)?notes.compromisosList:((notes.compromisos&&notes.compromisos.trim())?[{compromiso:notes.compromisos,estatus:'Pendiente'}]:[]);
+  var compRows=list.map(_retroCompRowHtml).join('');
+  document.getElementById('modal-body').innerHTML='<h3 style="margin-bottom:2px">🎯 Compromisos / brechas — '+String(nombre).replace(/</g,'&lt;')+'</h3>'
+    +'<p style="font-size:11px;color:#67727a;margin-bottom:10px">Define los compromisos de desarrollo: qué se espera, cómo se mide, evidencia, para cuándo, y su estatus. (Se comparten con la retro de la persona.)</p>'
+    +'<div style="display:flex;justify-content:flex-end;margin-bottom:6px"><button type="button" class="btn btn-xs btn-primary" onclick="retroAddComp()" style="background:#7C3AED;border-color:#7C3AED">+ Agregar compromiso</button></div>'
+    +'<div id="retro-comp-list">'+compRows+'</div>'
+    +'<div class="btn-row"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="saveCompromisos(this.dataset.n)" data-n="'+String(nombre).replace(/"/g,'&quot;')+'" style="background:#7C3AED;border-color:#7C3AED">Guardar</button></div>';
+  var m=document.querySelector('.modal');if(m)m.classList.add('wide');
+  openModal();
+}
+function saveCompromisos(nombre){
+  var prev=ld('retro_notes_'+nombre,{});
+  var list=[].slice.call(document.querySelectorAll('#retro-comp-list .retro-comp-row')).map(function(r){
+    return {compromiso:r.querySelector('.rc-compromiso').value.trim(),queEspera:r.querySelector('.rc-queespera').value.trim(),comoMide:r.querySelector('.rc-comomide').value.trim(),evidencia:r.querySelector('.rc-evidencia').value.trim(),paraCuando:r.querySelector('.rc-paracuando').value.trim(),estatus:r.querySelector('.rc-estatus').value};
+  }).filter(function(c){return c.compromiso||c.queEspera||c.comoMide||c.evidencia||c.paraCuando;});
+  if(prev.logros===undefined)prev.logros='';if(prev.atencion===undefined)prev.atencion='';if(prev.compromisos===undefined)prev.compromisos='';
+  prev.compromisosList=list;
+  sv('retro_notes_'+nombre,prev);
+  closeModal();
+  if(typeof renderKpis==='function')renderKpis();
+}
 function saveRetroNotes(nombre){
   var prev=ld('retro_notes_'+nombre,{});
   var list=[].slice.call(document.querySelectorAll('#retro-comp-list .retro-comp-row')).map(function(r){
@@ -7068,12 +7091,14 @@ function renderKpis(){
         +lideres.map(function(p){
           var pk=p.replace(/\s/g,'_');
           var dk='retroc__done__'+pk+'__m'+mes;
-          var bk='retroc__brecha__'+pk+'__m'+mes;
-          var done=!!data[dk];var brecha=data[bk]||'';
-          return '<div style="display:flex;align-items:center;gap:5px;padding:3px 5px;border-radius:4px;background:'+(done?'#f0f8ec':'#f8fafc')+'">'
+          var done=!!data[dk];
+          var rn=ld('retro_notes_'+p,{});var cl=(rn.compromisosList||[]);
+          var cumpl=cl.filter(function(c){return c.estatus==='Cumplido';}).length;
+          return '<div style="display:flex;align-items:center;gap:6px;padding:3px 5px;border-radius:4px;background:'+(done?'#f0f8ec':'#f8fafc')+'">'
             +'<input type="checkbox" '+(done?'checked':'')+' onchange="kpiSaveCheck(\''+dk+'\',this.checked);renderKpis()" style="cursor:pointer;flex-shrink:0" title="Hizo su retro este mes">'
-            +'<span style="font-size:10px;color:'+(done?'#3B6D11':'#67727a')+';min-width:78px;font-weight:'+(done?'700':'400')+'">'+p+'</span>'
-            +'<input type="text" value="'+String(brecha).replace(/"/g,'&quot;')+'" placeholder="¿Qué brecha trabaja?" data-key="'+bk+'" onchange="kpiSaveMeta(this.dataset.key,this.value)" style="font-size:9px;padding:2px 5px;border:.5px solid #bfd1e5;border-radius:4px;font-family:Arial;flex:1">'
+            +'<span style="font-size:10px;color:'+(done?'#3B6D11':'#67727a')+';flex:1;font-weight:'+(done?'700':'400')+'">'+p+'</span>'
+            +'<span style="font-size:9px;color:#67727a;white-space:nowrap">'+cl.length+' comp'+(cl.length?' · '+cumpl+' ✅':'')+'</span>'
+            +'<button onclick="openCompromisos(\''+p.replace(/'/g,"\\'")+'\')" style="font-size:9px;padding:2px 8px;border:.5px solid #7C3AED;border-radius:4px;background:#fff;color:#7C3AED;cursor:pointer;font-family:Arial;font-weight:700;white-space:nowrap">📝 Compromisos</button>'
             +'</div>';
         }).join('')
         +'</div>';
