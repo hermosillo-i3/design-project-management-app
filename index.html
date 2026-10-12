@@ -281,6 +281,7 @@ body.qas-env{padding-top:32px}
   <button class="tab" onclick="goTab('gerencia',this)" style="font-weight:800;color:#6990ab">★ Gerencia</button>
   <button class="tab" onclick="goTab('log',this)">Log</button>
   <button class="tab" onclick="goTab('estadisticas',this)">Estadísticas</button><button class="tab" onclick="goTab('archivo',this)">Archivo</button>
+  <button class="tab" onclick="goTab('naves',this)" style="color:#7C3AED">🏗️ Naves</button>
 </div>
 
 <!-- DASHBOARD -->
@@ -514,6 +515,15 @@ body.qas-env{padding-top:32px}
       <tbody id="tbody-arch"></tbody>
     </table>
   </div>
+</div>
+
+<div id="p-naves" class="panel">
+  <div style="font-size:10px;color:#67727a;margin-bottom:7px">Catálogo técnico de naves industriales — referencia para diseño y cotización de estructura (kg/m², $/m², $/ton).</div>
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+    <button class="btn btn-primary btn-sm" onclick="openNave(0)" style="background:#7C3AED;border-color:#7C3AED">+ Agregar nave</button>
+    <input type="text" id="naves-search" oninput="renderNaves()" placeholder="🔎 Buscar por nombre, cliente, sistema, tipo…" style="flex:1;min-width:200px;font-size:12px;padding:7px 11px;border:.5px solid #bfd1e5;border-radius:8px;font-family:Arial">
+  </div>
+  <div id="naves-list"></div>
 </div>
 
 </div>
@@ -12736,6 +12746,111 @@ function dragDrop(event, targetProjId, consulNombre){
 }
 
 
+// ── MÓDULO NAVES (estructura) ────────────────────────────────
+var NAVE_SISTEMAS=['Marcos rígidos de acero','Armaduras (joists)','PTR','IPR','Prefabricado de concreto','Mixto (acero+concreto)','Otro'];
+var NAVE_CUBIERTAS=['Lámina','Panel aislado (sándwich)','Losa','Otro'];
+var NAVE_CIMENTACION=['Zapatas aisladas','Zapatas corridas','Pilas','Losa de cimentación','Mixta','Otro'];
+function getNaves(){return ld('gh_naves',[]);}
+function saveNaves(a){sv('gh_naves',a);}
+function naveKgM2(n){
+  if(!n)return null;
+  var sup=parseFloat(n.superficie)||0,ton=parseFloat(n.ton)||0;
+  if(sup>0&&ton>0)return ton*1000/sup;
+  var km=parseFloat(n.kgm2Manual);return isNaN(km)?null:km;
+}
+function renderNaves(){
+  var el=document.getElementById('naves-list');if(!el)return;
+  var esc=function(s){return String(s==null?'':s).replace(/</g,'&lt;');};
+  var naves=getNaves();
+  var q=(document.getElementById('naves-search')?document.getElementById('naves-search').value.trim().toLowerCase():'');
+  if(q){naves=naves.filter(function(n){var hay=[n.nombre,n.cliente,n.sistema,n.tipo,n.cubierta,n.cimentacion,n.zonaSismica].filter(Boolean).join(' ').toLowerCase();return q.split(/\s+/).every(function(w){return hay.indexOf(w)!==-1;});});}
+  var kgs=naves.map(naveKgM2).filter(function(v){return v!=null&&v>0;});
+  var cm2=naves.map(function(n){return parseFloat(n.costoM2)||0;}).filter(function(v){return v>0;});
+  var ctn=naves.map(function(n){return parseFloat(n.costoTon)||0;}).filter(function(v){return v>0;});
+  var avg=function(a){return a.length?a.reduce(function(s,v){return s+v;},0)/a.length:null;};
+  var tile=function(lbl,val,sub,col){return '<div style="background:#f8fafc;border:.5px solid #e3e9ef;border-radius:10px;padding:10px 14px;min-width:130px"><div style="font-size:9px;color:#67727a;text-transform:uppercase;letter-spacing:.04em">'+lbl+'</div><div style="font-size:18px;font-weight:800;color:'+(col||'#7C3AED')+'">'+val+'</div>'+(sub?'<div style="font-size:9px;color:#a8a8a8">'+sub+'</div>':'')+'</div>';};
+  var html='<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">'
+    +tile('Naves',naves.length,'en catálogo')
+    +tile('kg/m² acero (prom)',kgs.length?avg(kgs).toFixed(1):'—',kgs.length?('rango '+Math.min.apply(null,kgs).toFixed(0)+'–'+Math.max.apply(null,kgs).toFixed(0)):'')
+    +tile('$/m² estructura (prom)',cm2.length?'$'+Math.round(avg(cm2)).toLocaleString('es-MX'):'—','','#3B6D11')
+    +tile('$/ton acero (prom)',ctn.length?'$'+Math.round(avg(ctn)).toLocaleString('es-MX'):'—','','#3B6D11')
+    +'</div>';
+  if(!naves.length){html+='<div style="padding:2rem;text-align:center;color:#a8a8a8;font-size:12px">'+(q?'Sin resultados.':'Aún no hay naves. Usa "+ Agregar nave" para registrar la primera referencia.')+'</div>';el.innerHTML=html;return;}
+  html+='<div class="tbl-wrap"><table><thead><tr style="background:#f8fafc"><th>Nave</th><th>Tipo</th><th style="text-align:right">m²</th><th style="text-align:right">Claro</th><th style="text-align:right">Altura</th><th>Sistema</th><th style="text-align:right">kg/m²</th><th style="text-align:right">$/m²</th><th>Cliente</th><th class="no-print"></th></tr></thead><tbody>';
+  html+=naves.slice().sort(function(a,b){return String(b.fecha||'').localeCompare(String(a.fecha||''));}).map(function(n){
+    var km=naveKgM2(n);
+    return '<tr>'
+      +'<td style="font-weight:700;color:#254467;font-size:11px">'+esc(n.nombre||'—')+'</td>'
+      +'<td style="font-size:10px">'+esc(n.tipo||'—')+'</td>'
+      +'<td style="text-align:right;font-size:10px">'+(n.superficie?Number(n.superficie).toLocaleString('es-MX'):'—')+'</td>'
+      +'<td style="text-align:right;font-size:10px">'+(n.claro?n.claro+' m':'—')+'</td>'
+      +'<td style="text-align:right;font-size:10px">'+(n.altura?n.altura+' m':'—')+'</td>'
+      +'<td style="font-size:10px">'+esc(n.sistema||'—')+'</td>'
+      +'<td style="text-align:right;font-size:11px;font-weight:700;color:#7C3AED">'+(km!=null?km.toFixed(1):'—')+'</td>'
+      +'<td style="text-align:right;font-size:10px;color:#3B6D11">'+(n.costoM2?'$'+Math.round(n.costoM2).toLocaleString('es-MX'):'—')+'</td>'
+      +'<td style="font-size:10px;color:#67727a">'+esc(n.cliente||'—')+'</td>'
+      +'<td class="no-print" style="white-space:nowrap"><button class="btn btn-sm" onclick="openNave('+n.id+')">Ver/editar</button></td>'
+      +'</tr>';
+  }).join('');
+  html+='</tbody></table></div>';
+  el.innerHTML=html;
+}
+function openNave(id){
+  var naves=getNaves();
+  var n=(id?naves.find(function(x){return x.id===id;}):null)||{};
+  var esc=function(s){return String(s==null?'':s).replace(/"/g,'&quot;');};
+  var opt=function(arr,v){return '<option value=""></option>'+arr.map(function(o){return '<option'+(v===o?' selected':'')+'>'+o+'</option>';}).join('');};
+  var projs=[...activeProjs(),...archived()].sort(function(a,b){return String(a.nombre).localeCompare(String(b.nombre));});
+  var projOpts='<option value="">— Ninguno —</option>'+projs.map(function(p){return '<option value="'+p.id+'"'+(String(n.projId)===String(p.id)?' selected':'')+'>'+String(p.nombre).replace(/</g,'&lt;')+'</option>';}).join('');
+  var fg=function(label,id2,val,ph,type){return '<div class="fg"><label>'+label+'</label><input type="'+(type||'text')+'" id="'+id2+'" value="'+esc(val)+'" placeholder="'+(ph||'')+'"></div>';};
+  var sh=function(t,c){return '<div style="font-size:10px;font-weight:700;color:'+(c||'#7C3AED')+';text-transform:uppercase;letter-spacing:.05em;margin:12px 0 6px">'+t+'</div>';};
+  document.getElementById('modal-body').innerHTML='<h3>'+(id?'Editar nave':'Nueva nave de referencia')+'</h3>'
+    +'<div class="frow">'+fg('Nombre de la nave','nv-nombre',n.nombre,'Ej: CEDIS Walmart MTY')+fg('Cliente','nv-cliente',n.cliente,'opcional')+'</div>'
+    +'<div class="frow"><div class="fg"><label>Tipo</label><select id="nv-tipo">'+opt(['Obra nueva','Expansión','Mixta'],n.tipo)+'</select></div>'
+      +'<div class="fg"><label>Proyecto ligado (opcional)</label><select id="nv-proj">'+projOpts+'</select></div>'
+      +fg('Fecha','nv-fecha',n.fecha||todayStr,'','date')+'</div>'
+    +sh('📐 Geometría')
+    +'<div class="frow">'+fg('Superficie techada (m²)','nv-superficie',n.superficie,'ej: 20000','number')+fg('Claro / crujía (m)','nv-claro',n.claro,'ej: 25','number')+fg('Nº crujías','nv-crujias',n.crujias,'','number')+'</div>'
+    +'<div class="frow">'+fg('Separación entre marcos (m)','nv-sepmarcos',n.sepMarcos,'ej: 8','number')+fg('Altura libre / al hombro (m)','nv-altura',n.altura,'ej: 10','number')+'</div>'
+    +sh('🏗️ Sistema estructural')
+    +'<div class="frow"><div class="fg"><label>Tipo de estructura</label><select id="nv-sistema">'+opt(NAVE_SISTEMAS,n.sistema)+'</select></div>'
+      +'<div class="fg"><label>Cubierta</label><select id="nv-cubierta">'+opt(NAVE_CUBIERTAS,n.cubierta)+'</select></div></div>'
+    +'<div class="frow">'+fg('Mezzanine / entrepiso (m²)','nv-mezzanine',n.mezzanine,'opcional','number')
+      +'<div class="fg"><label>Puente grúa</label><select id="nv-grua">'+opt(['No','Sí'],n.puenteGrua)+'</select></div></div>'
+    +sh('⚖️ Acero')
+    +'<div class="frow">'+fg('Acero estructural (toneladas)','nv-ton',n.ton,'ej: 320','number')+fg('o kg/m² (si no tienes ton)','nv-kgm2',n.kgm2Manual,'ej: 45','number')+'</div>'
+    +'<div id="nv-kgm2-calc" style="font-size:10px;color:#7C3AED;font-weight:700;margin-bottom:4px"></div>'
+    +sh('🧱 Cimentación y materiales')
+    +'<div class="frow"><div class="fg"><label>Cimentación</label><select id="nv-cimentacion">'+opt(NAVE_CIMENTACION,n.cimentacion)+'</select></div>'
+      +fg("f\'c concreto (kg/cm²)",'nv-fc',n.fc,'ej: 250','number')+fg('fy acero (kg/cm²)','nv-fy',n.fy,'ej: 4200','number')+'</div>'
+    +sh('🌐 Diseño / normativa')
+    +'<div class="frow">'+fg('Zona sísmica','nv-zonasismica',n.zonaSismica,'ej: B / D')+fg('Viento (km/h)','nv-viento',n.viento,'ej: 160','number')+fg('Carga viva cubierta (kg/m²)','nv-cargaviva',n.cargaViva,'ej: 40','number')+'</div>'
+    +sh('💲 Costo','#3B6D11')
+    +'<div class="frow">'+fg('$/m² de estructura (MXN)','nv-costom2',n.costoM2,'opcional','number')+fg('$/ton de acero (MXN)','nv-costoton',n.costoTon,'opcional','number')+'</div>'
+    +'<div class="fg"><label>Notas</label><textarea id="nv-notas" rows="2" placeholder="Detalles, contratista, aprendizajes...">'+String(n.notas||'').replace(/</g,'&lt;')+'</textarea></div>'
+    +'<div class="btn-row">'+(id?'<button class="btn btn-danger btn-sm" onclick="deleteNave('+id+')" style="margin-right:auto">Eliminar</button>':'')
+      +'<button class="btn" onclick="closeModal()">Cancelar</button>'
+      +'<button class="btn btn-primary" onclick="saveNave('+(id||0)+')" style="background:#7C3AED;border-color:#7C3AED">Guardar</button></div>';
+  var m=document.querySelector('.modal');if(m)m.classList.add('wide');
+  openModal();
+  var upd=function(){var sup=parseFloat(document.getElementById('nv-superficie').value)||0;var ton=parseFloat(document.getElementById('nv-ton').value)||0;var e=document.getElementById('nv-kgm2-calc');if(e)e.textContent=(sup>0&&ton>0)?('= '+(ton*1000/sup).toFixed(1)+' kg/m² (calculado: ton ÷ m²)'):'';};
+  ['nv-superficie','nv-ton'].forEach(function(idd){var e=document.getElementById(idd);if(e)e.addEventListener('input',upd);});upd();
+}
+function saveNave(id){
+  var g=function(k){var e=document.getElementById(k);return e?e.value:'';};
+  var naves=getNaves();
+  var obj={id:id||Date.now(),nombre:g('nv-nombre').trim(),cliente:g('nv-cliente').trim(),tipo:g('nv-tipo'),projId:g('nv-proj')||null,fecha:g('nv-fecha')||todayStr,
+    superficie:g('nv-superficie'),claro:g('nv-claro'),crujias:g('nv-crujias'),sepMarcos:g('nv-sepmarcos'),altura:g('nv-altura'),
+    sistema:g('nv-sistema'),cubierta:g('nv-cubierta'),mezzanine:g('nv-mezzanine'),puenteGrua:g('nv-grua'),
+    ton:g('nv-ton'),kgm2Manual:g('nv-kgm2'),cimentacion:g('nv-cimentacion'),fc:g('nv-fc'),fy:g('nv-fy'),
+    zonaSismica:g('nv-zonasismica').trim(),viento:g('nv-viento'),cargaViva:g('nv-cargaviva'),costoM2:g('nv-costom2'),costoTon:g('nv-costoton'),notas:g('nv-notas').trim()};
+  if(!obj.nombre){alert('Ponle un nombre a la nave.');return;}
+  var i=naves.findIndex(function(x){return x.id===obj.id;});
+  if(i>=0)naves[i]=obj;else naves.push(obj);
+  saveNaves(naves);closeModal();renderNaves();
+}
+function deleteNave(id){if(!confirm('¿Eliminar esta nave del catálogo?'))return;saveNaves(getNaves().filter(function(x){return x.id!==id;}));closeModal();renderNaves();}
+
 function goTab(id,el){
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
@@ -12758,6 +12873,7 @@ function goTab(id,el){
     gerencia:renderGerencia,
     log:renderLog,
     archivo:renderArchivo,
+    naves:renderNaves,
     pendientes:renderPendientes,
     cotizaciones:renderCotizaciones,
     costos:renderCostos
