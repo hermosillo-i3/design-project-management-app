@@ -4339,8 +4339,6 @@ function openRetroNotes(nombre){
   const notes=ld('retro_notes_'+nombre,{logros:'',atencion:'',compromisos:'',compromisosList:[]});
   var _escT=function(s){return String(s==null?'':s).replace(/</g,'&lt;');};
   var _esc=function(s){return String(s==null?'':s).replace(/"/g,'&quot;');};
-  var list=(notes.compromisosList&&notes.compromisosList.length)?notes.compromisosList:((notes.compromisos&&notes.compromisos.trim())?[{compromiso:notes.compromisos,estatus:'Pendiente'}]:[]);
-  var compRows=list.map(_retroCompRowHtml).join('');
   // Cascada: compromisos del equipo que le reporta a esta persona
   var team=(cat.personas||[]).filter(function(x){return x.reportaA===nombre&&!x.baja;});
   var teamHtml='';
@@ -4370,11 +4368,7 @@ function openRetroNotes(nombre){
       <textarea id="rn-atencion" rows="3" style="width:100%;font-family:Arial;font-size:12px;padding:8px;border:.5px solid #bfd1e5;border-radius:6px;resize:vertical;margin-top:4px">${_escT(notes.atencion||'')}</textarea>
     </div>
     <div class="fg" style="margin-bottom:14px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-        <label style="font-size:10px;font-weight:700;color:#67727a;text-transform:uppercase;letter-spacing:.05em">🎯 Compromisos / brechas</label>
-        <button type="button" class="btn btn-xs btn-primary" onclick="retroAddComp()">+ Agregar compromiso</button>
-      </div>
-      <div id="retro-comp-list">${compRows}</div>
+      ${_s1a1EditorHtml(notes)}
     </div>
     ${teamHtml}
     <div class="btn-row">
@@ -4384,24 +4378,14 @@ function openRetroNotes(nombre){
   var m=document.querySelector('.modal');if(m)m.classList.add('wide');
   openModal();
 }
-function _retroSegRowHtml(s){
-  s=s||{};
-  var esc=function(v){return String(v==null?'':v).replace(/"/g,'&quot;');};
-  return '<div class="rc-seg-row" style="display:flex;gap:5px;align-items:center;margin-bottom:4px">'
-    +'<input type="date" class="rc-seg-fecha" value="'+esc(s.fecha)+'" style="font-family:Arial;font-size:10px;padding:3px 5px;border:.5px solid #bfd1e5;border-radius:5px;width:122px">'
-    +'<input class="rc-seg-nota" value="'+esc(s.nota)+'" placeholder="¿Qué se vio / avanzó en el 1:1?" style="flex:1;font-family:Arial;font-size:10px;padding:3px 6px;border:.5px solid #bfd1e5;border-radius:5px">'
-    +'<button type="button" onclick="this.closest(\'.rc-seg-row\').remove()" class="btn btn-xs btn-danger">✕</button>'
-    +'</div>';
-}
-function retroAddSeg(btn){var row=btn.closest('.retro-comp-row');if(!row)return;var list=row.querySelector('.rc-seg-list');if(!list)return;var d=document.createElement('div');d.innerHTML=_retroSegRowHtml({fecha:todayStr});list.appendChild(d.firstChild);}
-function _retroCompRowHtml(c){
+// ── Compromiso dentro de una sesión 1:1 (sin sub-seguimiento: la sesión ES el seguimiento) ──
+function _s1a1CompRowHtml(c){
   c=c||{};
   var est=['Pendiente','En proceso','Completado'];
   var esc=function(s){return String(s==null?'':s).replace(/"/g,'&quot;');};
   var escT=function(s){return String(s==null?'':s).replace(/</g,'&lt;');};
   var inp='font-family:Arial;font-size:11px;padding:5px 7px;border:.5px solid #bfd1e5;border-radius:6px';
   var _pc=/^\d{4}-\d{2}-\d{2}$/.test(String(c.paraCuando||''))?c.paraCuando:'';
-  var segRows=(c.seguimientos||[]).map(_retroSegRowHtml).join('');
   return '<div class="retro-comp-row" style="border:.5px solid #bfd1e5;border-radius:8px;padding:8px;margin-bottom:8px;background:#fafbfc">'
     +'<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">'
     +'<input class="rc-compromiso" value="'+esc(c.compromiso)+'" placeholder="Compromiso (título)" style="flex:1;'+inp+';font-weight:700">'
@@ -4411,52 +4395,88 @@ function _retroCompRowHtml(c){
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">'
     +'<textarea class="rc-queespera" rows="2" placeholder="¿Qué se espera?" style="'+inp+';resize:vertical">'+escT(c.queEspera)+'</textarea>'
     +'<textarea class="rc-comomide" rows="2" placeholder="¿Cómo se mide?" style="'+inp+';resize:vertical">'+escT(c.comoMide)+'</textarea>'
-    +'<textarea class="rc-evidencia" rows="2" placeholder="Evidencia" style="'+inp+';resize:vertical">'+escT(c.evidencia)+'</textarea>'
+    +'<textarea class="rc-evidencia" rows="2" placeholder="Evidencia / avance" style="'+inp+';resize:vertical">'+escT(c.evidencia)+'</textarea>'
     +'<label style="font-size:9px;color:#67727a;display:flex;flex-direction:column;gap:2px">¿Para cuándo?<input type="date" class="rc-paracuando" value="'+esc(_pc)+'" style="'+inp+'"></label>'
+    +'</div></div>';
+}
+function _s1a1SessionHtml(s){
+  s=s||{};
+  var esc=function(v){return String(v==null?'':v).replace(/"/g,'&quot;');};
+  var sid=s.id||('s'+Date.now()+Math.floor(Math.random()*10000));
+  var comps=(s.compromisos||[]).map(_s1a1CompRowHtml).join('');
+  return '<div class="s1a1-session" data-sid="'+esc(sid)+'" style="border:.5px solid #cbd5e1;border-radius:10px;padding:10px;margin-bottom:10px;background:#faf9ff">'
+    +'<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">'
+    +'<span style="font-size:11px;font-weight:800;color:#7C3AED;white-space:nowrap">📅 Sesión 1:1</span>'
+    +'<input type="date" class="s1a1-fecha" value="'+esc(s.fecha||todayStr)+'" style="font-family:Arial;font-size:11px;padding:4px 6px;border:.5px solid #bfd1e5;border-radius:6px">'
+    +'<input class="s1a1-nota" value="'+esc(s.nota)+'" placeholder="Nota general de la sesión (opcional)" style="flex:1;font-family:Arial;font-size:11px;padding:4px 7px;border:.5px solid #bfd1e5;border-radius:6px">'
+    +'<button type="button" onclick="if(confirm(\'¿Quitar esta sesión 1:1?\'))this.closest(\'.s1a1-session\').remove()" class="btn btn-xs btn-danger" title="Quitar sesión">✕</button>'
     +'</div>'
-    +'<div style="margin-top:7px;border-top:.5px dashed #e3e9ef;padding-top:6px">'
-    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><span style="font-size:9px;font-weight:700;color:#7C3AED;text-transform:uppercase;letter-spacing:.04em">📅 Seguimiento (1:1)</span><button type="button" onclick="retroAddSeg(this)" class="btn btn-xs" style="font-size:9px">+ Seguimiento 1:1</button></div>'
-    +'<div class="rc-seg-list">'+segRows+'</div>'
-    +'</div>'
+    +'<div class="s1a1-comps">'+comps+'</div>'
+    +'<button type="button" onclick="s1a1AddComp(this)" class="btn btn-xs" style="font-size:9px;margin-top:2px">+ Agregar compromiso</button>'
     +'</div>';
 }
-function retroAddComp(c){var cont=document.getElementById('retro-comp-list');if(!cont)return;var d=document.createElement('div');d.innerHTML=_retroCompRowHtml(c||{});cont.appendChild(d.firstChild);}
+function s1a1AddSession(){var c=document.getElementById('s1a1-list');if(!c)return;var d=document.createElement('div');d.innerHTML=_s1a1SessionHtml({fecha:todayStr,compromisos:[{}]});c.insertBefore(d.firstChild,c.firstChild);}
+function s1a1AddComp(btn){var sess=btn.closest('.s1a1-session');if(!sess)return;var list=sess.querySelector('.s1a1-comps');var d=document.createElement('div');d.innerHTML=_s1a1CompRowHtml({});list.appendChild(d.firstChild);}
+function _s1a1Sessions(notes){
+  if(notes.sesiones1a1&&notes.sesiones1a1.length)return notes.sesiones1a1;
+  var cl=(notes.compromisosList&&notes.compromisosList.length)?notes.compromisosList:((notes.compromisos&&notes.compromisos.trim())?[{compromiso:notes.compromisos,estatus:'Pendiente'}]:[]);
+  if(cl.length)return [{id:'mig'+Date.now(),fecha:'',nota:'(compromisos previos)',compromisos:cl}];
+  return [];
+}
+function _s1a1EditorHtml(notes){
+  var ses=_s1a1Sessions(notes).slice().sort(function(a,b){return String(b.fecha||'').localeCompare(String(a.fecha||''));});
+  return '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
+    +'<label style="font-size:10px;font-weight:700;color:#7C3AED;text-transform:uppercase;letter-spacing:.05em">📅 Sesiones 1:1 y compromisos</label>'
+    +'<button type="button" class="btn btn-xs btn-primary" onclick="s1a1AddSession()" style="background:#7C3AED;border-color:#7C3AED">+ Añadir seguimiento 1:1</button></div>'
+    +'<div style="font-size:9px;color:#a8a8a8;margin-bottom:8px;font-style:italic">Cada 1:1 tiene su fecha; dentro metes los compromisos que revisaste o agregaste. La fecha del 1:1 se registra también en la ficha de la persona (Equipo).</div>'
+    +'<div id="s1a1-list">'+ses.map(_s1a1SessionHtml).join('')+'</div>';
+}
+function _collectS1a1(){
+  return [].slice.call(document.querySelectorAll('#s1a1-list .s1a1-session')).map(function(sess){
+    return {id:sess.getAttribute('data-sid'),fecha:sess.querySelector('.s1a1-fecha').value,nota:sess.querySelector('.s1a1-nota').value.trim(),
+      compromisos:[].slice.call(sess.querySelectorAll('.s1a1-comps .retro-comp-row')).map(function(r){
+        return {compromiso:r.querySelector('.rc-compromiso').value.trim(),queEspera:r.querySelector('.rc-queespera').value.trim(),comoMide:r.querySelector('.rc-comomide').value.trim(),evidencia:r.querySelector('.rc-evidencia').value.trim(),paraCuando:r.querySelector('.rc-paracuando').value,estatus:r.querySelector('.rc-estatus').value};
+      }).filter(function(c){return c.compromiso||c.queEspera||c.comoMide||c.evidencia||c.paraCuando;})};
+  }).filter(function(s){return s.fecha||s.nota||s.compromisos.length;});
+}
+function _saveS1a1(nombre,extra){
+  var prev=ld('retro_notes_'+nombre,{});
+  var sesiones=_collectS1a1();
+  prev.sesiones1a1=sesiones;
+  var latest=sesiones.slice().sort(function(a,b){return String(b.fecha||'').localeCompare(String(a.fecha||''));})[0];
+  prev.compromisosList=latest?latest.compromisos:[];
+  if(prev.compromisos===undefined)prev.compromisos='';
+  if(extra){Object.keys(extra).forEach(function(k){prev[k]=extra[k];});}
+  sv('retro_notes_'+nombre,prev);
+  // Sincronizar fechas de 1:1 en la ficha de Equipo (p.seguimiento), evitando duplicados
+  var p=(cat.personas||[]).find(function(x){return x.nombre===nombre;});
+  if(p){
+    if(!Array.isArray(p.seguimiento))p.seguimiento=[];
+    p.seguimiento=p.seguimiento.filter(function(e){return !(e&&e._s1a1);});
+    sesiones.forEach(function(s){if(!s.fecha&&!s.nota&&!s.compromisos.length)return;p.seguimiento.push({fecha:s.fecha||todayStr,nota:'1:1'+(s.nota?': '+s.nota:'')+(s.compromisos.length?(' — '+s.compromisos.length+' compromiso(s)'):''),_s1a1:(s.id||('s'+Date.now()))});});
+    sv(K.cat,cat);
+  }
+}
 function openCompromisos(nombre){
   var notes=ld('retro_notes_'+nombre,{});
-  var list=(notes.compromisosList&&notes.compromisosList.length)?notes.compromisosList:((notes.compromisos&&notes.compromisos.trim())?[{compromiso:notes.compromisos,estatus:'Pendiente'}]:[]);
-  var compRows=list.map(_retroCompRowHtml).join('');
-  document.getElementById('modal-body').innerHTML='<h3 style="margin-bottom:2px">🎯 Compromisos / brechas — '+String(nombre).replace(/</g,'&lt;')+'</h3>'
-    +'<p style="font-size:11px;color:#67727a;margin-bottom:10px">Define los compromisos de desarrollo: qué se espera, cómo se mide, evidencia, para cuándo, y su estatus. (Se comparten con la retro de la persona.)</p>'
-    +'<div style="display:flex;justify-content:flex-end;margin-bottom:6px"><button type="button" class="btn btn-xs btn-primary" onclick="retroAddComp()" style="background:#7C3AED;border-color:#7C3AED">+ Agregar compromiso</button></div>'
-    +'<div id="retro-comp-list">'+compRows+'</div>'
+  document.getElementById('modal-body').innerHTML='<h3 style="margin-bottom:2px">📅 Sesiones 1:1 y compromisos — '+String(nombre).replace(/</g,'&lt;')+'</h3>'
+    +'<p style="font-size:11px;color:#67727a;margin-bottom:10px">Añade una sesión 1:1 (con su fecha) y dentro registra los compromisos que viste o nuevos. Se comparte con la retro de la persona y la fecha queda en su ficha de Equipo.</p>'
+    +_s1a1EditorHtml(notes)
     +'<div class="btn-row"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="saveCompromisos(this.dataset.n)" data-n="'+String(nombre).replace(/"/g,'&quot;')+'" style="background:#7C3AED;border-color:#7C3AED">Guardar</button></div>';
   var m=document.querySelector('.modal');if(m)m.classList.add('wide');
   openModal();
 }
 function saveCompromisos(nombre){
-  var prev=ld('retro_notes_'+nombre,{});
-  var list=[].slice.call(document.querySelectorAll('#retro-comp-list .retro-comp-row')).map(function(r){
-    return {compromiso:r.querySelector('.rc-compromiso').value.trim(),queEspera:r.querySelector('.rc-queespera').value.trim(),comoMide:r.querySelector('.rc-comomide').value.trim(),evidencia:r.querySelector('.rc-evidencia').value.trim(),paraCuando:r.querySelector('.rc-paracuando').value,estatus:r.querySelector('.rc-estatus').value,seguimientos:[].slice.call(r.querySelectorAll('.rc-seg-list .rc-seg-row')).map(function(sr){return {fecha:sr.querySelector('.rc-seg-fecha').value,nota:sr.querySelector('.rc-seg-nota').value.trim()};}).filter(function(s){return s.fecha||s.nota;})};
-  }).filter(function(c){return c.compromiso||c.queEspera||c.comoMide||c.evidencia||c.paraCuando;});
-  if(prev.logros===undefined)prev.logros='';if(prev.atencion===undefined)prev.atencion='';if(prev.compromisos===undefined)prev.compromisos='';
-  prev.compromisosList=list;
-  sv('retro_notes_'+nombre,prev);
+  _saveS1a1(nombre);
   closeModal();
   if(typeof renderKpis==='function')renderKpis();
+  if(typeof renderEquipo==='function')renderEquipo();
 }
 function saveRetroNotes(nombre){
-  var prev=ld('retro_notes_'+nombre,{});
-  var list=[].slice.call(document.querySelectorAll('#retro-comp-list .retro-comp-row')).map(function(r){
-    return {compromiso:r.querySelector('.rc-compromiso').value.trim(),queEspera:r.querySelector('.rc-queespera').value.trim(),comoMide:r.querySelector('.rc-comomide').value.trim(),evidencia:r.querySelector('.rc-evidencia').value.trim(),paraCuando:r.querySelector('.rc-paracuando').value,estatus:r.querySelector('.rc-estatus').value,seguimientos:[].slice.call(r.querySelectorAll('.rc-seg-list .rc-seg-row')).map(function(sr){return {fecha:sr.querySelector('.rc-seg-fecha').value,nota:sr.querySelector('.rc-seg-nota').value.trim()};}).filter(function(s){return s.fecha||s.nota;})};
-  }).filter(function(c){return c.compromiso||c.queEspera||c.comoMide||c.evidencia||c.paraCuando;});
-  const notes={
-    logros:document.getElementById('rn-logros').value,
-    atencion:document.getElementById('rn-atencion').value,
-    compromisos:prev.compromisos||'',
-    compromisosList:list
-  };
-  sv('retro_notes_'+nombre,notes);
+  _saveS1a1(nombre,{logros:(document.getElementById('rn-logros')||{}).value||'',atencion:(document.getElementById('rn-atencion')||{}).value||''});
   closeModal();
+  if(typeof renderEquipo==='function')renderEquipo();
+  if(typeof renderKpis==='function')renderKpis();
 }
 
 // ── RETRO POR COLABORADOR ────────────────────────────────────
