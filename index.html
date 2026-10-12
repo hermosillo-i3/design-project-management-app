@@ -4289,7 +4289,7 @@ function openDesempeno(id,showBaja){
   var retroBody='';
   if(r.retro.logros)retroBody+='<div style="font-size:11px;margin-bottom:5px"><strong style="color:#3B6D11">✅ Logros:</strong> '+esc(r.retro.logros)+'</div>';
   if(r.retro.atencion)retroBody+='<div style="font-size:11px;margin-bottom:5px"><strong style="color:#e65a27">⚠️ Puntos de atención:</strong> '+esc(r.retro.atencion)+'</div>';
-  if(r.retro.compromisosList&&r.retro.compromisosList.length)retroBody+='<div style="font-size:11px;margin-top:3px"><strong style="color:#254467">🎯 Compromisos:</strong>'+r.retro.compromisosList.map(function(c){var col=c.estatus==='Cumplido'?'#3B6D11':c.estatus==='En proceso'?'#e6a817':'#67727a';return '<div style="font-size:10px;margin-top:2px"><span style="color:'+col+';font-weight:700">['+esc(c.estatus||'Pendiente')+']</span> '+esc(c.compromiso||'—')+(c.paraCuando?' <span style="color:#a8a8a8">· '+esc(c.paraCuando)+'</span>':'')+'</div>';}).join('')+'</div>';
+  if(r.retro.compromisosList&&r.retro.compromisosList.length)retroBody+='<div style="font-size:11px;margin-top:3px"><strong style="color:#254467">🎯 Compromisos:</strong>'+r.retro.compromisosList.map(function(c){var col=c.estatus==='Completado'?'#3B6D11':c.estatus==='En proceso'?'#e6a817':'#67727a';return '<div style="font-size:10px;margin-top:2px"><span style="color:'+col+';font-weight:700">['+esc(c.estatus||'Pendiente')+']</span> '+esc(c.compromiso||'—')+(c.paraCuando?' <span style="color:#a8a8a8">· '+esc(c.paraCuando)+'</span>':'')+'</div>';}).join('')+'</div>';
   else if(r.retro.compromisos)retroBody+='<div style="font-size:11px"><strong style="color:#254467">🎯 Compromisos:</strong> '+esc(r.retro.compromisos)+'</div>';
   html+=_resSec('🔁 Retro', retroBody||'<div style="font-size:10px;color:#a8a8a8">Sin notas de retro</div>');
   html+=_resSec('💰 Reconocimientos ('+r.comps.length+')', r.comps.length?r.comps.map(function(x){return '<div style="font-size:11px;padding:2px 0">'+(x.tipo==='Bono'?'💰 Bono':'📈 Aumento')+(x.pct?' '+x.pct+'%':'')+' <span style="color:#a8a8a8;font-size:9px">'+(x.fecha?fmtD(x.fecha):'')+(x.nota?' · '+esc(x.nota):'')+'</span></div>';}).join(''):'<div style="font-size:10px;color:#a8a8a8">Sin registros</div>');
@@ -4349,8 +4349,8 @@ function openRetroNotes(nombre){
       +'<div style="margin-top:6px">'
       +team.map(function(tp){
         var tn=ld('retro_notes_'+tp.nombre,{});var tl=(tn.compromisosList||[]);
-        var done=tl.filter(function(c){return c.estatus==='Cumplido';}).length;
-        var inner=tl.length?tl.map(function(c){var col=c.estatus==='Cumplido'?'#3B6D11':c.estatus==='En proceso'?'#e6a817':'#67727a';return '<div style="font-size:10px;color:#1A1A2E;padding:2px 0"><span style="color:'+col+';font-weight:700">['+(c.estatus||'Pendiente')+']</span> '+_escT(c.compromiso||'—')+(c.paraCuando?' <span style="color:#a8a8a8">· '+_escT(c.paraCuando)+'</span>':'')+'</div>';}).join(''):'<div style="font-size:9px;color:#a8a8a8">Sin compromisos en su retro</div>';
+        var done=tl.filter(function(c){return c.estatus==='Completado';}).length;
+        var inner=tl.length?tl.map(function(c){var col=c.estatus==='Completado'?'#3B6D11':c.estatus==='En proceso'?'#e6a817':'#67727a';return '<div style="font-size:10px;color:#1A1A2E;padding:2px 0"><span style="color:'+col+';font-weight:700">['+(c.estatus||'Pendiente')+']</span> '+_escT(c.compromiso||'—')+(c.paraCuando?' <span style="color:#a8a8a8">· '+_escT(c.paraCuando)+'</span>':'')+'</div>';}).join(''):'<div style="font-size:9px;color:#a8a8a8">Sin compromisos en su retro</div>';
         return '<div style="border:.5px solid #e3e9ef;border-radius:6px;padding:7px 9px;margin-bottom:5px;background:#faf9ff">'
           +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px"><span style="font-size:11px;font-weight:700;color:#254467">'+_escT(tp.nombre)+'</span>'
           +'<span style="font-size:9px;color:#67727a">'+tl.length+' compromisos'+(tl.length?' · '+done+' ✅':'')+' · <a href="#" onclick="openRetroNotes(\''+String(tp.nombre).replace(/'/g,"\\'")+'\');return false" style="color:#6990ab;font-weight:700">abrir</a></span></div>'
@@ -4384,12 +4384,24 @@ function openRetroNotes(nombre){
   var m=document.querySelector('.modal');if(m)m.classList.add('wide');
   openModal();
 }
+function _retroSegRowHtml(s){
+  s=s||{};
+  var esc=function(v){return String(v==null?'':v).replace(/"/g,'&quot;');};
+  return '<div class="rc-seg-row" style="display:flex;gap:5px;align-items:center;margin-bottom:4px">'
+    +'<input type="date" class="rc-seg-fecha" value="'+esc(s.fecha)+'" style="font-family:Arial;font-size:10px;padding:3px 5px;border:.5px solid #bfd1e5;border-radius:5px;width:122px">'
+    +'<input class="rc-seg-nota" value="'+esc(s.nota)+'" placeholder="¿Qué se vio / avanzó en el 1:1?" style="flex:1;font-family:Arial;font-size:10px;padding:3px 6px;border:.5px solid #bfd1e5;border-radius:5px">'
+    +'<button type="button" onclick="this.closest(\'.rc-seg-row\').remove()" class="btn btn-xs btn-danger">✕</button>'
+    +'</div>';
+}
+function retroAddSeg(btn){var row=btn.closest('.retro-comp-row');if(!row)return;var list=row.querySelector('.rc-seg-list');if(!list)return;var d=document.createElement('div');d.innerHTML=_retroSegRowHtml({fecha:todayStr});list.appendChild(d.firstChild);}
 function _retroCompRowHtml(c){
   c=c||{};
-  var est=['Pendiente','En proceso','Cumplido'];
+  var est=['Pendiente','En proceso','Completado'];
   var esc=function(s){return String(s==null?'':s).replace(/"/g,'&quot;');};
   var escT=function(s){return String(s==null?'':s).replace(/</g,'&lt;');};
   var inp='font-family:Arial;font-size:11px;padding:5px 7px;border:.5px solid #bfd1e5;border-radius:6px';
+  var _pc=/^\d{4}-\d{2}-\d{2}$/.test(String(c.paraCuando||''))?c.paraCuando:'';
+  var segRows=(c.seguimientos||[]).map(_retroSegRowHtml).join('');
   return '<div class="retro-comp-row" style="border:.5px solid #bfd1e5;border-radius:8px;padding:8px;margin-bottom:8px;background:#fafbfc">'
     +'<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">'
     +'<input class="rc-compromiso" value="'+esc(c.compromiso)+'" placeholder="Compromiso (título)" style="flex:1;'+inp+';font-weight:700">'
@@ -4400,8 +4412,13 @@ function _retroCompRowHtml(c){
     +'<textarea class="rc-queespera" rows="2" placeholder="¿Qué se espera?" style="'+inp+';resize:vertical">'+escT(c.queEspera)+'</textarea>'
     +'<textarea class="rc-comomide" rows="2" placeholder="¿Cómo se mide?" style="'+inp+';resize:vertical">'+escT(c.comoMide)+'</textarea>'
     +'<textarea class="rc-evidencia" rows="2" placeholder="Evidencia" style="'+inp+';resize:vertical">'+escT(c.evidencia)+'</textarea>'
-    +'<input class="rc-paracuando" value="'+esc(c.paraCuando)+'" placeholder="¿Para cuándo? (ej. Diciembre 2026)" style="'+inp+'">'
-    +'</div></div>';
+    +'<label style="font-size:9px;color:#67727a;display:flex;flex-direction:column;gap:2px">¿Para cuándo?<input type="date" class="rc-paracuando" value="'+esc(_pc)+'" style="'+inp+'"></label>'
+    +'</div>'
+    +'<div style="margin-top:7px;border-top:.5px dashed #e3e9ef;padding-top:6px">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><span style="font-size:9px;font-weight:700;color:#7C3AED;text-transform:uppercase;letter-spacing:.04em">📅 Seguimiento (1:1)</span><button type="button" onclick="retroAddSeg(this)" class="btn btn-xs" style="font-size:9px">+ Seguimiento 1:1</button></div>'
+    +'<div class="rc-seg-list">'+segRows+'</div>'
+    +'</div>'
+    +'</div>';
 }
 function retroAddComp(c){var cont=document.getElementById('retro-comp-list');if(!cont)return;var d=document.createElement('div');d.innerHTML=_retroCompRowHtml(c||{});cont.appendChild(d.firstChild);}
 function openCompromisos(nombre){
@@ -4419,7 +4436,7 @@ function openCompromisos(nombre){
 function saveCompromisos(nombre){
   var prev=ld('retro_notes_'+nombre,{});
   var list=[].slice.call(document.querySelectorAll('#retro-comp-list .retro-comp-row')).map(function(r){
-    return {compromiso:r.querySelector('.rc-compromiso').value.trim(),queEspera:r.querySelector('.rc-queespera').value.trim(),comoMide:r.querySelector('.rc-comomide').value.trim(),evidencia:r.querySelector('.rc-evidencia').value.trim(),paraCuando:r.querySelector('.rc-paracuando').value.trim(),estatus:r.querySelector('.rc-estatus').value};
+    return {compromiso:r.querySelector('.rc-compromiso').value.trim(),queEspera:r.querySelector('.rc-queespera').value.trim(),comoMide:r.querySelector('.rc-comomide').value.trim(),evidencia:r.querySelector('.rc-evidencia').value.trim(),paraCuando:r.querySelector('.rc-paracuando').value,estatus:r.querySelector('.rc-estatus').value,seguimientos:[].slice.call(r.querySelectorAll('.rc-seg-list .rc-seg-row')).map(function(sr){return {fecha:sr.querySelector('.rc-seg-fecha').value,nota:sr.querySelector('.rc-seg-nota').value.trim()};}).filter(function(s){return s.fecha||s.nota;})};
   }).filter(function(c){return c.compromiso||c.queEspera||c.comoMide||c.evidencia||c.paraCuando;});
   if(prev.logros===undefined)prev.logros='';if(prev.atencion===undefined)prev.atencion='';if(prev.compromisos===undefined)prev.compromisos='';
   prev.compromisosList=list;
@@ -4430,7 +4447,7 @@ function saveCompromisos(nombre){
 function saveRetroNotes(nombre){
   var prev=ld('retro_notes_'+nombre,{});
   var list=[].slice.call(document.querySelectorAll('#retro-comp-list .retro-comp-row')).map(function(r){
-    return {compromiso:r.querySelector('.rc-compromiso').value.trim(),queEspera:r.querySelector('.rc-queespera').value.trim(),comoMide:r.querySelector('.rc-comomide').value.trim(),evidencia:r.querySelector('.rc-evidencia').value.trim(),paraCuando:r.querySelector('.rc-paracuando').value.trim(),estatus:r.querySelector('.rc-estatus').value};
+    return {compromiso:r.querySelector('.rc-compromiso').value.trim(),queEspera:r.querySelector('.rc-queespera').value.trim(),comoMide:r.querySelector('.rc-comomide').value.trim(),evidencia:r.querySelector('.rc-evidencia').value.trim(),paraCuando:r.querySelector('.rc-paracuando').value,estatus:r.querySelector('.rc-estatus').value,seguimientos:[].slice.call(r.querySelectorAll('.rc-seg-list .rc-seg-row')).map(function(sr){return {fecha:sr.querySelector('.rc-seg-fecha').value,nota:sr.querySelector('.rc-seg-nota').value.trim()};}).filter(function(s){return s.fecha||s.nota;})};
   }).filter(function(c){return c.compromiso||c.queEspera||c.comoMide||c.evidencia||c.paraCuando;});
   const notes={
     logros:document.getElementById('rn-logros').value,
@@ -7093,7 +7110,7 @@ function renderKpis(){
           var dk='retroc__done__'+pk+'__m'+mes;
           var done=!!data[dk];
           var rn=ld('retro_notes_'+p,{});var cl=(rn.compromisosList||[]);
-          var cumpl=cl.filter(function(c){return c.estatus==='Cumplido';}).length;
+          var cumpl=cl.filter(function(c){return c.estatus==='Completado';}).length;
           return '<div style="display:flex;align-items:center;gap:6px;padding:3px 5px;border-radius:4px;background:'+(done?'#f0f8ec':'#f8fafc')+'">'
             +'<input type="checkbox" '+(done?'checked':'')+' onchange="kpiSaveCheck(\''+dk+'\',this.checked);renderKpis()" style="cursor:pointer;flex-shrink:0" title="Hizo su retro este mes">'
             +'<span style="font-size:10px;color:'+(done?'#3B6D11':'#67727a')+';flex:1;font-weight:'+(done?'700':'400')+'">'+p+'</span>'
