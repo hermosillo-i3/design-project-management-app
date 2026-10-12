@@ -4368,7 +4368,7 @@ function openRetroNotes(nombre){
       <textarea id="rn-atencion" rows="3" style="width:100%;font-family:Arial;font-size:12px;padding:8px;border:.5px solid #bfd1e5;border-radius:6px;resize:vertical;margin-top:4px">${_escT(notes.atencion||'')}</textarea>
     </div>
     <div class="fg" style="margin-bottom:14px">
-      ${_s1a1EditorHtml(notes)}
+      ${_s1a1EditorHtml(notes,nombre)}
     </div>
     ${teamHtml}
     <div class="btn-row">
@@ -4416,9 +4416,27 @@ function _s1a1SessionHtml(s,collapsed){
     +'</div>'
     +'<div class="s1a1-body" style="'+(collapsed?'display:none':'')+'">'
     +'<div class="s1a1-comps">'+comps+'</div>'
-    +'<button type="button" onclick="s1a1AddComp(this)" class="btn btn-xs" style="font-size:9px;margin-top:2px">+ Agregar compromiso</button>'
+    +'<div style="display:flex;gap:6px;margin-top:2px;flex-wrap:wrap"><button type="button" onclick="s1a1AddComp(this)" class="btn btn-xs" style="font-size:9px">+ Agregar compromiso</button>'
+    +'<button type="button" onclick="s1a1AddPrev(this)" class="btn btn-xs" style="font-size:9px;border-color:#7C3AED;color:#7C3AED">↩ Seguir uno anterior</button></div>'
     +'</div>'
     +'</div>';
+}
+function s1a1AddPrev(btn){
+  var listC=document.getElementById('s1a1-list');var nombre=listC?listC.getAttribute('data-nombre'):'';
+  var notes=ld('retro_notes_'+nombre,{});
+  var map={};
+  (notes.sesiones1a1||[]).slice().sort(function(a,b){return String(a.fecha||'').localeCompare(String(b.fecha||''));}).forEach(function(s){(s.compromisos||[]).forEach(function(c){if(c&&c.compromiso)map[c.compromiso]=c;});});
+  var cands=Object.keys(map).map(function(k){return map[k];});
+  if(!cands.length){alert('Aún no hay compromisos anteriores registrados para esta persona.');return;}
+  window.__s1a1Prev=cands;
+  var sess=btn.closest('.s1a1-session');
+  if(btn.nextSibling&&btn.nextSibling.className==='s1a1-prevsel')return; // ya hay un selector abierto
+  var sel=document.createElement('select');
+  sel.className='s1a1-prevsel';
+  sel.style.cssText='font-family:Arial;font-size:10px;padding:3px 6px;border:.5px solid #7C3AED;border-radius:5px;margin-left:6px';
+  sel.innerHTML='<option value="">— Elige compromiso anterior —</option>'+cands.map(function(c,i){return '<option value="'+i+'">'+String(c.compromiso).replace(/</g,'&lt;')+' ['+(c.estatus||'Pendiente')+']</option>';}).join('');
+  sel.onchange=function(){var i=this.value;if(i===''){return;}var c=window.__s1a1Prev[parseInt(i)];var comps=sess.querySelector('.s1a1-comps');var d=document.createElement('div');d.innerHTML=_s1a1CompRowHtml(c);comps.appendChild(d.firstChild);this.parentNode.removeChild(this);};
+  btn.parentNode.appendChild(sel);
 }
 function s1a1ToggleSession(btn){var s=btn.closest('.s1a1-session');if(!s)return;var b=s.querySelector('.s1a1-body');if(!b)return;var hidden=b.style.display==='none';b.style.display=hidden?'':'none';btn.textContent=hidden?'▾':'▸';}
 function s1a1AddSession(){var c=document.getElementById('s1a1-list');if(!c)return;var d=document.createElement('div');d.innerHTML=_s1a1SessionHtml({fecha:todayStr,compromisos:[{}]},false);c.insertBefore(d.firstChild,c.firstChild);}
@@ -4429,13 +4447,13 @@ function _s1a1Sessions(notes){
   if(cl.length)return [{id:'mig'+Date.now(),fecha:'',nota:'(compromisos previos)',compromisos:cl}];
   return [];
 }
-function _s1a1EditorHtml(notes){
+function _s1a1EditorHtml(notes,nombre){
   var ses=_s1a1Sessions(notes).slice().sort(function(a,b){return String(b.fecha||'').localeCompare(String(a.fecha||''));});
   return '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
     +'<label style="font-size:10px;font-weight:700;color:#7C3AED;text-transform:uppercase;letter-spacing:.05em">📅 Sesiones 1:1 y compromisos</label>'
     +'<button type="button" class="btn btn-xs btn-primary" onclick="s1a1AddSession()" style="background:#7C3AED;border-color:#7C3AED">+ Añadir seguimiento 1:1</button></div>'
-    +'<div style="font-size:9px;color:#a8a8a8;margin-bottom:8px;font-style:italic">Cada 1:1 tiene su fecha; dentro metes los compromisos que revisaste o agregaste. La fecha del 1:1 se registra también en la ficha de la persona (Equipo). Clic en la flechita para colapsar/expandir cada sesión.</div>'
-    +'<div id="s1a1-list">'+ses.map(function(s,i){return _s1a1SessionHtml(s,i>0);}).join('')+'</div>';
+    +'<div style="font-size:9px;color:#a8a8a8;margin-bottom:8px;font-style:italic">Cada 1:1 tiene su fecha; dentro das continuidad a compromisos anteriores (↩ Seguir uno anterior) o agregas nuevos. La fecha del 1:1 se registra también en la ficha de la persona. Clic en la flechita para colapsar/expandir.</div>'
+    +'<div id="s1a1-list" data-nombre="'+String(nombre||'').replace(/"/g,'&quot;')+'">'+ses.map(function(s,i){return _s1a1SessionHtml(s,i>0);}).join('')+'</div>';
 }
 function _collectS1a1(){
   return [].slice.call(document.querySelectorAll('#s1a1-list .s1a1-session')).map(function(sess){
@@ -4467,7 +4485,7 @@ function openCompromisos(nombre){
   var notes=ld('retro_notes_'+nombre,{});
   document.getElementById('modal-body').innerHTML='<h3 style="margin-bottom:2px">📅 Sesiones 1:1 y compromisos — '+String(nombre).replace(/</g,'&lt;')+'</h3>'
     +'<p style="font-size:11px;color:#67727a;margin-bottom:10px">Añade una sesión 1:1 (con su fecha) y dentro registra los compromisos que viste o nuevos. Se comparte con la retro de la persona y la fecha queda en su ficha de Equipo.</p>'
-    +_s1a1EditorHtml(notes)
+    +_s1a1EditorHtml(notes,nombre)
     +'<div class="btn-row"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="saveCompromisos(this.dataset.n)" data-n="'+String(nombre).replace(/"/g,'&quot;')+'" style="background:#7C3AED;border-color:#7C3AED">Guardar</button></div>';
   var m=document.querySelector('.modal');if(m)m.classList.add('wide');
   openModal();
