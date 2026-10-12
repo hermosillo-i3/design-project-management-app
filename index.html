@@ -4271,7 +4271,9 @@ function _personaResumen(p){
   var ppc=conComp.length?Math.round(compCumpl/conComp.length*100):null;
   var abiertas=myTasks.filter(function(t){return !t.done&&!t.archivado;}).length;
   var vencAbiertas=myTasks.filter(function(t){return !t.done&&!t.archivado&&t.fechaCompromiso&&t.fechaCompromiso<todayStr;}).length;
-  return {nombre:nombre,projs:projs,activos:activos,arch:arch,total:myTasks.length,done:done,conComp:conComp.length,compCumpl:compCumpl,ppc:ppc,abiertas:abiertas,vencAbiertas:vencAbiertas,unoAunos:(p.seguimiento||[]),comps:(p.compensaciones||[]),caps:(p.capacitaciones||[]),retro:ld('retro_notes_'+nombre,{logros:'',atencion:'',compromisos:''})};
+  var _retro=ld('retro_notes_'+nombre,{logros:'',atencion:'',compromisos:''});
+  var _logrosLog=((_retro.sesiones1a1||[]).filter(function(s){return s.logros&&s.logros.trim();}).map(function(s){return {fecha:s.fecha,logros:s.logros};}).sort(function(a,b){return String(b.fecha||'').localeCompare(String(a.fecha||''));}));
+  return {nombre:nombre,projs:projs,activos:activos,arch:arch,total:myTasks.length,done:done,conComp:conComp.length,compCumpl:compCumpl,ppc:ppc,abiertas:abiertas,vencAbiertas:vencAbiertas,unoAunos:(p.seguimiento||[]),comps:(p.compensaciones||[]),caps:(p.capacitaciones||[]),retro:_retro,logrosLog:_logrosLog};
 }
 function _resSec(title,body){return '<div style="background:#fff;border:.5px solid #e3e9ef;border-radius:8px;margin-bottom:10px;overflow:hidden"><div style="padding:6px 12px;background:#f8fafc;border-bottom:.5px solid #e3e9ef;font-size:10px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.04em">'+title+'</div><div style="padding:8px 12px">'+body+'</div></div>';}
 function openBajaResumen(id){openDesempeno(id,true);}
@@ -4301,6 +4303,7 @@ function openDesempeno(id,showBaja){
   if(r.retro.atencion)retroBody+='<div style="font-size:11px;margin-bottom:5px"><strong style="color:#e65a27">⚠️ Puntos de atención:</strong> '+esc(r.retro.atencion)+'</div>';
   if(r.retro.compromisosList&&r.retro.compromisosList.length)retroBody+='<div style="font-size:11px;margin-top:3px"><strong style="color:#254467">🎯 Compromisos:</strong>'+r.retro.compromisosList.map(function(c){var col=c.estatus==='Completado'?'#3B6D11':c.estatus==='En proceso'?'#e6a817':'#67727a';return '<div style="font-size:10px;margin-top:2px"><span style="color:'+col+';font-weight:700">['+esc(c.estatus||'Pendiente')+']</span> '+esc(c.compromiso||'—')+(c.paraCuando?' <span style="color:#a8a8a8">· '+esc(c.paraCuando)+'</span>':'')+'</div>';}).join('')+'</div>';
   else if(r.retro.compromisos)retroBody+='<div style="font-size:11px"><strong style="color:#254467">🎯 Compromisos:</strong> '+esc(r.retro.compromisos)+'</div>';
+  html+=_resSec('✅ Logros / lo bueno ('+r.logrosLog.length+')', r.logrosLog.length?r.logrosLog.map(function(l){return '<div style="font-size:11px;padding:3px 0;border-bottom:.5px solid #f0f4f8"><span style="color:#a8a8a8;font-size:9px">'+(l.fecha?fmtD(l.fecha):'')+'</span> '+esc(l.logros)+'</div>';}).join(''):'<div style="font-size:10px;color:#a8a8a8">Sin logros registrados aún (se capturan en cada 1:1).</div>');
   html+=_resSec('🔁 Retro', retroBody||'<div style="font-size:10px;color:#a8a8a8">Sin notas de retro</div>');
   html+=_resSec('💰 Reconocimientos ('+r.comps.length+')', r.comps.length?r.comps.map(function(x){return '<div style="font-size:11px;padding:2px 0">'+(x.tipo==='Bono'?'💰 Bono':'📈 Aumento')+(x.pct?' '+x.pct+'%':'')+' <span style="color:#a8a8a8;font-size:9px">'+(x.fecha?fmtD(x.fecha):'')+(x.nota?' · '+esc(x.nota):'')+'</span></div>';}).join(''):'<div style="font-size:10px;color:#a8a8a8">Sin registros</div>');
   html+='<details style="margin-bottom:10px"><summary style="cursor:pointer;font-size:10px;font-weight:700;color:#6990ab;padding:4px 0">ⓘ ¿Cómo se calcula?</summary>'
@@ -4337,6 +4340,7 @@ function imprimirResumenBaja(id){
     +'</table>'
     +'<div class="sec">Proyectos</div>'+(r.projs.length?'<ul>'+r.projs.map(function(pr){return '<li>'+esc(pr.nombre)+(pr.archivado?' (archivado)':'')+' — '+(pr.jefe===p.nombre?'Jefe':pr.coord===p.nombre?'Coordinador':'Equipo')+'</li>';}).join('')+'</ul>':'<p>Sin proyectos</p>')
     +'<div class="sec">1:1 / Seguimiento</div>'+(r.unoAunos.length?'<ul>'+r.unoAunos.slice().reverse().map(function(s){return '<li>'+(s.fecha?fmtD(s.fecha)+': ':'')+esc(s.nota)+'</li>';}).join('')+'</ul>':'<p>Sin notas</p>')
+    +'<div class="sec">Logros / lo bueno</div>'+(r.logrosLog.length?('<ul>'+r.logrosLog.map(function(l){return '<li>'+(l.fecha?fmtD(l.fecha)+': ':'')+esc(l.logros)+'</li>';}).join('')+'</ul>'):'<p>Sin logros registrados.</p>')
     +'<div class="sec">Retro</div>'+((r.retro.logros||r.retro.atencion||r.retro.compromisos||(r.retro.compromisosList&&r.retro.compromisosList.length))?('<p><strong>Logros:</strong> '+esc(r.retro.logros||'—')+'</p><p><strong>Puntos de atención:</strong> '+esc(r.retro.atencion||'—')+'</p>'+((r.retro.compromisosList&&r.retro.compromisosList.length)?('<p><strong>Compromisos:</strong></p><ul>'+r.retro.compromisosList.map(function(c){return '<li>['+esc(c.estatus||'Pendiente')+'] '+esc(c.compromiso||'—')+(c.paraCuando?' — para '+esc(c.paraCuando):'')+'</li>';}).join('')+'</ul>'):'<p><strong>Compromisos:</strong> '+esc(r.retro.compromisos||'—')+'</p>')):'<p>Sin notas</p>')
     +'<div style="margin-top:14px;font-size:9px;color:#999">Generado el '+fmtDY(todayStr)+'</div>'
     +'</body></html>');
@@ -4425,6 +4429,7 @@ function _s1a1SessionHtml(s,collapsed){
     +'<button type="button" onclick="if(confirm(\'¿Quitar esta sesión 1:1?\'))this.closest(\'.s1a1-session\').remove()" class="btn btn-xs btn-danger" title="Quitar sesión">✕</button>'
     +'</div>'
     +'<div class="s1a1-body" style="'+(collapsed?'display:none':'')+'">'
+    +'<div style="background:#f0f8ec;border:.5px solid #cfe3c4;border-radius:7px;padding:6px 8px;margin-bottom:8px"><label style="font-size:9px;font-weight:700;color:#3B6D11;display:block;margin-bottom:3px">✅ Logros / lo bueno de este periodo</label><textarea class="s1a1-logros" rows="2" placeholder="Qué hizo muy bien, reconocimientos, avances destacados..." style="width:100%;font-family:Arial;font-size:11px;padding:5px 7px;border:.5px solid #cfe3c4;border-radius:6px;resize:vertical">'+String(s.logros||'').replace(/</g,'&lt;')+'</textarea></div>'
     +'<div class="s1a1-comps">'+comps+'</div>'
     +'<div style="display:flex;gap:6px;margin-top:2px;flex-wrap:wrap"><button type="button" onclick="s1a1AddComp(this)" class="btn btn-xs" style="font-size:9px">+ Agregar compromiso</button>'
     +'<button type="button" onclick="s1a1AddPrev(this)" class="btn btn-xs" style="font-size:9px;border-color:#7C3AED;color:#7C3AED">↩ Seguir uno anterior</button></div>'
@@ -4468,10 +4473,11 @@ function _s1a1EditorHtml(notes,nombre){
 function _collectS1a1(){
   return [].slice.call(document.querySelectorAll('#s1a1-list .s1a1-session')).map(function(sess){
     return {id:sess.getAttribute('data-sid'),fecha:sess.querySelector('.s1a1-fecha').value,nota:sess.querySelector('.s1a1-nota').value.trim(),
+      logros:(sess.querySelector('.s1a1-logros')?sess.querySelector('.s1a1-logros').value.trim():''),
       compromisos:[].slice.call(sess.querySelectorAll('.s1a1-comps .retro-comp-row')).map(function(r){
         return {compromiso:r.querySelector('.rc-compromiso').value.trim(),queEspera:r.querySelector('.rc-queespera').value.trim(),comoMide:r.querySelector('.rc-comomide').value.trim(),evidencia:r.querySelector('.rc-evidencia').value.trim(),paraCuando:r.querySelector('.rc-paracuando').value,estatus:r.querySelector('.rc-estatus').value};
       }).filter(function(c){return c.compromiso||c.queEspera||c.comoMide||c.evidencia||c.paraCuando;})};
-  }).filter(function(s){return s.fecha||s.nota||s.compromisos.length;});
+  }).filter(function(s){return s.fecha||s.nota||s.logros||s.compromisos.length;});
 }
 function _saveS1a1(nombre,extra){
   var prev=ld('retro_notes_'+nombre,{});
