@@ -11513,6 +11513,43 @@ function renderGerencia(){
     html+='</div></div>';
   });
 
+  // ===== Sección consolidada: 🔧 Revisar con taller/consultor =====
+  var revAll=tasks.filter(function(t){return t.revTaller&&!t.done&&!t.archivado;});
+  html+='<div style="background:#fff;border-radius:10px;border:.5px solid #bfd1e5;margin-bottom:16px;overflow:hidden">'
+    +'<div style="background:#854f0b;padding:10px 14px;display:flex;align-items:center;gap:10px">'
+      +'<div style="font-size:18px">🔧</div>'
+      +'<div style="flex:1"><div style="font-size:13px;font-weight:700;color:#fff">Revisar con taller / consultor</div>'
+      +'<div style="font-size:10px;color:#f0c98a">Todos los puntos marcados con 🔧 · palomea cuando ya lo revisaste</div></div>'
+      +'<div style="background:rgba(255,255,255,.14);border-radius:6px;padding:4px 10px;text-align:center">'
+        +'<div style="font-size:14px;font-weight:700;color:#fff">'+revAll.length+'</div>'
+        +'<div style="font-size:9px;color:#f0c98a;text-transform:uppercase;letter-spacing:.04em">Pendientes</div></div>'
+    +'</div>';
+  if(revAll.length){
+    var byCons={};
+    revAll.forEach(function(t){var c=(t.revTallerCon||'').trim()||'Sin asignar';(byCons[c]=byCons[c]||[]).push(t);});
+    Object.keys(byCons).sort(function(a,b){if(a==='Sin asignar')return 1;if(b==='Sin asignar')return -1;return a.localeCompare(b);}).forEach(function(c){
+      var items=byCons[c].sort(function(a,b){return (a.fechaCompromiso||'z').localeCompare(b.fechaCompromiso||'z');});
+      html+='<div style="padding:6px 14px;border-top:.5px solid #bfd1e5;font-size:10px;font-weight:800;color:#854f0b;text-transform:uppercase;letter-spacing:.04em;background:#fff8ef">'+String(c).replace(/</g,'&lt;')+' <span style="color:#a8a8a8;font-weight:400">· '+items.length+'</span></div>';
+      items.forEach(function(t){
+        var pr=allProjs.find(function(x){return x.id===t.projId;});
+        var ov=t.fechaCompromiso&&t.fechaCompromiso<todayStr;
+        html+='<div style="padding:8px 14px;border-top:.5px solid #eef2f6;display:flex;align-items:flex-start;gap:10px">'
+          +'<div style="flex:1;min-width:0">'
+          +'<div style="font-size:11px;color:#1A1A2E;line-height:1.4">'+(t.urgente?'<span style="background:#fdecea;color:#e65a27;border-radius:4px;padding:0 5px;font-size:8px;font-weight:700;margin-right:4px">🔥 URGENTE</span>':'')+String(t.texto||'').replace(/</g,'&lt;')+'</div>'
+          +'<div style="font-size:9px;color:#67727a;margin-top:2px">'+(pr?String(pr.nombre).replace(/</g,'&lt;')+(pr.archivado?' (arch)':'')+' · ':'')+(t.fechaCompromiso?'<span style="color:'+(ov?'#e65a27':'#67727a')+';font-weight:700">'+fmtD(t.fechaCompromiso)+(ov?' VENC':'')+'</span>':'sin fecha')+'</div>'
+          +'</div>'
+          +'<div style="display:flex;gap:5px;flex-shrink:0">'
+          +'<button onclick="openEditTask('+t.id+')" title="Editar tarea" style="font-size:9px;padding:3px 8px;border:.5px solid #6990ab;border-radius:5px;background:#fff;cursor:pointer;font-family:Arial;color:#6990ab">✏ Editar</button>'
+          +'<button onclick="toggleRevTaller('+t.id+')" title="Ya lo revisé / quitar de la lista" style="font-size:9px;padding:3px 8px;border:.5px solid #cfe3c4;border-radius:5px;background:#fff;cursor:pointer;font-family:Arial;color:#639922;font-weight:700">✓ Ya lo revisé</button>'
+          +'</div>'
+          +'</div>';
+      });
+    });
+  } else {
+    html+='<div style="padding:14px;font-size:11px;color:#a8a8a8">Sin puntos pendientes. Marca una tarea con el botón "🔧 Taller" para que aparezca aquí.</div>';
+  }
+  html+='</div>';
+
   html+='</div>'; // cierra #ger-cards
   el.innerHTML=html;
   gerRenderSearch();
