@@ -3472,7 +3472,7 @@ function _taskFlagsBox(t){
     +'<label style="font-weight:700;color:#475569">👀 Verlo con (recordatorio personal)</label>'
     +'<div style="font-size:9px;color:#a8a8a8;margin:3px 0 5px">Solo para recordarte cuando te sientes con esa persona. NO sale en los reportes que imprimes.</div>'
     +'<input id="t-verpersona" list="verpersona-dl" value="'+String(t.verConPersona||'').replace(/"/g,'&quot;')+'" placeholder="¿Con quién de tu equipo lo quieres ver?" style="width:100%;font-family:Arial;font-size:12px;padding:6px 8px;border:.5px solid #bfd1e5;border-radius:6px">'
-    +'<datalist id="verpersona-dl">'+(cat.personas||[]).slice().sort(function(a,b){return String(a.nombre||'').localeCompare(String(b.nombre||''));}).map(function(p){return '<option value="'+String(p.nombre||'').replace(/"/g,'&quot;')+'">';}).join('')+'</datalist>'
+    +'<datalist id="verpersona-dl"><option value="Coordinadores Precon"><option value="Jefes Ejecutivo"><option value="Desarrollo">'+(cat.personas||[]).slice().sort(function(a,b){return String(a.nombre||'').localeCompare(String(b.nombre||''));}).map(function(p){return '<option value="'+String(p.nombre||'').replace(/"/g,'&quot;')+'">';}).join('')+'</datalist>'
     +'</div>';
 }
 function _readTaskFlags(){
