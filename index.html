@@ -13431,7 +13431,7 @@ function renderEstadisticas(){
       var arr=Object.keys(byEsp[en].ase).map(function(ak){var o=byEsp[en].ase[ak];return {nombre:o.nombre,precon:Object.keys(o.precon),eje:Object.keys(o.eje),cons:Object.keys(o.cons||{}),noadj:Object.keys(o.noadj||{})};}).sort(function(a,b){return (b.precon.length+b.eje.length+b.cons.length+b.noadj.length)-(a.precon.length+a.eje.length+a.cons.length+a.noadj.length)||a.nombre.localeCompare(b.nombre);});
       if(!arr.length)return;
       var pref='avb_'+cat.replace(/[^a-z0-9]/gi,'')+'_'+en.replace(/[^a-z0-9]/gi,'');
-      porCatHtml+='<div style="margin-bottom:12px">'
+      porCatHtml+='<div data-aseg-esp="'+String(en).replace(/"/g,'&quot;')+'" data-aseg-catname="'+String(cat).replace(/"/g,'&quot;')+'" style="margin-bottom:12px">'
         +'<div style="font-size:11px;font-weight:700;color:#254467;margin-bottom:6px">'+en.replace(/</g,'&lt;')+' <span style="font-size:9px;font-weight:400;color:#a8a8a8">('+arr.length+' asesor'+(arr.length!==1?'es':'')+')</span></div>'
         +'<div style="display:flex;gap:10px;align-items:flex-end;overflow-x:auto;padding:6px 2px 2px;border-bottom:1px solid #eef2f6">'
         +arr.map(function(x,i){return _vbar(x,pref,i);}).join('')
@@ -13708,17 +13708,30 @@ function exportContratistas(){
   var clone=src.cloneNode(true);
   // Quitar controles interactivos (botones, selects) para que quede estático
   Array.prototype.slice.call(clone.querySelectorAll('button, select, input, .no-print')).forEach(function(e){e.parentNode&&e.parentNode.removeChild(e);});
-  // Marcar bloques de ingeniería para poder ocultarlos dentro del reporte
+  // Marcar bloques de ingeniería (categoría) y de especialidad para poder ocultarlos dentro del reporte
   var catBlocks=Array.prototype.slice.call(clone.querySelectorAll('[data-aseg-cat]'));
   catBlocks.forEach(function(b,i){b.setAttribute('data-aseg-idx',String(i));});
+  var espBlocks=Array.prototype.slice.call(clone.querySelectorAll('[data-aseg-esp]'));
+  espBlocks.forEach(function(b,i){b.setAttribute('data-aseg-eidx',String(i));});
+  var esc3=function(s){return String(s==null?'':s).replace(/</g,'&lt;');};
   var toolbar='<div class="noprint" style="background:#f3f0fb;border:.5px solid #e5ddf7;border-radius:8px;padding:11px 15px;margin-bottom:16px">';
-  if(catBlocks.length){
-    toolbar+='<div style="font-size:11px;font-weight:700;color:#5B21B6;margin-bottom:8px">Ingenierías en el reporte <span style="font-weight:400;color:#8b5cf6">— destilda las que no quieras y luego imprime</span></div>'
-      +'<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px">'
-      +catBlocks.map(function(b,i){var cat=b.getAttribute('data-aseg-cat')||('Ingeniería '+(i+1));return '<label style="font-size:11px;display:flex;align-items:center;gap:5px;cursor:pointer;color:#254467"><input type="checkbox" checked onchange="toggleCat('+i+',this.checked)" style="cursor:pointer"> '+cat.replace(/</g,'&lt;')+'</label>';}).join('')
+  if(espBlocks.length){
+    // Agrupar especialidades por su ingeniería (categoría)
+    var grp={},order=[];
+    espBlocks.forEach(function(b){var c=b.getAttribute('data-aseg-catname')||'Otros';if(!grp[c]){grp[c]=[];order.push(c);}grp[c].push({esp:b.getAttribute('data-aseg-esp')||'—',idx:b.getAttribute('data-aseg-eidx')});});
+    toolbar+='<div style="font-size:11px;font-weight:700;color:#5B21B6;margin-bottom:8px">Qué mostrar en el reporte <span style="font-weight:400;color:#8b5cf6">— destilda las especialidades que no quieras y luego imprime</span></div>'
+      +'<div style="display:flex;gap:18px;flex-wrap:wrap;margin-bottom:10px;align-items:flex-start">'
+      +order.map(function(c){
+        var ci=catBlocks.findIndex(function(cb){return (cb.getAttribute('data-aseg-cat')||'')===c;});
+        return '<div style="min-width:150px">'
+          +'<label style="font-size:11px;font-weight:800;color:#5B21B6;text-transform:uppercase;letter-spacing:.03em;display:flex;align-items:center;gap:5px;cursor:pointer;margin-bottom:5px">'
+          +'<input type="checkbox" checked onchange="toggleCatAll(this,'+(ci>=0?ci:-1)+',['+grp[c].map(function(x){return x.idx;}).join(',')+'])" style="cursor:pointer"> '+esc3(c)+'</label>'
+          +grp[c].map(function(x){return '<label style="font-size:11px;display:flex;align-items:center;gap:5px;cursor:pointer;color:#254467;margin:0 0 3px 16px"><input type="checkbox" checked data-esp-ck="'+x.idx+'" onchange="toggleEsp('+x.idx+',this.checked)" style="cursor:pointer"> '+esc3(x.esp)+'</label>';}).join('')
+          +'</div>';
+      }).join('')
       +'</div>';
   } else {
-    toolbar+='<div style="font-size:11px;color:#8b5cf6;margin-bottom:10px">💡 Para elegir qué ingenierías mostrar, cierra esto y cambia a la vista "🏗️ Por ingeniería" antes de exportar.</div>';
+    toolbar+='<div style="font-size:11px;color:#8b5cf6;margin-bottom:10px">💡 Para elegir qué especialidades mostrar, cierra esto y cambia a la vista "🏗️ Por ingeniería" antes de exportar.</div>';
   }
   toolbar+='<button onclick="window.print()" style="font-size:11px;padding:6px 16px;border:none;border-radius:6px;background:#5B21B6;color:#fff;cursor:pointer;font-weight:700">🖨 Imprimir / Guardar PDF</button></div>';
   var desde=document.getElementById('stats-desde')?document.getElementById('stats-desde').value:'';
@@ -13739,7 +13752,11 @@ function exportContratistas(){
     +toolbar
     +clone.innerHTML
     +'<div style="margin-top:18px;font-size:9px;color:#999">Generado el '+fmtDY(todayStr)+' desde la app de Gerencia de Diseño.</div>'
-    +'<scr'+'ipt>function toggleCat(i,on){var el=document.querySelector(\'[data-aseg-idx="\'+i+\'"]\');if(el)el.style.display=on?\'\':\'none\';}</scr'+'ipt>'
+    +'<scr'+'ipt>'
+    +'function toggleEsp(i,on){var el=document.querySelector(\'[data-aseg-eidx="\'+i+\'"]\');if(el)el.style.display=on?\'\':\'none\';}'
+    +'function toggleCat(i,on){var el=document.querySelector(\'[data-aseg-idx="\'+i+\'"]\');if(el)el.style.display=on?\'\':\'none\';}'
+    +'function toggleCatAll(box,ci,idxs){var on=box.checked;idxs.forEach(function(i){var ck=document.querySelector(\'[data-esp-ck="\'+i+\'"]\');if(ck)ck.checked=on;toggleEsp(i,on);});if(ci>=0)toggleCat(ci,on);}'
+    +'</scr'+'ipt>'
     +'</body></html>');
   win.document.close();
 }
