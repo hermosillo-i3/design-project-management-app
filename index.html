@@ -1650,6 +1650,7 @@ function toggleStatSec(key){
   var b=document.getElementById('statsec_'+key);if(b)b.style.display=willCol?'none':'';
   var hdr=b&&b.previousElementSibling;if(hdr){var ch=hdr.querySelector('._stchev');if(ch)ch.textContent=willCol?'▸':'▾';}
 }
+function toggleHideCatAse(c){var a=ld('gh_stats_ase_hidecats',[]);var i=a.indexOf(c);if(i>=0)a.splice(i,1);else a.push(c);sv('gh_stats_ase_hidecats',a);renderEstadisticas();}
 function setCargaZoom(z){sv('gh_carga_zoom',z);renderCargaGantt();}
 function cargaGoToday(){
   var tm=document.getElementById('carga-today-marker');var sc=document.getElementById('carga-scroll');
@@ -13382,7 +13383,8 @@ function renderEstadisticas(){
   Object.keys(byEsp).forEach(function(en){var cat=byEsp[en].cat||'Otros';if(!espByCat[cat])espByCat[cat]=[];espByCat[cat].push(en);});
   var catList=catOrderStats.filter(function(c){return espByCat[c];}).concat(Object.keys(espByCat).filter(function(c){return catOrderStats.indexOf(c)<0;}).sort());
   var selCatAse=ld('gh_stats_ase_cat','');if(selCatAse&&catList.indexOf(selCatAse)<0)selCatAse='';
-  var catsToShow=selCatAse?[selCatAse]:catList;
+  var hideCats=ld('gh_stats_ase_hidecats',[]).filter(function(c){return catList.indexOf(c)>=0;});
+  var catsToShow=selCatAse?[selCatAse]:catList.filter(function(c){return hideCats.indexOf(c)<0;});
   var maxTotal=1;
   Object.keys(byEsp).forEach(function(en){Object.keys(byEsp[en].ase).forEach(function(ak){var o=byEsp[en].ase[ak];var t=Object.keys(o.precon).length+Object.keys(o.eje).length+Object.keys(o.cons||{}).length+Object.keys(o.noadj||{}).length;if(t>maxTotal)maxTotal=t;});});
   // Agregado por ASESOR (para vista "por especialista")
@@ -13449,9 +13451,30 @@ function renderEstadisticas(){
   var yearOptsAse='<option value="">Todos los años</option>'+aseYearList.map(function(y){return '<option value="'+y+'"'+(y===aseYearSel?' selected':'')+'>'+y+'</option>';}).join('');
   var scopeBtn=function(v,lbl){return '<button onclick="sv(\'gh_stats_ase_scope\',\''+v+'\');renderEstadisticas()" style="font-size:10px;padding:3px 10px;border:.5px solid #bfd1e5;border-radius:5px;cursor:pointer;font-family:Arial;background:'+(aseScope===v?'#254467':'#fff')+';color:'+(aseScope===v?'#fff':'#67727a')+'">'+lbl+'</button>';};
   var viewBtn=function(v,lbl){return '<button onclick="sv(\'gh_stats_ase_view\',\''+v+'\');renderEstadisticas()" style="font-size:10px;padding:3px 10px;border:.5px solid #7C3AED;border-radius:5px;cursor:pointer;font-family:Arial;font-weight:700;background:'+(aseView===v?'#7C3AED':'#fff')+';color:'+(aseView===v?'#fff':'#7C3AED')+'">'+lbl+'</button>';};
+  // ── Respuestas rápidas (rankings) ──
+  var _topBy=function(key){var best=null;espArr.forEach(function(x){var n=(x[key]||[]).length;if(n>0&&(!best||n>best.n))best={nombre:x.nombre,n:n};});return best;};
+  var _topTot=function(){var best=null;espArr.forEach(function(x){var n=x.precon.length+x.eje.length+x.cons.length+x.noadj.length;if(n>0&&(!best||n>best.n))best={nombre:x.nombre,n:n};});return best;};
+  var topEje=_topBy('eje'),topPre=_topBy('precon'),topCons=_topBy('cons'),topTot=_topTot();
+  var _qa=function(lbl,best,clr){return '<div style="flex:1;min-width:150px;background:#faf8ff;border:.5px solid #e5ddf7;border-radius:8px;padding:8px 11px">'
+    +'<div style="font-size:9px;color:#8b5cf6;text-transform:uppercase;letter-spacing:.04em;font-weight:700;margin-bottom:3px">'+lbl+'</div>'
+    +(best?'<div style="font-size:13px;font-weight:800;color:'+clr+';line-height:1.2">'+String(best.nombre).replace(/</g,'&lt;')+'</div><div style="font-size:10px;color:#67727a">'+best.n+' proyecto'+(best.n!==1?'s':'')+'</div>':'<div style="font-size:11px;color:#a8a8a8">—</div>')
+    +'</div>';};
+  var qaHtml='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">'
+    +_qa('🏆 Más ejecutivos',topEje,'#7C3AED')
+    +_qa('✅ Más precon (elegido)',topPre,'#6D28D9')
+    +_qa('📊 Más proyectos en total',topTot,'#254467')
+    +_qa('💬 Más cotizado sin elegir',topCons,'#BA7517')
+    +'</div>';
+  // ── Chips para ocultar categorías (solo vista por ingeniería, sin filtro de una sola) ──
+  var hideCatChips=(aseView==='ing'&&!selCatAse&&catList.length>1)?('<div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin-bottom:12px">'
+    +'<span style="font-size:10px;color:#67727a">Mostrar categorías:</span>'
+    +catList.map(function(c){var on=hideCats.indexOf(c)<0;return '<button onclick="toggleHideCatAse(\''+String(c).replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\')" style="font-size:9px;padding:2px 9px;border:.5px solid '+(on?'#7C3AED':'#d8dee6')+';border-radius:12px;cursor:pointer;font-family:Arial;background:'+(on?'#efe9fc':'#f3f4f6')+';color:'+(on?'#5B21B6':'#a8a8a8')+';font-weight:700">'+(on?'':'🚫 ')+String(c).replace(/</g,'&lt;')+'</button>';}).join('')
+    +(hideCats.length?' <button onclick="sv(\'gh_stats_ase_hidecats\',[]);renderEstadisticas()" style="font-size:9px;padding:2px 9px;border:none;background:none;cursor:pointer;color:#6990ab;text-decoration:underline">ver todas</button>':'')
+    +'</div>'):'';
   var aseHtml='<div style="background:#fff;border-radius:12px;border:.5px solid #bfd1e5;padding:16px 18px;margin-bottom:1.25rem">'
     +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;align-items:center">'+viewBtn('ing','🏗️ Por ingeniería')+viewBtn('esp','👷 Por especialista')
     +'<button onclick="exportContratistas()" class="no-print" style="margin-left:auto;font-size:10px;padding:4px 11px;border:.5px solid #3B6D11;border-radius:5px;cursor:pointer;font-family:Arial;font-weight:700;background:#eaf3de;color:#3B6D11">📤 Exportar / compartir</button></div>'
+    +qaHtml
     +'<div style="font-size:10px;color:#67727a;margin-bottom:10px">Cada barra es un asesor · la altura es el número de proyectos · '
     +'<span style="display:inline-block;width:10px;height:10px;background:#CBD5E1;border-radius:2px;vertical-align:middle"></span> cotizado / considerado &nbsp; '
     +'<span style="display:inline-block;width:10px;height:10px;background:#C4B5FD;border-radius:2px;vertical-align:middle"></span> precon (elegido) &nbsp; '
@@ -13463,6 +13486,7 @@ function renderEstadisticas(){
     +'<span style="font-size:10px;color:#67727a;margin-left:6px">Año:</span><select onchange="sv(\'gh_stats_ase_year\',this.value);renderEstadisticas()" style="font-size:10px;padding:3px 7px;border-radius:5px;border:.5px solid #bfd1e5;font-family:Arial">'+yearOptsAse+'</select>'
     +(aseView==='ing'?'<span style="font-size:10px;color:#67727a;margin-left:6px">Categoría:</span><select onchange="sv(\'gh_stats_ase_cat\',this.value);renderEstadisticas()" style="font-size:10px;padding:3px 7px;border-radius:5px;border:.5px solid #bfd1e5;font-family:Arial">'+catOptsAse+'</select>':'')
     +'</div>'
+    +hideCatChips
     +((aseView==='esp'?espHtml:porCatHtml)||'<div style="font-size:11px;color:#a8a8a8">Aún no hay asesores ligados a especialidades. Esta vista se alimenta del asesor elegido en las cotizaciones, de Costos ejecutivos y del campo <strong>"Asesores / contratistas del proyecto"</strong> de la ficha.</div>')
     +'</div>';
 
