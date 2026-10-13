@@ -13032,11 +13032,12 @@ function aseVBShow(id){
   if(!d.precon.length&&!d.eje.length&&!cons.length&&!noadj.length)html+='<div style="margin-top:4px;color:#a8a8a8">Sin proyectos.</div>';
   det.innerHTML=html;det.style.display='block';det.setAttribute('data-cur',id);
 }
-function cargaShow(group,month){
-  var d=(window.__cargaData||{})[group]||{};var list=d[month]||[];
+function cargaShow(group,key){
+  var d=(window.__cargaData||{})[group]||{};var list=d[key]||[];
   var el=document.getElementById('carga-det-'+group);if(!el)return;
-  var mLbl=function(m){var p=m.split('-');var n=['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];return n[parseInt(p[1])]+' '+p[0].slice(2);};
-  el.innerHTML='<div style="background:#f8fafc;border:.5px solid #e2e8f0;border-radius:6px;padding:8px 11px;font-size:10px;color:#67727a"><strong style="color:#254467">'+mLbl(month)+' · '+list.length+' proyecto'+(list.length!==1?'s':'')+'</strong>'+(list.length?': '+list.map(function(n){return String(n).replace(/</g,"&lt;");}).join(' · '):' — sin proyectos')+'</div>';
+  var lbl=((window.__cargaData||{})._labels||{})[key];
+  if(!lbl){var p=key.split('-');var n=['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];lbl=p.length===3?('Semana '+p[2]+'/'+p[1]):(n[parseInt(p[1])]+' '+p[0].slice(2));}
+  el.innerHTML='<div style="background:#f8fafc;border:.5px solid #e2e8f0;border-radius:6px;padding:8px 11px;font-size:10px;color:#67727a"><strong style="color:#254467">'+lbl+' · '+list.length+' proyecto'+(list.length!==1?'s':'')+'</strong>'+(list.length?': '+list.map(function(n){return String(n).replace(/</g,"&lt;");}).join(' · '):' — sin proyectos')+'</div>';
 }
 function renderEstadisticas(){
   // Get all projects including archived
@@ -13150,34 +13151,35 @@ function renderEstadisticas(){
   var maxCli=cliSorted.length?cliSorted[0][1]:1;
   margenPorProy.sort(function(a,b){return b.margen-a.margen;});
   var mpTop=margenPorProy.slice(0,8);var maxMp=mpTop.length?Math.max.apply(null,[1].concat(mpTop.map(function(x){return Math.abs(x.margen);}))):1;
-  // ── CARGAS LABORALES: carga por mes (PRECON / Ejecutivo / Ambos) ──
+  // ── CARGAS LABORALES: carga por semana o mes (PRECON / Ejecutivo / Ambos) ──
+  var _cargaGran=ld('gh_stats_carga_gran','semana');
   var _projTag=function(p){var e=p.estatusProy||'';if(e==='Perdido')return ' ⚠ perdido';if(e==='Cancelado')return ' ⚠ cancelado';if(e==='StandBy')return ' ⏸ pausa';return '';};
-  var _activosMes=function(m,filt){
-    return allP.filter(function(p){
-      if(p.interno)return false;
-      if(filt&&!filt(p))return false;
-      var ult=entUlt(p)||'';
-      var arr=p.arranque||'';
-      var startM=arr?arr.slice(0,7):(ult?ult.slice(0,7):_nowM);
-      var ep=p.estatusProy||'';
-      var muerto=(ep==='Perdido'||ep==='Cancelado');
-      var endM;
-      if(p.archivado){endM=(p.archivedAt?p.archivedAt.slice(0,7):(ult?ult.slice(0,7):_nowM));}
-      else if(muerto){var ua=p.ultimaActualizacion||'';endM=ua?ua.slice(0,7):(ult?(ult.slice(0,7)>_nowM?_nowM:ult.slice(0,7)):_nowM);}
-      else{endM=ult?(ult.slice(0,7)>_nowM?ult.slice(0,7):_nowM):_nowM;}
-      if(startM>endM)startM=endM;
-      return m>=startM&&m<=endM;
-    });
+  var _buildWeeks=function(fromD,toD){var weeks=[];var d=new Date(fromD+'T00:00:00');var dy=d.getDay();d.setDate(d.getDate()+(dy===0?-6:1-dy));var end=new Date(toD+'T00:00:00');var g=0;while(d<=end&&g<80){var s=d.toISOString().slice(0,10);var e=new Date(d);e.setDate(e.getDate()+6);weeks.push({key:s,start:s,end:e.toISOString().slice(0,10),label:s.split('-')[2]+'/'+s.split('-')[1]});d.setDate(d.getDate()+7);g++;}return weeks;};
+  var periods;
+  if(_cargaGran==='semana'){var _fw=desde||'';var _tw=hasta||todayStr;if(!_fw){var _dd=new Date(today);_dd.setDate(_dd.getDate()-7*15);_fw=_dd.toISOString().slice(0,10);}periods=_buildWeeks(_fw,_tw);}
+  else{periods=months.map(function(m){return {key:m,start:m+'-01',end:m+'-31',label:mLbl(m)};});}
+  var _projInt=function(p){
+    var ult=entUlt(p)||'';var arr=p.arranque||'';
+    var startD=arr||ult||todayStr;
+    var ep=p.estatusProy||'';var muerto=(ep==='Perdido'||ep==='Cancelado');
+    var endD;
+    if(p.archivado)endD=p.archivedAt||ult||todayStr;
+    else if(muerto)endD=p.ultimaActualizacion||ult||todayStr;
+    else endD=(ult&&ult>todayStr)?ult:todayStr;
+    if(startD>endD)startD=endD;
+    return {startD:startD,endD:endD};
   };
-  var _serP={},_serE={},_serA={},_cargaData={precon:{},ejec:{},ambos:{}};
-  months.forEach(function(m){
-    var lp=_activosMes(m,function(p){return p.etapa==='PRECON';});
-    var le=_activosMes(m,function(p){return p.etapa==='EJECUTIVO'||p.etapa==='REVISIONES';});
-    var la=_activosMes(m,null);
-    _serP[m]=lp.length;_serE[m]=le.length;_serA[m]=la.length;
-    _cargaData.precon[m]=lp.map(function(p){return p.nombre+_projTag(p);});
-    _cargaData.ejec[m]=le.map(function(p){return p.nombre+_projTag(p);});
-    _cargaData.ambos[m]=la.map(function(p){return p.nombre+_projTag(p);});
+  var _activosPer=function(per,filt){return allP.filter(function(p){if(p.interno)return false;if(filt&&!filt(p))return false;var iv=_projInt(p);return iv.startD<=per.end&&iv.endD>=per.start;});};
+  var _serP={},_serE={},_serA={},_cargaData={precon:{},ejec:{},ambos:{},_labels:{}};
+  periods.forEach(function(per){
+    var lp=_activosPer(per,function(p){return p.etapa==='PRECON';});
+    var le=_activosPer(per,function(p){return p.etapa==='EJECUTIVO'||p.etapa==='REVISIONES';});
+    var la=_activosPer(per,null);
+    _serP[per.key]=lp.length;_serE[per.key]=le.length;_serA[per.key]=la.length;
+    _cargaData.precon[per.key]=lp.map(function(p){return p.nombre+_projTag(p);});
+    _cargaData.ejec[per.key]=le.map(function(p){return p.nombre+_projTag(p);});
+    _cargaData.ambos[per.key]=la.map(function(p){return p.nombre+_projTag(p);});
+    _cargaData._labels[per.key]=(_cargaGran==='semana'?('Semana del '+per.label):per.label);
   });
   var _perEnProj=function(p,nombre){if(!p||!nombre)return false;if(p.jefe===nombre||p.coord===nombre)return true;return Array.isArray(p.equipo)&&p.equipo.indexOf(nombre)>=0;};
   var _perSet={};(cat.personas||[]).forEach(function(pe){if(pe.nombre)_perSet[pe.nombre]=1;});
@@ -13185,27 +13187,29 @@ function renderEstadisticas(){
   var _perList=Object.keys(_perSet).sort(function(a,b){return a.localeCompare(b);});
   var _selPer=ld('gh_stats_carga_persona','');
   var _serPer={};_cargaData.persona={};
-  if(_selPer){months.forEach(function(m){var l=_activosMes(m,function(p){return _perEnProj(p,_selPer);});_serPer[m]=l.length;_cargaData.persona[m]=l.map(function(p){return p.nombre+_projTag(p);});});}
+  if(_selPer){periods.forEach(function(per){var l=_activosPer(per,function(p){return _perEnProj(p,_selPer);});_serPer[per.key]=l.length;_cargaData.persona[per.key]=l.map(function(p){return p.nombre+_projTag(p);});_cargaData._labels[per.key]=_cargaData._labels[per.key];});}
   var _perOpts='<option value="">— Elige persona —</option>'+_perList.map(function(n){return '<option value="'+n.replace(/"/g,'&quot;')+'"'+(n===_selPer?' selected':'')+'>'+String(n).replace(/</g,'&lt;')+'</option>';}).join('');
   window.__cargaData=_cargaData;
   var _cargaChart=function(group,ser,color){
-    var maxV=Math.max.apply(null,[1].concat(months.map(function(m){return ser[m]||0;})));
-    var bars=months.map(function(m){var v=ser[m]||0;var h=Math.round(v/maxV*92);
-      return '<div onclick="cargaShow(\''+group+'\',\''+m+'\')" title="Clic para ver proyectos" style="flex:1;min-width:28px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;cursor:pointer">'
+    var maxV=Math.max.apply(null,[1].concat(periods.map(function(per){return ser[per.key]||0;})));
+    var bars=periods.map(function(per){var v=ser[per.key]||0;var h=Math.round(v/maxV*92);
+      return '<div onclick="cargaShow(\''+group+'\',\''+per.key+'\')" title="Clic para ver proyectos" style="flex:1;min-width:'+(_cargaGran==='semana'?22:28)+'px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;cursor:pointer">'
         +'<div style="font-size:9px;color:#67727a;font-weight:700;margin-bottom:2px">'+v+'</div>'
         +'<div style="width:62%;background:'+color+';border-radius:3px 3px 0 0;height:'+Math.max(h,2)+'px"></div>'
-        +'<div style="font-size:8px;color:#8a98a8;margin-top:3px;white-space:nowrap">'+mLbl(m)+'</div>'
+        +'<div style="font-size:8px;color:#8a98a8;margin-top:3px;white-space:nowrap">'+per.label+'</div>'
         +'</div>';}).join('');
-    return '<div style="overflow-x:auto"><div style="display:flex;align-items:flex-end;gap:3px;height:130px;min-width:'+(months.length*32)+'px;border-bottom:1px solid #e2e8f0">'+bars+'</div></div>'
+    return '<div style="overflow-x:auto"><div style="display:flex;align-items:flex-end;gap:3px;height:130px;min-width:'+(periods.length*(_cargaGran==='semana'?25:32))+'px;border-bottom:1px solid #e2e8f0">'+bars+'</div></div>'
       +'<div id="carga-det-'+group+'" style="margin-top:8px"></div>';
   };
+  var _granBtn=function(g,lbl){var on=_cargaGran===g;return '<button onclick="sv(\'gh_stats_carga_gran\',\''+g+'\');renderEstadisticas()" style="font-size:10px;padding:3px 11px;border:.5px solid #bfd1e5;cursor:pointer;font-family:Arial;background:'+(on?'#254467':'#fff')+';color:'+(on?'#fff':'#67727a')+'">'+lbl+'</button>';};
   var cargaHtml='<div style="background:#fff;border-radius:12px;border:.5px solid #bfd1e5;padding:16px 18px;margin-bottom:1.25rem">'
-    +'<div class="sec" style="margin-top:0;margin-bottom:6px">📊 Cargas laborales — carga por mes</div>'
-    +'<div style="font-size:10px;color:#67727a;margin-bottom:12px">Proyectos en curso por mes. Los activos cuentan hasta hoy (aunque su entrega ya haya pasado); los <strong>Perdidos/Cancelados sí cuentan</strong> en los meses que estuvieron vivos (hasta su última actualización) y se marcan con ⚠. Haz clic en una barra para ver el detalle.</div>'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:6px"><span class="sec" style="margin:0">📊 Cargas laborales — carga por '+(_cargaGran==='semana'?'semana':'mes')+'</span>'
+    +'<span style="display:inline-flex;border:.5px solid #bfd1e5;border-radius:6px;overflow:hidden">'+_granBtn('semana','Semanal')+_granBtn('mes','Mensual')+'</span></div>'
+    +'<div style="font-size:10px;color:#67727a;margin-bottom:12px">Proyectos en curso por '+(_cargaGran==='semana'?'semana (las últimas ~15 o el rango que elijas arriba)':'mes')+'. Los activos cuentan hasta hoy; los <strong>Perdidos/Cancelados sí cuentan</strong> mientras estuvieron vivos (⚠). Clic en una barra para ver el detalle.</div>'
     +'<div style="font-size:11px;font-weight:800;color:#254467;margin-bottom:4px">🟦 Ambos (PRECON + Ejecutivo)</div>'+_cargaChart('ambos',_serA,'#254467')
     +'<div style="font-size:11px;font-weight:800;color:#0369A1;margin:16px 0 4px">🏆 PRECON</div>'+_cargaChart('precon',_serP,'#0369A1')
     +'<div style="font-size:11px;font-weight:800;color:#6990ab;margin:16px 0 4px">⚙ Ejecutivo (Ejecutivo + Revisiones)</div>'+_cargaChart('ejec',_serE,'#6990ab')
-    +'<div style="border-top:.5px dashed #e2e8f0;margin-top:16px;padding-top:12px"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px"><span style="font-size:11px;font-weight:800;color:#3B6D11">👤 Carga por persona (mensual)</span>'
+    +'<div style="border-top:.5px dashed #e2e8f0;margin-top:16px;padding-top:12px"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px"><span style="font-size:11px;font-weight:800;color:#3B6D11">👤 Carga por persona</span>'
     +'<select onchange="sv(\'gh_stats_carga_persona\',this.value);renderEstadisticas()" style="font-size:11px;padding:4px 8px;border-radius:6px;border:.5px solid #bfd1e5;font-family:Arial">'+_perOpts+'</select>'
     +'<span style="font-size:9px;color:#a8a8a8">según asignación actual (equipo/jefe/coord)</span></div>'
     +(_selPer?_cargaChart('persona',_serPer,'#3B6D11'):'<div style="font-size:11px;color:#a8a8a8;padding:8px 0">Elige una persona para ver su carga mes a mes.</div>')
