@@ -13450,7 +13450,8 @@ function renderEstadisticas(){
   var scopeBtn=function(v,lbl){return '<button onclick="sv(\'gh_stats_ase_scope\',\''+v+'\');renderEstadisticas()" style="font-size:10px;padding:3px 10px;border:.5px solid #bfd1e5;border-radius:5px;cursor:pointer;font-family:Arial;background:'+(aseScope===v?'#254467':'#fff')+';color:'+(aseScope===v?'#fff':'#67727a')+'">'+lbl+'</button>';};
   var viewBtn=function(v,lbl){return '<button onclick="sv(\'gh_stats_ase_view\',\''+v+'\');renderEstadisticas()" style="font-size:10px;padding:3px 10px;border:.5px solid #7C3AED;border-radius:5px;cursor:pointer;font-family:Arial;font-weight:700;background:'+(aseView===v?'#7C3AED':'#fff')+';color:'+(aseView===v?'#fff':'#7C3AED')+'">'+lbl+'</button>';};
   var aseHtml='<div style="background:#fff;border-radius:12px;border:.5px solid #bfd1e5;padding:16px 18px;margin-bottom:1.25rem">'
-    +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">'+viewBtn('ing','🏗️ Por ingeniería')+viewBtn('esp','👷 Por especialista')+'</div>'
+    +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;align-items:center">'+viewBtn('ing','🏗️ Por ingeniería')+viewBtn('esp','👷 Por especialista')
+    +'<button onclick="exportContratistas()" class="no-print" style="margin-left:auto;font-size:10px;padding:4px 11px;border:.5px solid #3B6D11;border-radius:5px;cursor:pointer;font-family:Arial;font-weight:700;background:#eaf3de;color:#3B6D11">📤 Exportar / compartir</button></div>'
     +'<div style="font-size:10px;color:#67727a;margin-bottom:10px">Cada barra es un asesor · la altura es el número de proyectos · '
     +'<span style="display:inline-block;width:10px;height:10px;background:#CBD5E1;border-radius:2px;vertical-align:middle"></span> cotizado / considerado &nbsp; '
     +'<span style="display:inline-block;width:10px;height:10px;background:#C4B5FD;border-radius:2px;vertical-align:middle"></span> precon (elegido) &nbsp; '
@@ -13677,6 +13678,33 @@ function renderEstadisticas(){
   `;
 }
 
+function exportContratistas(){
+  var src=document.getElementById('statsec_contratistas');
+  if(!src){alert('Abre la pestaña Estadísticas primero.');return;}
+  var clone=src.cloneNode(true);
+  // Quitar controles interactivos (botones, selects) para que quede estático
+  Array.prototype.slice.call(clone.querySelectorAll('button, select, input, .no-print')).forEach(function(e){e.parentNode&&e.parentNode.removeChild(e);});
+  var desde=document.getElementById('stats-desde')?document.getElementById('stats-desde').value:'';
+  var hasta=document.getElementById('stats-hasta')?document.getElementById('stats-hasta').value:'';
+  var per=(desde||hasta)?('Periodo: '+(desde?fmtDY(desde):'inicio')+' — '+(hasta?fmtDY(hasta):'hoy')):'Todos los proyectos';
+  var hoy=new Date().toLocaleDateString('es-MX',{day:'2-digit',month:'long',year:'numeric'});
+  var win=window.open('','_blank');
+  win.document.write('<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Contratistas / asesores — Análisis</title><style>'
+    +'*{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}'
+    +'body{font-family:Arial,sans-serif;color:#1A1A2E;font-size:12px;padding:1.2rem;background:#fff}'
+    +'.hdr{background:#5B21B6;color:#fff;border-radius:8px;padding:14px 18px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:flex-end}'
+    +'.hdr-t{font-size:17px;font-weight:700}.hdr-s{font-size:11px;color:#ddd6fe;margin-top:3px}'
+    +'@page{size:landscape;margin:1cm}'
+    +'</style></head><body>'
+    +'<div class="hdr"><div><div class="hdr-t">🏗️ Contratistas / asesores</div>'
+    +'<div class="hdr-s">Gerencia de Diseño CDMX — Grupo Hermosillo · '+per+'</div></div>'
+    +'<div style="text-align:right;font-size:11px;color:#ddd6fe">'+hoy+'</div></div>'
+    +clone.innerHTML
+    +'<div style="margin-top:18px;font-size:9px;color:#999">Generado el '+fmtDY(todayStr)+' desde la app de Gerencia de Diseño.</div>'
+    +'</body></html>');
+  win.document.close();
+  setTimeout(function(){try{win.print();}catch(e){}},500);
+}
 
 function setStatsPeriod(period){
   const now=new Date();
