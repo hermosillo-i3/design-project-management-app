@@ -1835,6 +1835,31 @@ function imprimirReporteDepto(){
         +'</tr>';
     }).join('');
   };
+  var revConsSection=function(){
+    var revAllRep=tasks.filter(function(t){return t.revTaller&&!t.done&&!t.archivado;});
+    if(!revAllRep.length)return '';
+    var projName=function(id){var p=all.find(function(x){return x.id===id;});return p?p.nombre:'—';};
+    var byC={};
+    revAllRep.forEach(function(t){var c=(t.revTallerCon||'').trim()||'Sin asignar';(byC[c]=byC[c]||[]).push(t);});
+    var keys=Object.keys(byC).sort(function(a,b){if(a==='Sin asignar')return 1;if(b==='Sin asignar')return -1;return a.localeCompare(b);});
+    var out='';
+    keys.forEach(function(c){
+      var items=byC[c].sort(function(a,b){return (a.fechaCompromiso||'z').localeCompare(b.fechaCompromiso||'z');});
+      out+='<div style="page-break-before:always">'
+        +'<div class="hdr" style="background:#854f0b"><div><div class="hdr-t">🔧 Puntos a revisar — '+esc(c)+'</div>'
+        +'<div class="hdr-s" style="color:#f0c98a">Departamento de Diseño CDMX · '+items.length+' punto(s) pendiente(s)</div></div>'
+        +'<div style="text-align:right;font-size:10px;color:#f0c98a">'+today.toLocaleDateString('es-MX',{day:'2-digit',month:'long',year:'numeric'})+'</div></div>'
+        +'<table><thead><tr><th style="width:28%">Proyecto</th><th>Punto a revisar</th><th class="nw" style="width:12%">Fecha</th><th style="width:20%">Acordado / seguimiento</th></tr></thead><tbody>'
+        +items.map(function(t){
+          return '<tr><td class="b">'+esc(projName(t.projId))+'</td>'
+            +'<td>'+esc(t.texto)+(t.urgente?' <strong style="color:#b91c1c">(URGENTE)</strong>':'')+'</td>'
+            +'<td class="nw">'+(t.fechaCompromiso?fmtD(t.fechaCompromiso):'—')+'</td>'
+            +'<td class="com"></td></tr>';
+        }).join('')
+        +'</tbody></table></div>';
+    });
+    return out;
+  };
   var win=window.open('','_blank');
   win.document.write('<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Reporte Departamento de Diseño</title><style>'
     +'*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;color:#1A1A2E;font-size:11px;padding:1.2rem}'
@@ -1856,6 +1881,7 @@ function imprimirReporteDepto(){
     +'<div class="sec">⚙ Ejecutivo ('+ejec.length+')</div>'
     +'<table><thead>'+heads+'</thead><tbody>'+rowsHtml(ejec)+'</tbody></table>'
     +'<div style="margin-top:16px;font-size:9px;color:#999">Generado el '+fmtDY(todayStr)+' · La columna de Comentarios queda en blanco para anotar durante la junta.</div>'
+    +revConsSection()
     +'</body></html>');
   win.document.close();
   setTimeout(function(){try{win.print();}catch(e){}},400);
