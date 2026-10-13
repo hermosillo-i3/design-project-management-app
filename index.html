@@ -13467,13 +13467,13 @@ function renderEstadisticas(){
     +'</div>';
   // ── Chips para ocultar categorías (solo vista por ingeniería, sin filtro de una sola) ──
   var hideCatChips=(aseView==='ing'&&!selCatAse&&catList.length>1)?('<div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin-bottom:12px">'
-    +'<span style="font-size:10px;color:#67727a">Mostrar categorías:</span>'
+    +'<span style="font-size:10px;color:#67727a">Mostrar ingenierías <span style="color:#a8a8a8">(también define qué sale en el reporte 📤):</span></span>'
     +catList.map(function(c){var on=hideCats.indexOf(c)<0;return '<button onclick="toggleHideCatAse(\''+String(c).replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\')" style="font-size:9px;padding:2px 9px;border:.5px solid '+(on?'#7C3AED':'#d8dee6')+';border-radius:12px;cursor:pointer;font-family:Arial;background:'+(on?'#efe9fc':'#f3f4f6')+';color:'+(on?'#5B21B6':'#a8a8a8')+';font-weight:700">'+(on?'':'🚫 ')+String(c).replace(/</g,'&lt;')+'</button>';}).join('')
     +(hideCats.length?' <button onclick="sv(\'gh_stats_ase_hidecats\',[]);renderEstadisticas()" style="font-size:9px;padding:2px 9px;border:none;background:none;cursor:pointer;color:#6990ab;text-decoration:underline">ver todas</button>':'')
     +'</div>'):'';
   var aseHtml='<div style="background:#fff;border-radius:12px;border:.5px solid #bfd1e5;padding:16px 18px;margin-bottom:1.25rem">'
     +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;align-items:center">'+viewBtn('ing','🏗️ Por ingeniería')+viewBtn('esp','👷 Por especialista')
-    +'<button onclick="exportContratistas()" class="no-print" style="margin-left:auto;font-size:10px;padding:4px 11px;border:.5px solid #3B6D11;border-radius:5px;cursor:pointer;font-family:Arial;font-weight:700;background:#eaf3de;color:#3B6D11">📤 Exportar / compartir</button></div>'
+    +'<button onclick="exportContratistas()" class="no-print" title="Exporta lo que ves en pantalla. Usa &quot;Por ingeniería&quot; y oculta las que no quieras para elegir qué sale." style="margin-left:auto;font-size:10px;padding:4px 11px;border:.5px solid #3B6D11;border-radius:5px;cursor:pointer;font-family:Arial;font-weight:700;background:#eaf3de;color:#3B6D11">📤 Exportar / compartir</button></div>'
     +qaHtml
     +'<div style="font-size:10px;color:#67727a;margin-bottom:10px">Cada barra es un asesor · la altura es el número de proyectos · '
     +'<span style="display:inline-block;width:10px;height:10px;background:#CBD5E1;border-radius:2px;vertical-align:middle"></span> cotizado / considerado &nbsp; '
