@@ -2415,6 +2415,7 @@ function renderCostos(){
   var container=document.getElementById('costos-container');
   if(!container)return;
   var ejecutivoProjs=projects.filter(function(p){return !p.archivado&&(p.etapa==='EJECUTIVO'||p.etapa==='REVISIONES')&&p.presupuestoControlCotId;});
+  var sinControl=projects.filter(function(p){return !p.archivado&&(p.etapa==='EJECUTIVO'||p.etapa==='REVISIONES')&&!p.presupuestoControlCotId;});
   var selProjId=ld('gh_costos_proj','');
   var selProj=ejecutivoProjs.find(function(p){return String(p.id)===String(selProjId);});
   var projOpts=ejecutivoProjs.map(function(p){var fa=costosFaltanAsesor(p);return '<option value="'+p.id+'"'+(String(p.id)===String(selProjId)?' selected':'')+'>'+p.nombre+(fa>0?'  ⚠ '+fa+' sin asesor':'')+'</option>';}).join('');
@@ -2429,6 +2430,13 @@ function renderCostos(){
     +(selProj?'<button onclick="openEstimacionModal('+selProj.id+')" style="font-size:11px;padding:5px 12px;border-radius:6px;border:.5px solid #9fc77f;background:#f0f8ec;color:#3B6D11;cursor:pointer;font-family:Arial;font-weight:700">🧾 + Estimación</button>':'')
     +(selProj?'<button onclick="openExtraordinario('+selProj.id+')" style="font-size:11px;padding:5px 12px;border-radius:6px;border:.5px solid #f5b89b;background:#fff8f6;color:#e65a27;cursor:pointer;font-family:Arial;font-weight:700">+ Adicional</button>':'')
     +'</div>';
+  // Aviso global: proyectos en ejecutivo que NO están en costos (sin presupuesto de control)
+  if(sinControl.length){
+    html+='<div style="background:#fdecea;border:1px solid #e79b86;border-left:4px solid #c0392b;border-radius:8px;padding:10px 14px;margin-bottom:1rem">'
+      +'<div style="font-size:12px;font-weight:800;color:#c0392b;font-family:Arial;margin-bottom:4px">🚩 '+sinControl.length+' proyecto'+(sinControl.length!==1?'s':'')+' en ejecutivo SIN control de costos</div>'
+      +'<div style="font-size:10px;color:#86502f;font-family:Arial;margin-bottom:5px">Todo proyecto en ejecutivo debe tener su presupuesto de control para registrar pagos y gastos. Asígnalo con ✍:</div>'
+      +'<div style="font-size:10px;color:#86502f;font-family:Arial">'+sinControl.map(function(p){return '<button onclick="openFirmarContrato('+p.id+')" style="background:#fff;border:.5px solid #e79b86;border-radius:5px;cursor:pointer;color:#c0392b;font-size:10px;padding:2px 8px;margin:2px 4px 2px 0;font-family:Arial;font-weight:700">✍ '+String(p.nombre).replace(/</g,'&lt;')+'</button>';}).join('')+'</div></div>';
+  }
   // Aviso global: proyectos en ejecutivo con especialidades sin asesor
   if(projsConFalta.length){
     html+='<div style="background:#fff4f2;border:1px solid #f3b4a3;border-left:4px solid #e65a27;border-radius:8px;padding:10px 14px;margin-bottom:1rem">'
