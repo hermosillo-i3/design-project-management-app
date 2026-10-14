@@ -2401,13 +2401,24 @@ function _costosSections(metrics,cot){
   Object.keys(metrics.bySection||{}).forEach(function(cat){ensure(cat);});
   return secOrder.map(function(cat){var s=secMap[cat];return [cat,{esps:s.esps,direct:s.direct,indir:s.indir,withInd:s.withInd}];});
 }
+// Cuenta especialidades (directas) sin asesor seleccionado en un proyecto ejecutivo (excluye canceladas e indirectos)
+function costosFaltanAsesor(p){
+  if(!p||!p.presupuestoControlCotId)return 0;
+  var cots=getCots();var ctrl=cots.find(function(c){return String(c.id)===String(p.presupuestoControlCotId);});if(!ctrl)return 0;
+  var cd=p.costosEjec||{};var n=0;
+  var blocks=[{keyPrefix:'',metrics:calcCotMetrics(ctrl),cot:ctrl}];
+  (p.extraordinarios||[]).forEach(function(a){if(!a.cotId)return;var ac=cots.find(function(c){return String(c.id)===String(a.cotId);});if(ac)blocks.push({keyPrefix:'adic:'+a.id+':',metrics:calcCotMetrics(ac),cot:ac});});
+  blocks.forEach(function(b){(_costosSections(b.metrics,b.cot)||[]).forEach(function(se){(se[1].esps||[]).forEach(function(esp){var d=cd[b.keyPrefix+esp.nombre]||{};if(!d.cancelado&&!(d.asesor&&String(d.asesor).trim()))n++;});});});
+  return n;
+}
 function renderCostos(){
   var container=document.getElementById('costos-container');
   if(!container)return;
   var ejecutivoProjs=projects.filter(function(p){return !p.archivado&&(p.etapa==='EJECUTIVO'||p.etapa==='REVISIONES')&&p.presupuestoControlCotId;});
   var selProjId=ld('gh_costos_proj','');
   var selProj=ejecutivoProjs.find(function(p){return String(p.id)===String(selProjId);});
-  var projOpts=ejecutivoProjs.map(function(p){return '<option value="'+p.id+'"'+(String(p.id)===String(selProjId)?' selected':'')+'>'+p.nombre+'</option>';}).join('');
+  var projOpts=ejecutivoProjs.map(function(p){var fa=costosFaltanAsesor(p);return '<option value="'+p.id+'"'+(String(p.id)===String(selProjId)?' selected':'')+'>'+p.nombre+(fa>0?'  ⚠ '+fa+' sin asesor':'')+'</option>';}).join('');
+  var projsConFalta=ejecutivoProjs.map(function(p){return {p:p,n:costosFaltanAsesor(p)};}).filter(function(x){return x.n>0;});
   var fmt=function(n){return Math.round(n).toLocaleString('es-MX');};
   var html='<div style="display:flex;align-items:center;gap:12px;margin-bottom:1rem;flex-wrap:wrap;padding-bottom:12px;border-bottom:.5px solid #eef2f6">'
     +'<h3 style="margin:0;color:#254467;font-size:14px;font-family:Arial">💰 Control de Costos — Ejecución</h3>'
@@ -2418,6 +2429,12 @@ function renderCostos(){
     +(selProj?'<button onclick="openEstimacionModal('+selProj.id+')" style="font-size:11px;padding:5px 12px;border-radius:6px;border:.5px solid #9fc77f;background:#f0f8ec;color:#3B6D11;cursor:pointer;font-family:Arial;font-weight:700">🧾 + Estimación</button>':'')
     +(selProj?'<button onclick="openExtraordinario('+selProj.id+')" style="font-size:11px;padding:5px 12px;border-radius:6px;border:.5px solid #f5b89b;background:#fff8f6;color:#e65a27;cursor:pointer;font-family:Arial;font-weight:700">+ Adicional</button>':'')
     +'</div>';
+  // Aviso global: proyectos en ejecutivo con especialidades sin asesor
+  if(projsConFalta.length){
+    html+='<div style="background:#fff4f2;border:1px solid #f3b4a3;border-left:4px solid #e65a27;border-radius:8px;padding:10px 14px;margin-bottom:1rem">'
+      +'<div style="font-size:12px;font-weight:800;color:#c0392b;font-family:Arial;margin-bottom:4px">🚩 '+projsConFalta.length+' proyecto'+(projsConFalta.length!==1?'s':'')+' en ejecutivo con especialidades sin asesor seleccionado</div>'
+      +'<div style="font-size:10px;color:#86502f;font-family:Arial">'+projsConFalta.map(function(x){return '<button onclick="sv(\'gh_costos_proj\',\''+x.p.id+'\');renderCostos()" style="background:#fff;border:.5px solid #f3b4a3;border-radius:5px;cursor:pointer;color:#c0392b;font-size:10px;padding:2px 8px;margin:2px 4px 2px 0;font-family:Arial;font-weight:700">'+String(x.p.nombre).replace(/</g,'&lt;')+' · '+x.n+'</button>';}).join('')+'</div></div>';
+  }
   if(ejecutivoProjs.length===0){
     container.innerHTML=html+'<div style="background:#f0f5fa;border-radius:8px;padding:2rem;text-align:center;color:#67727a;font-size:11px;font-family:Arial">'
       +'No hay proyectos en ejecución con presupuesto de control asignado.<br>'
@@ -2487,6 +2504,10 @@ function renderCostos(){
     +'<div style="font-size:9px;color:#67727a;font-family:Arial">'+(totalCobrado?Math.round(totalMargen/totalCobrado*100):0)+'% del cobrado</div></div>'
     +'</div>';
   // Table
+  var _faltanSel=costosFaltanAsesor(selProj);
+  if(_faltanSel>0){
+    html+='<div style="background:#fff4f2;border:1px solid #f3b4a3;border-left:4px solid #e65a27;border-radius:8px;padding:9px 14px;margin-bottom:12px;font-size:11px;color:#c0392b;font-family:Arial;font-weight:700">🚩 Este proyecto tiene '+_faltanSel+' especialidad'+(_faltanSel!==1?'es':'')+' sin asesor seleccionado. Asigna el asesor con "editar" en cada renglón marcado.</div>';
+  }
   html+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:11px;min-width:820px;background:#fff;border-radius:10px">'
     +'<thead><tr style="background:#f8fafc">'
     +'<th style="min-width:160px;padding:6px 10px;text-align:left;font-size:9px;font-weight:700;color:#67727a;border-bottom:.5px solid #bfd1e5">Especialidad</th>'
@@ -2526,7 +2547,7 @@ function renderCostos(){
       var togBtn='<div style="margin-top:3px"><button onclick="toggleAlcanceCancelado('+selProj.id+','+myIdx+')" style="background:none;border:none;cursor:pointer;color:'+(canc?'#3B6D11':'#c0392b')+';font-size:9px;padding:0;font-family:Arial;text-decoration:underline">'+(canc?'↺ reactivar':'⊘ cancelar alcance')+'</button></div>';
       html+='<tr style="border-bottom:.5px solid #eef2f6'+(canc?';background:#fafafa':'')+'">'
         +'<td style="padding:7px 10px;font-size:11px;font-weight:600;color:#1a2a3a;font-family:Arial;vertical-align:top">'+nameHtml+togBtn+'</td>'
-        +'<td style="padding:7px 10px;font-size:10px;color:#67727a;font-family:Arial;vertical-align:top">'+(espData.asesor||'<span style="color:#a8a8a8">— Sin asignar —</span>')+(espData.contacto?'<br><span style="font-size:9px">'+espData.contacto+'</span>':'')+' <button onclick="openAsesorEdit('+selProj.id+','+myIdx+')" style="background:none;border:none;cursor:pointer;color:#6990ab;font-size:9px;padding:0;font-family:Arial;text-decoration:underline">editar</button></td>'
+        +'<td style="padding:7px 10px;font-size:10px;color:#67727a;font-family:Arial;vertical-align:top'+((!canc&&secName!=='INDIRECTOS'&&!(espData.asesor&&String(espData.asesor).trim()))?';background:#fff4f2':'')+'">'+(espData.asesor?String(espData.asesor).replace(/</g,'&lt;'):((canc||secName==='INDIRECTOS')?'<span style="color:#a8a8a8">—</span>':'<span style="color:#c0392b;font-weight:700">🚩 Falta asesor</span>'))+(espData.contacto?'<br><span style="font-size:9px">'+String(espData.contacto).replace(/</g,'&lt;')+'</span>':'')+' <button onclick="openAsesorEdit('+selProj.id+','+myIdx+')" style="background:none;border:none;cursor:pointer;color:#6990ab;font-size:9px;padding:0;font-family:Arial;text-decoration:underline">'+(espData.asesor?'editar':'asignar')+'</button></td>'
         +'<td style="padding:7px 10px;text-align:right;font-size:11px;color:'+(canc?'#cbd5e1':'#67727a')+';font-family:Arial;vertical-align:top;white-space:nowrap'+(canc?';text-decoration:line-through':'')+'">$'+fmt(esp.mxn||0)+'</td>'
         +'<td style="padding:7px 10px;text-align:right;font-size:11px;color:'+(canc?'#cbd5e1':'#3a6080')+';font-family:Arial;vertical-align:top">'+((esp.ind||0)>0?esp.ind+'%':'—')+'</td>'
         +'<td style="padding:7px 10px;text-align:right;font-size:11px;font-weight:700;color:'+(canc?'#cbd5e1':'#254467')+';font-family:Arial;vertical-align:top;white-space:nowrap'+(canc?';text-decoration:line-through':'')+'">$'+fmt(esp.withInd)+'</td>'
