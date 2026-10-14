@@ -13104,13 +13104,14 @@ function aseVBShow(id){
   var det=document.getElementById('det_'+id.replace(/_\d+$/,''));if(!det)return;
   if(det.style.display==='block'&&det.getAttribute('data-cur')===id){det.style.display='none';det.removeAttribute('data-cur');return;}
   var esc=function(s){return String(s).replace(/</g,'&lt;');};
-  var cons=d.cons||[],noadj=d.noadj||[];
+  var cons=d.cons||[],rej=d.rej||[],noadj=d.noadj||[];
   var html='<strong style="color:#5B21B6">'+esc(d.nombre)+'</strong>';
-  if(d.eje.length)html+='<div style="margin-top:4px"><span style="color:#5B21B6;font-weight:700">Ejecutivo — Costos ('+d.eje.length+'):</span> '+d.eje.map(esc).join(' · ')+'</div>';
+  if(d.eje.length)html+='<div style="margin-top:4px"><span style="color:#5B21B6;font-weight:700">Ejecutivo — adjudicado ('+d.eje.length+'):</span> '+d.eje.map(esc).join(' · ')+'</div>';
   if(d.precon.length)html+='<div style="margin-top:3px"><span style="color:#7C3AED;font-weight:700">Precon — elegido ('+d.precon.length+'):</span> '+d.precon.map(esc).join(' · ')+'</div>';
   if(cons.length)html+='<div style="margin-top:3px"><span style="color:#7b8794;font-weight:700">Cotizado / considerado ('+cons.length+'):</span> '+cons.map(esc).join(' · ')+'</div>';
-  if(noadj.length)html+='<div style="margin-top:3px"><span style="color:#c0392b;font-weight:700">Archivado / no adjudicado ('+noadj.length+'):</span> '+noadj.map(esc).join(' · ')+'</div>';
-  if(!d.precon.length&&!d.eje.length&&!cons.length&&!noadj.length)html+='<div style="margin-top:4px;color:#a8a8a8">Sin proyectos.</div>';
+  if(rej.length)html+='<div style="margin-top:3px"><span style="color:#c0392b;font-weight:700">No adjudicado ('+rej.length+'):</span> '+rej.map(esc).join(' · ')+'</div>';
+  if(noadj.length)html+='<div style="margin-top:3px"><span style="color:#9a7b43;font-weight:700">Archivado / caído ('+noadj.length+'):</span> '+noadj.map(esc).join(' · ')+'</div>';
+  if(!d.precon.length&&!d.eje.length&&!cons.length&&!rej.length&&!noadj.length)html+='<div style="margin-top:4px;color:#a8a8a8">Sin proyectos.</div>';
   det.innerHTML=html;det.style.display='block';det.setAttribute('data-cur',id);
 }
 function cargaShow(group,key){
@@ -13344,7 +13345,7 @@ function renderEstadisticas(){
     if(!esp||!ase)return;var ek=String(esp).trim();var ak=String(ase).trim().toLowerCase();if(!ek||!ak)return;
     if(!byEsp[ek])byEsp[ek]={cat:cat||espCatMap[ek]||'Otros',ase:{}};
     if(cat&&byEsp[ek].cat==='Otros')byEsp[ek].cat=cat;
-    if(!byEsp[ek].ase[ak])byEsp[ek].ase[ak]={nombre:String(ase).trim(),precon:{},eje:{},cons:{},noadj:{}};
+    if(!byEsp[ek].ase[ak])byEsp[ek].ase[ak]={nombre:String(ase).trim(),precon:{},eje:{},cons:{},rej:{},noadj:{}};
     byEsp[ek].ase[ak][bucket][proj]=1;
   };
   projSet.forEach(function(p){
@@ -13358,7 +13359,7 @@ function renderEstadisticas(){
       if(a.elegido)r.elegido=true;var cv=parseFloat(a.costoMXN)||0;if(cv>r.cost)r.cost=cv;
     });});});
     if(_noAdj(p)){
-      // Archivado / no adjudicado (StandBy, Perdido, Cancelado o archivado): todos van a un color aparte
+      // Archivado / caído (StandBy, Perdido, Cancelado o archivado): todos van a un color aparte
       Object.keys(espAse).forEach(function(en){var cat=espAse[en].cat;Object.keys(espAse[en].ase).forEach(function(ak){var r=espAse[en].ase[ak];
         _add(en,cat,r.nombre,p.nombre,'noadj');
       });});
@@ -13374,7 +13375,7 @@ function renderEstadisticas(){
       var costAse={};
       if(p.costosEjec)Object.keys(p.costosEjec).forEach(function(k){if(k.indexOf(':')>=0||k.indexOf('__')===0)return;var a=p.costosEjec[k]&&p.costosEjec[k].asesor;if(a&&String(a).trim()){_add(k,(espAse[k]&&espAse[k].cat)||espCatMap[k],a,p.nombre,'eje');costAse[k]=String(a).trim().toLowerCase();}});
       Object.keys(espAse).forEach(function(en){var cat=espAse[en].cat;Object.keys(espAse[en].ase).forEach(function(ak){var r=espAse[en].ase[ak];
-        if(costAse[en]!==ak)_add(en,cat,r.nombre,p.nombre,'cons');
+        if(costAse[en]!==ak)_add(en,cat,r.nombre,p.nombre,'rej');
       });});
     }
     (p.asesoresProyecto||[]).forEach(function(n){if(n&&String(n).trim())_add('(sin especialidad)','Otros',n,p.nombre,b);});
@@ -13386,11 +13387,11 @@ function renderEstadisticas(){
   var hideCats=ld('gh_stats_ase_hidecats',[]).filter(function(c){return catList.indexOf(c)>=0;});
   var catsToShow=selCatAse?[selCatAse]:catList.filter(function(c){return hideCats.indexOf(c)<0;});
   var maxTotal=1;
-  Object.keys(byEsp).forEach(function(en){Object.keys(byEsp[en].ase).forEach(function(ak){var o=byEsp[en].ase[ak];var t=Object.keys(o.precon).length+Object.keys(o.eje).length+Object.keys(o.cons||{}).length+Object.keys(o.noadj||{}).length;if(t>maxTotal)maxTotal=t;});});
+  Object.keys(byEsp).forEach(function(en){Object.keys(byEsp[en].ase).forEach(function(ak){var o=byEsp[en].ase[ak];var t=Object.keys(o.precon).length+Object.keys(o.eje).length+Object.keys(o.cons||{}).length+Object.keys(o.rej||{}).length+Object.keys(o.noadj||{}).length;if(t>maxTotal)maxTotal=t;});});
   // Agregado por ASESOR (para vista "por especialista")
   var byAsesor={};
-  Object.keys(byEsp).forEach(function(en){Object.keys(byEsp[en].ase).forEach(function(ak){var o=byEsp[en].ase[ak];var b=byAsesor[ak]=byAsesor[ak]||{nombre:o.nombre,precon:{},eje:{},cons:{},noadj:{}};['precon','eje','cons','noadj'].forEach(function(bk){Object.keys(o[bk]||{}).forEach(function(pn){b[bk][pn]=1;});});});});
-  Object.keys(byAsesor).forEach(function(ak){var o=byAsesor[ak];var t=Object.keys(o.precon).length+Object.keys(o.eje).length+Object.keys(o.cons).length+Object.keys(o.noadj).length;if(t>maxTotal)maxTotal=t;});
+  Object.keys(byEsp).forEach(function(en){Object.keys(byEsp[en].ase).forEach(function(ak){var o=byEsp[en].ase[ak];var b=byAsesor[ak]=byAsesor[ak]||{nombre:o.nombre,precon:{},eje:{},cons:{},rej:{},noadj:{}};['precon','eje','cons','rej','noadj'].forEach(function(bk){Object.keys(o[bk]||{}).forEach(function(pn){b[bk][pn]=1;});});});});
+  Object.keys(byAsesor).forEach(function(ak){var o=byAsesor[ak];var t=Object.keys(o.precon).length+Object.keys(o.eje).length+Object.keys(o.cons).length+Object.keys(o.rej).length+Object.keys(o.noadj).length;if(t>maxTotal)maxTotal=t;});
   var aseView=ld('gh_stats_ase_view','ing');
   var totalEje=projSet.length;
   var sinAseEje=projSet.filter(function(p){
@@ -13403,18 +13404,19 @@ function renderEstadisticas(){
   // Barra vertical apilada (precon arriba, ejecutivo abajo)
   var BARH=130;window.__aseVB={};
   var _vbar=function(x,pref,i){
-    var pc=x.precon.length,ej=x.eje.length,cs=(x.cons||[]).length,na=(x.noadj||[]).length,tot=pc+ej+cs+na;var id=pref+'_'+i;
-    window.__aseVB[id]={nombre:x.nombre,precon:x.precon,eje:x.eje,cons:x.cons||[],noadj:x.noadj||[]};
-    var hPre=Math.round(pc/maxTotal*BARH),hEje=Math.round(ej/maxTotal*BARH),hCons=Math.round(cs/maxTotal*BARH),hNa=Math.round(na/maxTotal*BARH);
-    if(pc>0&&hPre<3)hPre=3;if(ej>0&&hEje<3)hEje=3;if(cs>0&&hCons<3)hCons=3;if(na>0&&hNa<3)hNa=3;
+    var pc=x.precon.length,ej=x.eje.length,cs=(x.cons||[]).length,rj=(x.rej||[]).length,na=(x.noadj||[]).length,tot=pc+ej+cs+rj+na;var id=pref+'_'+i;
+    window.__aseVB[id]={nombre:x.nombre,precon:x.precon,eje:x.eje,cons:x.cons||[],rej:x.rej||[],noadj:x.noadj||[]};
+    var hPre=Math.round(pc/maxTotal*BARH),hEje=Math.round(ej/maxTotal*BARH),hCons=Math.round(cs/maxTotal*BARH),hRej=Math.round(rj/maxTotal*BARH),hNa=Math.round(na/maxTotal*BARH);
+    if(pc>0&&hPre<3)hPre=3;if(ej>0&&hEje<3)hEje=3;if(cs>0&&hCons<3)hCons=3;if(rj>0&&hRej<3)hRej=3;if(na>0&&hNa<3)hNa=3;
     var nm=String(x.nombre).replace(/</g,'&lt;');
-    // Orden de arriba a abajo: archivado/no adjudicado, cotizado (considerado), precon (elegido), ejecutivo
+    // Orden de arriba a abajo: archivado/caído, no adjudicado (ejecutivo), cotizado (considerado precon), precon (elegido), ejecutivo (adjudicado)
     var segs='';
-    if(na>0)segs+='<div style="height:'+hNa+'px;background:#E5A9A9"></div>';
+    if(na>0)segs+='<div style="height:'+hNa+'px;background:#E8D5B5"></div>';
+    if(rj>0)segs+='<div style="height:'+hRej+'px;background:#E57373"></div>';
     if(cs>0)segs+='<div style="height:'+hCons+'px;background:#CBD5E1"></div>';
     if(pc>0)segs+='<div style="height:'+hPre+'px;background:#C4B5FD"></div>';
     if(ej>0)segs+='<div style="height:'+hEje+'px;background:#7C3AED"></div>';
-    return '<div onclick="aseVBShow(\''+id+'\')" style="display:flex;flex-direction:column;align-items:center;width:60px;flex-shrink:0;cursor:pointer" title="'+nm+' — Cotizado: '+cs+' · Precon elegido: '+pc+' · Ejecutivo: '+ej+' · Archivado/no adjudicado: '+na+'">'
+    return '<div onclick="aseVBShow(\''+id+'\')" style="display:flex;flex-direction:column;align-items:center;width:60px;flex-shrink:0;cursor:pointer" title="'+nm+' — Cotizado/considerado: '+cs+' · Precon elegido: '+pc+' · Ejecutivo adjudicado: '+ej+' · No adjudicado: '+rj+' · Archivado/caído: '+na+'">'
       +'<div style="font-size:11px;font-weight:800;color:#254467;margin-bottom:2px">'+tot+'</div>'
       +'<div style="display:flex;flex-direction:column;justify-content:flex-end;height:'+BARH+'px;width:28px;overflow:hidden;border-radius:3px">'+segs+'</div>'
       +'<div style="font-size:8px;color:#67727a;margin-top:4px;width:60px;text-align:center;line-height:1.1;height:22px;overflow:hidden">'+nm+'</div>'
@@ -13428,7 +13430,7 @@ function renderEstadisticas(){
     porCatHtml+='<div data-aseg-cat="'+String(cat).replace(/"/g,'&quot;')+'" style="margin-bottom:16px;border:.5px solid #e5ddf7;border-radius:10px;padding:12px 14px;background:#fcfbff">'
       +'<div style="font-size:12px;font-weight:800;color:#5B21B6;text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px">'+cat+'</div>';
     esps.forEach(function(en){
-      var arr=Object.keys(byEsp[en].ase).map(function(ak){var o=byEsp[en].ase[ak];return {nombre:o.nombre,precon:Object.keys(o.precon),eje:Object.keys(o.eje),cons:Object.keys(o.cons||{}),noadj:Object.keys(o.noadj||{})};}).sort(function(a,b){return (b.precon.length+b.eje.length+b.cons.length+b.noadj.length)-(a.precon.length+a.eje.length+a.cons.length+a.noadj.length)||a.nombre.localeCompare(b.nombre);});
+      var arr=Object.keys(byEsp[en].ase).map(function(ak){var o=byEsp[en].ase[ak];return {nombre:o.nombre,precon:Object.keys(o.precon),eje:Object.keys(o.eje),cons:Object.keys(o.cons||{}),rej:Object.keys(o.rej||{}),noadj:Object.keys(o.noadj||{})};}).sort(function(a,b){return (b.precon.length+b.eje.length+b.cons.length+b.rej.length+b.noadj.length)-(a.precon.length+a.eje.length+a.cons.length+a.rej.length+a.noadj.length)||a.nombre.localeCompare(b.nombre);});
       if(!arr.length)return;
       var pref='avb_'+cat.replace(/[^a-z0-9]/gi,'')+'_'+en.replace(/[^a-z0-9]/gi,'');
       porCatHtml+='<div data-aseg-esp="'+String(en).replace(/"/g,'&quot;')+'" data-aseg-catname="'+String(cat).replace(/"/g,'&quot;')+'" style="margin-bottom:12px">'
@@ -13441,7 +13443,7 @@ function renderEstadisticas(){
     });
     porCatHtml+='</div>';
   });
-  var espArr=Object.keys(byAsesor).map(function(ak){var o=byAsesor[ak];return {nombre:o.nombre,precon:Object.keys(o.precon),eje:Object.keys(o.eje),cons:Object.keys(o.cons),noadj:Object.keys(o.noadj)};}).sort(function(a,b){return (b.precon.length+b.eje.length+b.cons.length+b.noadj.length)-(a.precon.length+a.eje.length+a.cons.length+a.noadj.length)||a.nombre.localeCompare(b.nombre);});
+  var espArr=Object.keys(byAsesor).map(function(ak){var o=byAsesor[ak];return {nombre:o.nombre,precon:Object.keys(o.precon),eje:Object.keys(o.eje),cons:Object.keys(o.cons),rej:Object.keys(o.rej),noadj:Object.keys(o.noadj)};}).sort(function(a,b){return (b.precon.length+b.eje.length+b.cons.length+b.rej.length+b.noadj.length)-(a.precon.length+a.eje.length+a.cons.length+a.rej.length+a.noadj.length)||a.nombre.localeCompare(b.nombre);});
   var espHtml='<div style="border:.5px solid #e5ddf7;border-radius:10px;padding:12px 14px;background:#fcfbff">'
     +'<div style="font-size:12px;font-weight:800;color:#5B21B6;text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px">Por especialista <span style="font-size:9px;font-weight:400;color:#a8a8a8">('+espArr.length+' asesor'+(espArr.length!==1?'es':'')+' · todas las ingenierías juntas)</span></div>'
     +'<div style="display:flex;gap:10px;align-items:flex-end;overflow-x:auto;padding:6px 2px 2px">'+(espArr.length?espArr.map(function(x,i){return _vbar(x,'avbesp',i);}).join(''):'<span style="font-size:10px;color:#a8a8a8">Sin datos.</span>')+'</div>'
@@ -13476,10 +13478,11 @@ function renderEstadisticas(){
     +'<button onclick="exportContratistas()" class="no-print" title="Exporta lo que ves en pantalla. Usa &quot;Por ingeniería&quot; y oculta las que no quieras para elegir qué sale." style="margin-left:auto;font-size:10px;padding:4px 11px;border:.5px solid #3B6D11;border-radius:5px;cursor:pointer;font-family:Arial;font-weight:700;background:#eaf3de;color:#3B6D11">📤 Exportar / compartir</button></div>'
     +qaHtml
     +'<div style="font-size:10px;color:#67727a;margin-bottom:10px">Cada barra es un asesor · la altura es el número de proyectos · '
-    +'<span style="display:inline-block;width:10px;height:10px;background:#CBD5E1;border-radius:2px;vertical-align:middle"></span> cotizado / considerado &nbsp; '
+    +'<span style="display:inline-block;width:10px;height:10px;background:#CBD5E1;border-radius:2px;vertical-align:middle"></span> cotizado / considerado <span style="color:#a8a8a8">(precon, aún no elegido)</span> &nbsp; '
     +'<span style="display:inline-block;width:10px;height:10px;background:#C4B5FD;border-radius:2px;vertical-align:middle"></span> precon (elegido) &nbsp; '
-    +'<span style="display:inline-block;width:10px;height:10px;background:#7C3AED;border-radius:2px;vertical-align:middle"></span> ejecutivo &nbsp; '
-    +'<span style="display:inline-block;width:10px;height:10px;background:#E5A9A9;border-radius:2px;vertical-align:middle"></span> archivado / no adjudicado <span style="color:#a8a8a8">(StandBy · Perdido · Cancelado · archivado — solo en "Todos")</span> · clic en una barra para ver los proyectos'
+    +'<span style="display:inline-block;width:10px;height:10px;background:#7C3AED;border-radius:2px;vertical-align:middle"></span> ejecutivo (adjudicado) &nbsp; '
+    +'<span style="display:inline-block;width:10px;height:10px;background:#E57373;border-radius:2px;vertical-align:middle"></span> no adjudicado <span style="color:#a8a8a8">(cotizó un ejecutivo pero adjudicaste a otro en Costos)</span> &nbsp; '
+    +'<span style="display:inline-block;width:10px;height:10px;background:#E8D5B5;border-radius:2px;vertical-align:middle"></span> archivado / caído <span style="color:#a8a8a8">(StandBy · Perdido · Cancelado · archivado — solo en "Todos")</span> · clic en una barra para ver los proyectos'
     +(sinAseEje?' · <span style="color:#e65a27;font-weight:700">'+sinAseEje+' proyecto'+(sinAseEje!==1?'s':'')+' sin asesor</span>':'')+'</div>'
     +'<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px">'
     +'<span style="font-size:10px;color:#67727a">Ámbito:</span>'+scopeBtn('activos','Activos')+scopeBtn('todos','Todos')
