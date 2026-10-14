@@ -13446,6 +13446,19 @@ function renderEstadisticas(){
     porCatHtml+='</div>';
   });
   var espArr=Object.keys(byAsesor).map(function(ak){var o=byAsesor[ak];return {nombre:o.nombre,precon:Object.keys(o.precon),eje:Object.keys(o.eje),cons:Object.keys(o.cons),rej:Object.keys(o.rej),noadj:Object.keys(o.noadj)};}).sort(function(a,b){return (b.precon.length+b.eje.length+b.cons.length+b.rej.length+b.noadj.length)-(a.precon.length+a.eje.length+a.cons.length+a.rej.length+a.noadj.length)||a.nombre.localeCompare(b.nombre);});
+  // Datos para exportar a Excel: TODAS las ingenierías, especialidades y asesores (no respeta el ocultar de pantalla)
+  (function(){
+    var rows=[];
+    catList.forEach(function(cat){
+      var esps=(espByCat[cat]||[]).slice().sort(_espOrder);
+      esps.forEach(function(en){
+        var ases=Object.keys(byEsp[en].ase).map(function(ak){var o=byEsp[en].ase[ak];return {asesor:o.nombre,cons:Object.keys(o.cons||{}).length,precon:Object.keys(o.precon||{}).length,eje:Object.keys(o.eje||{}).length,rej:Object.keys(o.rej||{}).length,noadj:Object.keys(o.noadj||{}).length};}).sort(function(a,b){return (b.cons+b.precon+b.eje+b.rej+b.noadj)-(a.cons+a.precon+a.eje+a.rej+a.noadj)||a.asesor.localeCompare(b.asesor);});
+        ases.forEach(function(a){rows.push({cat:cat,esp:en,asesor:a.asesor,cons:a.cons,precon:a.precon,eje:a.eje,rej:a.rej,noadj:a.noadj,total:a.cons+a.precon+a.eje+a.rej+a.noadj});});
+      });
+    });
+    window.__aseExportRows=rows;
+    window.__aseExportCtx={scope:aseScope==='todos'?'Todos':'Activos',year:aseYearSel||'Todos los años'};
+  })();
   var espHtml='<div style="border:.5px solid #e5ddf7;border-radius:10px;padding:12px 14px;background:#fcfbff">'
     +'<div style="font-size:12px;font-weight:800;color:#5B21B6;text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px">Por especialista <span style="font-size:9px;font-weight:400;color:#a8a8a8">('+espArr.length+' asesor'+(espArr.length!==1?'es':'')+' · todas las ingenierías juntas)</span></div>'
     +'<div style="display:flex;gap:10px;align-items:flex-end;overflow-x:auto;padding:6px 2px 2px">'+(espArr.length?espArr.map(function(x,i){return _vbar(x,'avbesp',i);}).join(''):'<span style="font-size:10px;color:#a8a8a8">Sin datos.</span>')+'</div>'
@@ -13477,7 +13490,8 @@ function renderEstadisticas(){
     +'</div>'):'';
   var aseHtml='<div style="background:#fff;border-radius:12px;border:.5px solid #bfd1e5;padding:16px 18px;margin-bottom:1.25rem">'
     +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;align-items:center">'+viewBtn('ing','🏗️ Por ingeniería')+viewBtn('esp','👷 Por especialista')
-    +'<button onclick="exportContratistas()" class="no-print" title="Exporta lo que ves en pantalla. Usa &quot;Por ingeniería&quot; y oculta las que no quieras para elegir qué sale." style="margin-left:auto;font-size:10px;padding:4px 11px;border:.5px solid #3B6D11;border-radius:5px;cursor:pointer;font-family:Arial;font-weight:700;background:#eaf3de;color:#3B6D11">📤 Exportar / compartir</button></div>'
+    +'<button onclick="exportAseExcel()" class="no-print" title="Descarga una tabla (Excel) con todas las ingenierías, especialidades y asesores, y te dice qué cambió desde la última descarga." style="margin-left:auto;font-size:10px;padding:4px 11px;border:.5px solid #1D6F42;border-radius:5px;cursor:pointer;font-family:Arial;font-weight:700;background:#dcf0e4;color:#1D6F42">📊 Exportar a Excel</button>'
+    +'<button onclick="exportContratistas()" class="no-print" title="Exporta lo que ves en pantalla. Usa &quot;Por ingeniería&quot; y oculta las que no quieras para elegir qué sale." style="font-size:10px;padding:4px 11px;border:.5px solid #3B6D11;border-radius:5px;cursor:pointer;font-family:Arial;font-weight:700;background:#eaf3de;color:#3B6D11">📤 Exportar / compartir</button></div>'
     +qaHtml
     +'<div style="font-size:10px;color:#67727a;margin-bottom:10px">Cada barra es un asesor · la altura es el número de proyectos · '
     +'<span style="display:inline-block;width:10px;height:10px;background:#CBD5E1;border-radius:2px;vertical-align:middle"></span> cotizado / considerado <span style="color:#a8a8a8">(precon, aún no elegido)</span> &nbsp; '
@@ -13764,6 +13778,104 @@ function exportContratistas(){
     +'</scr'+'ipt>'
     +'</body></html>');
   win.document.close();
+}
+
+// ── Exportar a Excel (tabla por ingeniería/especialidad/asesor) + registro de cambios ──
+function _aseRowKey(r){return r.cat+'||'+r.esp+'||'+String(r.asesor).trim().toLowerCase();}
+function exportAseExcel(){
+  var rows=window.__aseExportRows||[];
+  if(!rows.length){alert('No hay datos de asesores para exportar todavía.');return;}
+  var snap=ld('gh_ase_export_snapshot',null);
+  var esc=function(s){return String(s==null?'':s).replace(/</g,'&lt;');};
+  // Calcular cambios vs última descarga
+  var cambios=[];
+  if(snap&&snap.map){
+    var seen={};
+    rows.forEach(function(r){
+      var k=_aseRowKey(r);seen[k]=1;var prev=snap.map[k];
+      var lbl=r.asesor+' · '+r.esp+' ('+r.cat+')';
+      if(!prev){ if(r.total>0) cambios.push({t:'nuevo',txt:'🆕 '+lbl+' — nuevo ('+r.total+' proyecto'+(r.total!==1?'s':'')+')'}); return; }
+      var fields=[['cons','Cotizado'],['precon','Precon'],['eje','Ejecutivo'],['rej','No adjudicado'],['noadj','Archivado']];
+      var dif=[];
+      fields.forEach(function(f){var a=prev[f[0]]||0,b=r[f[0]]||0;if(a!==b)dif.push(f[1]+': '+a+'→'+b+' ('+(b-a>0?'+':'')+(b-a)+')');});
+      if(dif.length)cambios.push({t:'mod',txt:'🔸 '+lbl+' — '+dif.join(' · ')});
+    });
+    // Eliminados (estaban antes, ya no)
+    Object.keys(snap.map).forEach(function(k){if(!seen[k]){var p=snap.map[k];if((p.total||0)>0)cambios.push({t:'del',txt:'➖ '+(p.asesor||k)+' — ya no aparece (antes '+(p.total||0)+')'});}});
+  }
+  var fechaPrev=snap&&snap.fecha?snap.fecha:null;
+  // Guardar en pendiente para la descarga
+  window.__aseExportPending={rows:rows,cambios:cambios,fechaPrev:fechaPrev};
+  // Modal con el resumen de cambios
+  var html='<h3 style="margin-bottom:4px;color:#254467">📊 Exportar asesores a Excel</h3>';
+  html+='<div style="font-size:11px;color:#67727a;margin-bottom:10px">Ámbito: <strong>'+esc((window.__aseExportCtx||{}).scope||'—')+'</strong> · Año: <strong>'+esc((window.__aseExportCtx||{}).year||'—')+'</strong> · '+rows.length+' renglones (asesor × especialidad)</div>';
+  if(!fechaPrev){
+    html+='<div style="background:#eef3ff;border:.5px solid #c7d6f0;border-radius:8px;padding:10px 12px;font-size:12px;color:#254467;margin-bottom:12px">Es tu <strong>primera descarga</strong>. A partir de esta guardaré el registro y la próxima vez te diré qué cambió.</div>';
+  } else {
+    html+='<div style="font-size:11px;color:#67727a;margin-bottom:6px">Última descarga: <strong>'+esc(_fmtFechaHora(fechaPrev))+'</strong></div>';
+    if(cambios.length){
+      html+='<div style="font-size:12px;font-weight:700;color:#5B21B6;margin-bottom:5px">Cambios desde entonces ('+cambios.length+')</div>'
+        +'<div style="max-height:260px;overflow:auto;border:.5px solid #e5ddf7;border-radius:8px;padding:8px 10px;background:#fcfbff;margin-bottom:12px">'
+        +cambios.map(function(c){return '<div style="font-size:11px;color:#333;padding:3px 0;border-bottom:.5px solid #f0ecfa">'+esc(c.txt)+'</div>';}).join('')
+        +'</div>';
+    } else {
+      html+='<div style="background:#eaf3de;border:.5px solid #cfe3c4;border-radius:8px;padding:10px 12px;font-size:12px;color:#3B6D11;margin-bottom:12px">✓ Sin cambios desde la última descarga.</div>';
+    }
+  }
+  html+='<div style="display:flex;gap:8px;justify-content:flex-end">'
+    +'<button onclick="closeModal()" class="btn btn-sm">Cerrar</button>'
+    +'<button onclick="_aseDoExcelDownload()" class="btn btn-sm btn-primary" style="background:#1D6F42;border-color:#1D6F42">⬇ Descargar y guardar registro</button>'
+    +'</div>';
+  document.getElementById('modal-body').innerHTML=html;
+  openModal();
+}
+function _fmtFechaHora(iso){try{var d=new Date(iso);return d.toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'})+' '+d.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});}catch(e){return iso;}}
+function _aseDoExcelDownload(){
+  var pend=window.__aseExportPending;if(!pend){closeModal();return;}
+  var rows=pend.rows,cambios=pend.cambios||[],fechaPrev=pend.fechaPrev;
+  var ctx=window.__aseExportCtx||{scope:'',year:''};
+  var esc=function(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');};
+  var hoy=new Date();
+  var fechaStr=hoy.toLocaleDateString('es-MX',{day:'2-digit',month:'long',year:'numeric'})+' '+hoy.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
+  // Tabla principal
+  var th='background:#254467;color:#fff;font-weight:bold;border:.5px solid #254467;padding:5px 8px;text-align:center';
+  var thl=th+';text-align:left';
+  var td='border:.5px solid #cbd5e1;padding:4px 8px;text-align:center';
+  var tdl=td+';text-align:left';
+  var html='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="UTF-8"></head><body>';
+  html+='<table border="1" style="border-collapse:collapse;font-family:Arial;font-size:11px">';
+  html+='<tr><td colspan="9" style="font-size:14px;font-weight:bold;color:#254467;border:none;padding:4px 0">Contratistas / asesores — '+esc(ctx.scope)+' · '+esc(ctx.year)+' · '+esc(fechaStr)+'</td></tr>';
+  html+='<tr><th style="'+thl+'">Ingeniería</th><th style="'+thl+'">Especialidad</th><th style="'+thl+'">Asesor</th>'
+    +'<th style="'+th+'">Cotizado/considerado</th><th style="'+th+'">Precon</th><th style="'+th+'">Ejecutivo</th><th style="'+th+'">No adjudicado</th><th style="'+th+'">Archivado/en pausa</th><th style="'+th+'">Total</th></tr>';
+  var tot={cons:0,precon:0,eje:0,rej:0,noadj:0,total:0};
+  var lastCat='',lastEsp='';
+  rows.forEach(function(r){
+    var catCell=(r.cat!==lastCat)?esc(r.cat):'';var espCell=(r.cat!==lastCat||r.esp!==lastEsp)?esc(r.esp):'';
+    lastCat=r.cat;lastEsp=r.esp;
+    html+='<tr><td style="'+tdl+';font-weight:bold;color:#5B21B6">'+catCell+'</td><td style="'+tdl+';color:#254467">'+espCell+'</td><td style="'+tdl+'">'+esc(r.asesor)+'</td>'
+      +'<td style="'+td+'">'+r.cons+'</td><td style="'+td+'">'+r.precon+'</td><td style="'+td+'">'+r.eje+'</td><td style="'+td+'">'+r.rej+'</td><td style="'+td+'">'+r.noadj+'</td><td style="'+td+';font-weight:bold">'+r.total+'</td></tr>';
+    tot.cons+=r.cons;tot.precon+=r.precon;tot.eje+=r.eje;tot.rej+=r.rej;tot.noadj+=r.noadj;tot.total+=r.total;
+  });
+  html+='<tr><td colspan="3" style="'+tdl+';font-weight:bold;background:#eef2f6">TOTAL</td>'
+    +'<td style="'+td+';font-weight:bold;background:#eef2f6">'+tot.cons+'</td><td style="'+td+';font-weight:bold;background:#eef2f6">'+tot.precon+'</td><td style="'+td+';font-weight:bold;background:#eef2f6">'+tot.eje+'</td><td style="'+td+';font-weight:bold;background:#eef2f6">'+tot.rej+'</td><td style="'+td+';font-weight:bold;background:#eef2f6">'+tot.noadj+'</td><td style="'+td+';font-weight:bold;background:#eef2f6">'+tot.total+'</td></tr>';
+  html+='</table>';
+  // Tabla de cambios
+  if(fechaPrev){
+    html+='<br><table border="1" style="border-collapse:collapse;font-family:Arial;font-size:11px"><tr><td style="font-size:13px;font-weight:bold;color:#5B21B6;border:none;padding:4px 0">Cambios desde la última descarga ('+esc(_fmtFechaHora(fechaPrev))+')</td></tr>';
+    if(cambios.length){cambios.forEach(function(c){html+='<tr><td style="'+tdl+'">'+esc(c.txt)+'</td></tr>';});}
+    else{html+='<tr><td style="'+tdl+';color:#3B6D11">Sin cambios</td></tr>';}
+    html+='</table>';
+  }
+  html+='</body></html>';
+  // Descargar como .xls
+  var blob=new Blob(['﻿'+html],{type:'application/vnd.ms-excel;charset=utf-8'});
+  var a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='Contratistas_asesores_'+hoy.getFullYear()+String(hoy.getMonth()+1).padStart(2,'0')+String(hoy.getDate()).padStart(2,'0')+'.xls';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(function(){URL.revokeObjectURL(a.href);},2000);
+  // Guardar registro (snapshot) para comparar la próxima vez
+  var map={};rows.forEach(function(r){map[_aseRowKey(r)]={asesor:r.asesor,cat:r.cat,esp:r.esp,cons:r.cons,precon:r.precon,eje:r.eje,rej:r.rej,noadj:r.noadj,total:r.total};});
+  sv('gh_ase_export_snapshot',{fecha:hoy.toISOString(),ctx:ctx,map:map});
+  closeModal();
 }
 
 function setStatsPeriod(period){
