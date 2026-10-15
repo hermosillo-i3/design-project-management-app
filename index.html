@@ -282,6 +282,7 @@ body.qas-env{padding-top:32px}
   <button class="tab" onclick="goTab('log',this)">Log</button>
   <button class="tab" onclick="goTab('estadisticas',this)">Estadísticas</button><button class="tab" onclick="goTab('archivo',this)">Archivo</button>
   <button class="tab" onclick="goTab('naves',this)" style="color:#7C3AED">🏗️ Naves</button>
+  <button class="tab" onclick="goTab('mapa',this)" style="color:#1a7f37">🗺️ Mapa</button>
 </div>
 
 <!-- DASHBOARD -->
@@ -524,6 +525,10 @@ body.qas-env{padding-top:32px}
     <input type="text" id="naves-search" oninput="renderNaves()" placeholder="🔎 Buscar por nombre, cliente, sistema, tipo…" style="flex:1;min-width:200px;font-size:12px;padding:7px 11px;border:.5px solid #bfd1e5;border-radius:8px;font-family:Arial">
   </div>
   <div id="naves-list"></div>
+</div>
+
+<div id="p-mapa" class="panel">
+  <div id="mapa-container"></div>
 </div>
 
 </div>
@@ -12985,6 +12990,55 @@ function naveKgM2(n){
   if(sup>0&&ton>0)return ton*1000/sup;
   var km=parseFloat(n.kgm2Manual);return isNaN(km)?null:km;
 }
+// ── 🗺️ Mapa (Google My Maps incrustado) ──────────────────────
+function _mapaMid(raw){
+  if(!raw)return '';
+  var m=String(raw).match(/mid=([A-Za-z0-9_\-]+)/);
+  return m?m[1]:'';
+}
+function renderMapa(){
+  var el=document.getElementById('mapa-container');if(!el)return;
+  var raw=ld('gh_mymap_url','');
+  var mid=_mapaMid(raw);
+  if(!mid){
+    el.innerHTML='<div style="max-width:620px;margin:1rem auto;background:#fff;border:.5px solid #bfd1e5;border-radius:12px;padding:20px 22px">'
+      +'<div style="font-size:15px;font-weight:800;color:#1a7f37;margin-bottom:6px">🗺️ Conecta tu mapa de Google My Maps</div>'
+      +'<div style="font-size:12px;color:#67727a;line-height:1.6;margin-bottom:12px">Aquí se mostrará tu mapa con los polígonos de cada proyecto. Para conectarlo:'
+      +'<ol style="margin:8px 0 0 18px;padding:0">'
+      +'<li>Abre tu mapa en <strong>Google My Maps</strong>.</li>'
+      +'<li>Botón <strong>Compartir</strong> → asegúrate que esté como <em>"Cualquier persona con el vínculo puede ver"</em>.</li>'
+      +'<li>Menú <strong>⋮</strong> (arriba, junto al título) → <strong>"Insertar en mi sitio"</strong>, y copia el enlace (o pega aquí el enlace normal del mapa).</li>'
+      +'</ol></div>'
+      +'<input type="text" id="mapa-url-input" placeholder="Pega aquí el enlace de tu mapa (…maps/d/…mid=…)" style="width:100%;font-size:12px;padding:9px 11px;border:.5px solid #bfd1e5;border-radius:8px;font-family:Arial;margin-bottom:10px">'
+      +'<button onclick="saveMapaUrl()" class="btn btn-primary btn-sm" style="background:#1a7f37;border-color:#1a7f37">Conectar mapa</button>'
+      +'<div style="font-size:10px;color:#a8a8a8;margin-top:10px">Nota: si el mapa es privado no se podrá mostrar; debe estar compartido como "cualquiera con el vínculo".</div>'
+      +'</div>';
+    return;
+  }
+  var embed='https://www.google.com/maps/d/embed?mid='+mid+'&ehbc=2E312F';
+  var viewer='https://www.google.com/maps/d/viewer?mid='+mid;
+  var editUrl='https://www.google.com/maps/d/edit?mid='+mid;
+  el.innerHTML='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">'
+    +'<div style="font-size:13px;font-weight:800;color:#1a7f37;font-family:Arial">🗺️ Mapa de proyectos</div>'
+    +'<a href="'+viewer+'" target="_blank" rel="noopener" class="btn btn-sm" style="text-decoration:none">↗ Abrir en pantalla completa</a>'
+    +'<a href="'+editUrl+'" target="_blank" rel="noopener" class="btn btn-sm" style="text-decoration:none;color:#3B6D11;border-color:#9fc77f;background:#f0f8ec">✏ Editar en My Maps</a>'
+    +'<button onclick="clearMapaUrl()" class="btn btn-sm" style="margin-left:auto;color:#a8a8a8">Cambiar enlace</button>'
+    +'</div>'
+    +'<div style="border:.5px solid #bfd1e5;border-radius:12px;overflow:hidden;background:#eef2f6">'
+    +'<iframe src="'+embed+'" style="width:100%;height:76vh;border:0" loading="lazy"></iframe>'
+    +'</div>'
+    +'<div style="font-size:10px;color:#a8a8a8;margin-top:6px">Los polígonos se editan en Google My Maps; aquí se ven en vivo. Usa "Editar en My Maps" para agregar o cambiar un proyecto.</div>';
+}
+function saveMapaUrl(){
+  var inp=document.getElementById('mapa-url-input');if(!inp)return;
+  var val=(inp.value||'').trim();
+  if(!_mapaMid(val)){alert('No reconocí el enlace. Debe ser un enlace de Google My Maps que contenga "mid=…".');return;}
+  sv('gh_mymap_url',val);renderMapa();
+}
+function clearMapaUrl(){
+  if(!confirm('¿Quitar el mapa conectado? Podrás volver a pegar el enlace.'))return;
+  sv('gh_mymap_url','');renderMapa();
+}
 function renderNaves(){
   var el=document.getElementById('naves-list');if(!el)return;
   var esc=function(s){return String(s==null?'':s).replace(/</g,'&lt;');};
@@ -13101,6 +13155,7 @@ function goTab(id,el){
     log:renderLog,
     archivo:renderArchivo,
     naves:renderNaves,
+    mapa:function(){if(typeof renderMapa==='function')renderMapa();},
     pendientes:renderPendientes,
     cotizaciones:renderCotizaciones,
     costos:renderCostos
