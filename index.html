@@ -528,7 +528,7 @@ body.qas-env{padding-top:32px}
 
 </div>
 
-<div id="modal-bg" class="modal-bg" style="display:none" onclick="if(event.target===this)closeModal()">
+<div id="modal-bg" class="modal-bg" style="display:none">
   <div class="modal" id="modal-body"></div>
 </div>
 <div id="notif-bg" class="notif-popup" style="display:none">
@@ -10009,6 +10009,8 @@ function exportExec(){
 
 function openModal(){document.getElementById('modal-bg').style.display='flex';}
 function closeModal(){document.getElementById('modal-bg').style.display='none';var m=document.querySelector('.modal');if(m)m.classList.remove('wide');window.__segRet=0;}
+// Salida de emergencia con Esc (clic fuera ya no cierra, para no perder lo escrito)
+document.addEventListener('keydown',function(e){if(e.key==='Escape'){var bg=document.getElementById('modal-bg');if(bg&&bg.style.display!=='none')closeModal();}});
 
 // ── RENDER ALL ───────────────────────────────────────────────
 function renderAll(){
