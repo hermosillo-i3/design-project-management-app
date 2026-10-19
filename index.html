@@ -317,6 +317,7 @@ body.qas-env{padding-top:32px}
     <div style="display:flex;gap:6px;margin-bottom:7px;flex-wrap:wrap;align-items:center" class="no-print">
       <button class="btn btn-ghost btn-sm" onclick="openProyecto(null,false)">+ Proyecto</button>
       <button class="btn btn-sm" onclick="imprimirReporteDepto()" style="border:.5px solid #254467;color:#254467;font-weight:700">🖨 Reporte Depto. Diseño</button>
+      <button class="btn btn-sm" onclick="toggleProjColsPanel()" style="border:.5px solid #6990ab;color:#6990ab;font-weight:700">⚙ Columnas</button>
       <select id="proj-sort" onchange="renderProyectos()" style="font-size:11px;padding:4px 8px;border-radius:6px;border:.5px solid #bfd1e5;font-family:Arial">
         <option value="num">Orden #</option>
         <option value="jefe">Por jefe</option>
@@ -335,10 +336,11 @@ body.qas-env{padding-top:32px}
       <button class="btn btn-sm" onclick="triggerProjImport()" style="border:.5px solid #639922;color:#3B6D11;font-weight:700">📥 Importar CSV</button>
       <input type="file" id="proj-import-input" accept=".csv" style="display:none" onchange="importProyectosCSV(this)">
     </div>
+    <div id="projcols-panel" class="no-print" style="display:none;background:#f8fafc;border:.5px solid #bfd1e5;border-radius:8px;padding:10px 12px;margin-bottom:10px"></div>
     <!-- Panel Concurso -->
     <div id="proj-panel-concurso">
       <div class="tbl-wrap">
-        <table>
+        <table id="tbl-concurso">
           <thead><tr>
             <th>#</th><th>Hist.#</th><th>Proyecto</th><th>Descripción</th><th>Etapa</th><th>Tipo</th><th>Cliente</th><th>Jefe</th><th>Coord.</th>
             <th>Equipo</th><th>Consultor</th><th style="color:#6D28D9">Estructurista</th><th>Últ. entrega</th><th style="color:#3B6D11">Últ. cotización</th>
@@ -351,7 +353,7 @@ body.qas-env{padding-top:32px}
     <!-- Panel Ejecutivo -->
     <div id="proj-panel-ejecutivo" style="display:none">
       <div class="tbl-wrap">
-        <table>
+        <table id="tbl-ejec">
           <thead><tr>
             <th>#</th><th>Hist.#</th><th>Proyecto</th><th>Descripción</th><th>Etapa</th><th>Cliente</th><th>Coord.</th>
             <th style="color:#639922">Ppto. Control</th>
@@ -1892,8 +1894,38 @@ function imprimirReporteDepto(){
   win.document.close();
   setTimeout(function(){try{win.print();}catch(e){}},400);
 }
+// ── Selector de columnas (Concurso / Ejecutivo) ──
+var COLDEFS_CONCURSO=[{k:'num',l:'#',i:1},{k:'hist',l:'Hist.#',i:2},{k:'desc',l:'Descripción',i:4},{k:'etapa',l:'Etapa',i:5},{k:'tipo',l:'Tipo',i:6},{k:'cliente',l:'Cliente',i:7},{k:'jefe',l:'Jefe',i:8},{k:'coord',l:'Coord.',i:9},{k:'equipo',l:'Equipo',i:10},{k:'consultor',l:'Consultor',i:11},{k:'estructurista',l:'Estructurista',i:12},{k:'entrega',l:'Últ. entrega',i:13},{k:'cotizacion',l:'Últ. cotización',i:14},{k:'prioridad',l:'Prioridad',i:15},{k:'semaforo',l:'Semáforo',i:16},{k:'avz',l:'% Avz',i:17},{k:'estatus',l:'Estatus',i:18},{k:'estatusproy',l:'Estatus Proy.',i:19},{k:'ultact',l:'Últ. act.',i:20},{k:'taller',l:'🔧 Taller/Consultor',i:21}];
+var COLDEFS_EJEC=[{k:'num',l:'#',i:1},{k:'hist',l:'Hist.#',i:2},{k:'desc',l:'Descripción',i:4},{k:'etapa',l:'Etapa',i:5},{k:'cliente',l:'Cliente',i:6},{k:'coord',l:'Coord.',i:7},{k:'ppto',l:'Ppto. Control',i:8},{k:'cobrado',l:'Cobrado',i:9},{k:'firma',l:'Firma contrato',i:10},{k:'entrega',l:'Últ. entrega',i:11},{k:'extras',l:'Extras',i:12},{k:'semaforo',l:'Semáforo',i:13},{k:'avz',l:'% Avz',i:14},{k:'estatus',l:'Estatus',i:15},{k:'taller',l:'🔧 Taller/Consultor',i:16}];
+function _projHidden(tab){var h=ld('gh_projcols_'+tab,null);if(h===null)return ['taller'];return h;} // Taller oculta por defecto
+function applyProjColStyle(){
+  var css='';
+  [['concurso','tbl-concurso',COLDEFS_CONCURSO],['ejecutivo','tbl-ejec',COLDEFS_EJEC]].forEach(function(t){
+    var hidden=_projHidden(t[0]);
+    t[2].forEach(function(c){if(hidden.indexOf(c.k)>=0){css+='#'+t[1]+' th:nth-child('+c.i+'),#'+t[1]+' td:nth-child('+c.i+'){display:none}';}});
+  });
+  var st=document.getElementById('projColStyle');if(!st){st=document.createElement('style');st.id='projColStyle';document.head.appendChild(st);}
+  st.textContent=css;
+}
+function projColsPanelHtml(){
+  var tab=getProjSubTab();
+  if(tab==='carga')return '<div style="font-size:11px;color:#a8a8a8">La vista Carga no tiene columnas que ocultar.</div>';
+  var tabKey=tab==='ejecutivo'?'ejecutivo':'concurso';
+  var defs=tabKey==='ejecutivo'?COLDEFS_EJEC:COLDEFS_CONCURSO;
+  var hidden=_projHidden(tabKey);
+  return '<div style="font-size:11px;font-weight:700;color:#254467;margin-bottom:6px">Columnas de '+(tabKey==='ejecutivo'?'Ejecutivo':'Concurso')+' <span style="font-weight:400;color:#a8a8a8">— clic para mostrar/ocultar (Proyecto y botones siempre visibles)</span></div>'
+    +'<div style="display:flex;gap:6px;flex-wrap:wrap">'
+    +defs.map(function(c){var on=hidden.indexOf(c.k)<0;return '<button onclick="toggleProjCol(\''+tabKey+'\',\''+c.k+'\')" style="font-size:10px;padding:3px 9px;border:.5px solid '+(on?'#254467':'#d8dee6')+';border-radius:12px;cursor:pointer;font-family:Arial;background:'+(on?'#eef2f6':'#f3f4f6')+';color:'+(on?'#254467':'#a8a8a8')+';font-weight:700">'+(on?'':'🚫 ')+c.l+'</button>';}).join('')
+    +'</div>'
+    +(hidden.length?'<div style="margin-top:7px"><button onclick="resetProjCols(\''+tabKey+'\')" style="font-size:10px;padding:2px 8px;border:none;background:none;cursor:pointer;color:#6990ab;text-decoration:underline">Mostrar todas</button></div>':'');
+}
+function toggleProjColsPanel(){var p=document.getElementById('projcols-panel');if(!p)return;if(p.style.display==='none'){p.innerHTML=projColsPanelHtml();p.style.display='';}else{p.style.display='none';}}
+function toggleProjCol(tab,key){var h=_projHidden(tab).slice();var i=h.indexOf(key);if(i>=0)h.splice(i,1);else h.push(key);sv('gh_projcols_'+tab,h);applyProjColStyle();var p=document.getElementById('projcols-panel');if(p&&p.style.display!=='none')p.innerHTML=projColsPanelHtml();}
+function resetProjCols(tab){sv('gh_projcols_'+tab,[]);applyProjColStyle();var p=document.getElementById('projcols-panel');if(p&&p.style.display!=='none')p.innerHTML=projColsPanelHtml();}
 function renderProyectos(){
   const tab=getProjSubTab();
+  applyProjColStyle();
+  var _pcp=document.getElementById('projcols-panel');if(_pcp&&_pcp.style.display!=='none')_pcp.innerHTML=projColsPanelHtml();
   // Sync tab button styles
   ['concurso','ejecutivo','carga'].forEach(function(t){
     var btn=document.getElementById('projtab-btn-'+t);
