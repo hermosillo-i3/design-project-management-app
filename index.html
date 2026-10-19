@@ -4817,8 +4817,8 @@ function exportRetro(nombre){
       <div class="retro-label">⚠️ Puntos de atención / blockers</div>
       <div style="font-size:11px;color:#1A1A2E;line-height:1.7;white-space:pre-wrap;min-height:40px">${retroNotes.atencion||'<span style="color:#a8a8a8;font-style:italic">Sin notas.</span>'}</div>
     </div>
-    <div class="retro-section">
-      <div class="retro-label">🎯 Compromisos / brechas</div>
+    <div class="retro-section" id="rep-compromisos" style="display:none">
+      <div class="retro-label">🎯 Compromisos / brechas <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#a8a8a8">(solo 1:1)</span></div>
       ${(retroNotes.compromisosList&&retroNotes.compromisosList.length)?('<table style="width:100%;border-collapse:collapse;font-size:10px;margin-top:4px"><thead><tr style="background:#eef2f6">'+['Compromiso','¿Qué se espera?','¿Cómo se mide?','Evidencia','¿Para cuándo?','Estatus'].map(h=>`<th style="border:.5px solid #cbd5e1;padding:3px 5px;text-align:left">${h}</th>`).join('')+'</tr></thead><tbody>'+retroNotes.compromisosList.map(function(c){return '<tr>'+['compromiso','queEspera','comoMide','evidencia','paraCuando'].map(function(k){return '<td style="border:.5px solid #cbd5e1;padding:3px 5px;vertical-align:top">'+String(c[k]||'').replace(/</g,'&lt;')+'</td>';}).join('')+'<td style="border:.5px solid #cbd5e1;padding:3px 5px;vertical-align:top;font-weight:700">'+String(c.estatus||'Pendiente')+'</td></tr>';}).join('')+'</tbody></table>'):`<div style="font-size:11px;color:#1A1A2E;line-height:1.7;white-space:pre-wrap;min-height:40px">${retroNotes.compromisos||'<span style="color:#a8a8a8;font-style:italic">Sin notas.</span>'}</div>`}
     </div>
   </div>
@@ -4827,8 +4827,9 @@ function exportRetro(nombre){
     <span>Gerencia de Diseño CDMX — Grupo Hermosillo</span>
     <span>Generado: ${today.toLocaleDateString('es-MX')}</span>
   </div>
-  <div class="no-print" style="margin-top:1rem">
+  <div class="no-print" style="margin-top:1rem;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
     <button onclick="window.print()" style="padding:7px 16px;background:#6990ab;color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:Arial;font-size:12px;font-weight:700">Imprimir / PDF</button>
+    <label style="font-size:12px;color:#254467;display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" onchange="document.getElementById('rep-compromisos').style.display=this.checked?'':'none'"> Incluir compromisos / brechas <span style="color:#a8a8a8">(para la revisión 1:1 — no en el reporte semanal)</span></label>
   </div>
   ${_retroScript(nombre)}
   </body></html>`);
@@ -8968,8 +8969,8 @@ function exportRetroConsultor(nombre){
       <div class="retro-label">⚠️ Puntos de atención / blockers</div>
       <div class="retro-text">${retroNotes.atencion||'<span style="color:#a8a8a8;font-style:italic">Sin notas.</span>'}</div>
     </div>
-    <div class="retro-section">
-      <div class="retro-label">🎯 Compromisos para la próxima semana</div>
+    <div class="retro-section" id="rep-compromisos" style="display:none">
+      <div class="retro-label">🎯 Compromisos para la próxima semana <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#a8a8a8">(solo 1:1)</span></div>
       <div class="retro-text">${retroNotes.compromisos||'<span style="color:#a8a8a8;font-style:italic">Sin notas.</span>'}</div>
     </div>
   </div>
@@ -8978,8 +8979,9 @@ function exportRetroConsultor(nombre){
     <span>Gerencia de Diseño CDMX — Grupo Hermosillo</span>
     <span>Generado: ${today.toLocaleDateString('es-MX')}</span>
   </div>
-  <div class="no-print" style="margin-top:1rem">
+  <div class="no-print" style="margin-top:1rem;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
     <button onclick="window.print()" style="padding:7px 16px;background:#6990ab;color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:Arial;font-size:12px;font-weight:700">Imprimir / PDF</button>
+    <label style="font-size:12px;color:#254467;display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" onchange="document.getElementById('rep-compromisos').style.display=this.checked?'':'none'"> Incluir compromisos <span style="color:#a8a8a8">(para la revisión 1:1 — no en el reporte semanal)</span></label>
   </div>
   ${_retroScript(nombre)}
   </body></html>`);
