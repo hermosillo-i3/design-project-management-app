@@ -1930,6 +1930,9 @@ function exportArranquePrecon(projId){
   var eqNames=(p.equipo||[]).join(', ');
   var consNames=(p.consultores||[]).map(function(c){return c.nombre+(c.especialidad?' ('+c.especialidad+')':'');}).join(', ');
   var ubi=[p.areaProyecto,p.ubicacion].filter(Boolean).join(' · ');
+  var m2f=function(x){var n=parseFloat(x);return isNaN(n)||n===0?'':Number(n).toLocaleString('es-MX')+' m²';};
+  var sumA=(parseFloat(p.m2Nave)||0)+(parseFloat(p.m2Oficinas)||0)+(parseFloat(p.m2Cuartos)||0);
+  var totM2=sumA>0?sumA:(parseFloat(p.areaM2)||0);
   // estilos
   var hdr='background:#5B4B8A;color:#fff;font-weight:bold;border:.5px solid #4b3f74;padding:6px 8px;font-size:12px';
   var sec='background:#2f3a66;color:#fff;font-weight:bold;border:.5px solid #26305a;padding:5px 8px;font-size:11px;text-align:center';
@@ -1944,14 +1947,14 @@ function exportArranquePrecon(projId){
   html+='<tr><td colspan="4" style="'+sec+'">DATOS GENERALES</td></tr>';
   html+='<tr><td style="'+lbl+'">Nombre del Proyecto</td>'+V(p.nombre)+'<td style="'+lbl+'">Cliente</td>'+V(p.cliente)+'</tr>';
   html+='<tr><td style="'+lbl+'">Ubicación del Proyecto</td>'+V(ubi)+'<td style="'+lbl+'">Tipología</td>'+V(p.tipo)+'</tr>';
-  html+='<tr><td style="'+lbl+'">Liga de ubicación en maps</td><td style="'+bk+'"></td><td style="'+lbl+'">My maps</td><td style="'+bk+'"></td></tr>';
+  html+='<tr><td style="'+lbl+'">Liga de ubicación en maps</td>'+V(p.mapsUrl)+'<td style="'+lbl+'">My maps</td><td style="'+bk+'"></td></tr>';
   html+='<tr><td style="'+lbl+'">Descripción del proyecto</td><td style="'+(p.descripcion?yv:bk)+'" rowspan="5">'+esc(p.descripcion||'')+'</td><td style="'+lbl+'" colspan="2">Programa arquitectónico (m²)</td></tr>';
-  html+='<tr><td style="'+lbl+'">Nave</td><td style="'+bk+'"></td></tr>';
-  html+='<tr><td style="'+lbl+'">Oficinas</td><td style="'+bk+'"></td></tr>';
-  html+='<tr><td style="'+lbl+'">Cuartos exteriores</td><td style="'+bk+'"></td></tr>';
-  html+='<tr><td style="'+lbl+'">Total</td>'+V(p.areaM2?Number(p.areaM2).toLocaleString('es-MX')+' m²':'')+'</tr>';
-  html+='<tr><td style="'+lbl+'">Objetivo del proyecto</td><td style="'+bk+'" colspan="3"></td></tr>';
-  html+='<tr><td style="'+lbl+'">Sistema constructivo general</td><td style="'+bk+'" colspan="3"></td></tr>';
+  html+='<tr><td style="'+lbl+'">Nave</td>'+V(m2f(p.m2Nave))+'</tr>';
+  html+='<tr><td style="'+lbl+'">Oficinas</td>'+V(m2f(p.m2Oficinas))+'</tr>';
+  html+='<tr><td style="'+lbl+'">Cuartos exteriores</td>'+V(m2f(p.m2Cuartos))+'</tr>';
+  html+='<tr><td style="'+lbl+'">Total</td>'+V(m2f(totM2))+'</tr>';
+  html+='<tr><td style="'+lbl+'">Objetivo del proyecto</td><td style="'+(p.objetivo?yv:bk)+'" colspan="3">'+esc(p.objetivo||'')+'</td></tr>';
+  html+='<tr><td style="'+lbl+'">Sistema constructivo general</td><td style="'+(p.sistemaConstructivo?yv:bk)+'" colspan="3">'+esc(p.sistemaConstructivo||'')+'</td></tr>';
   html+='</table><br>';
   // HITOS
   html+='<table border="1" style="border-collapse:collapse;font-family:Arial;width:640px">';
@@ -2998,6 +3001,12 @@ function openProyecto(id,isInterno){
     <div class="fg"><label>Descripción del proyecto</label><textarea id="pdesc" rows="2" placeholder="Un párrafo sobre qué es el proyecto...">${p.descripcion||''}</textarea></div>
     <div class="frow"><div class="fg"><label>Área / Zona</label><input id="parea" value="${p.areaProyecto||''}" placeholder="Ej: Monterrey, Zona Norte..."></div><div class="fg"><label>Ubicación</label><input id="pubicacion" value="${p.ubicacion||''}" placeholder="Ej: Av. Constitución 123"></div></div>
     <div class="frow"><div class="fg"><label>m² de construcción</label><input id="parea_m2" type="number" value="${p.areaM2||''}" placeholder="ej: 20000"><div style="font-size:9px;color:#a8a8a8;margin-top:3px">Se liga a las cotizaciones de este proyecto (se edita solo aquí).</div></div><div class="fg"><label>m² de terreno</label><input id="parea_terreno" type="number" value="${p.areaTerreno||''}" placeholder="ej: 35000"></div></div>
+    <div style="border:.5px solid #d8e6cf;background:#f6fbf2;border-radius:8px;padding:9px 11px;margin-bottom:10px">
+      <div style="font-size:10px;font-weight:700;color:#3B6D11;margin-bottom:7px">📋 Datos de arranque (Precon) <span style="font-weight:400;color:#a8a8a8">— se usan en el botón 📋 Arranque (Excel)</span></div>
+      <div class="frow"><div class="fg"><label>Programa de áreas — Nave (m²)</label><input id="pm2_nave" type="number" value="${p.m2Nave||''}" placeholder="ej: 15000"></div><div class="fg"><label>Oficinas (m²)</label><input id="pm2_oficinas" type="number" value="${p.m2Oficinas||''}" placeholder="ej: 1200"></div><div class="fg"><label>Cuartos exteriores (m²)</label><input id="pm2_cuartos" type="number" value="${p.m2Cuartos||''}" placeholder="ej: 300"></div></div>
+      <div class="fg"><label>Liga de ubicación en My Maps</label><input id="pmaps_url" value="${(p.mapsUrl||'').replace(/"/g,'&quot;')}" placeholder="Pega aquí el enlace de My Maps de este proyecto"></div>
+      <div class="frow"><div class="fg"><label>Objetivo del proyecto</label><input id="pobjetivo" value="${(p.objetivo||'').replace(/"/g,'&quot;')}" placeholder="Objetivo general del proyecto"></div><div class="fg"><label>Sistema constructivo general</label><input id="psistema" value="${(p.sistemaConstructivo||'').replace(/"/g,'&quot;')}" placeholder="ej: Estructura metálica + tilt-up"></div></div>
+    </div>
     ${!isInt?`<div class="frow"><div class="fg"><label>Etapa</label><select id="pet">${['PRECON','EJECUTIVO','REVISIONES'].map(e=>`<option ${p.etapa===e?'selected':''}>${e}</option>`).join('')}</select></div><div class="fg"><label>Jefe de proyecto</label><select id="pjefe"><option value="">— Sin jefe —</option>${jefes.map(j=>`<option value="${j}" ${(p.jefe||"")===j?"selected":""}>${j}</option>`).join("")}</select></div><div class="fg"><label>Coordinador</label><select id="pco"><option value="">—</option>${coordOpts}</select></div></div>`:''}
     <div class="fg"><label>Equipo (personas involucradas)</label>
       <select onchange="addTag(this,'peq-tags','peq-data','person-pill')" style="font-size:11px;padding:5px 8px;border-radius:6px;border:.5px solid #bfd1e5;font-family:Arial"><option value="">+ Agregar persona...</option>${personOpts}</select>
@@ -3227,6 +3236,12 @@ function saveProyecto(id,isInt){
     areaProyecto:document.getElementById('parea')?document.getElementById('parea').value:'',
     areaM2:document.getElementById('parea_m2')?document.getElementById('parea_m2').value.trim():(id?(projects.find(x=>x.id===id).areaM2||''):''),
     areaTerreno:document.getElementById('parea_terreno')?document.getElementById('parea_terreno').value.trim():(id?(projects.find(x=>x.id===id).areaTerreno||''):''),
+    m2Nave:document.getElementById('pm2_nave')?document.getElementById('pm2_nave').value.trim():(id?(projects.find(x=>x.id===id).m2Nave||''):''),
+    m2Oficinas:document.getElementById('pm2_oficinas')?document.getElementById('pm2_oficinas').value.trim():(id?(projects.find(x=>x.id===id).m2Oficinas||''):''),
+    m2Cuartos:document.getElementById('pm2_cuartos')?document.getElementById('pm2_cuartos').value.trim():(id?(projects.find(x=>x.id===id).m2Cuartos||''):''),
+    mapsUrl:document.getElementById('pmaps_url')?document.getElementById('pmaps_url').value.trim():(id?(projects.find(x=>x.id===id).mapsUrl||''):''),
+    objetivo:document.getElementById('pobjetivo')?document.getElementById('pobjetivo').value.trim():(id?(projects.find(x=>x.id===id).objetivo||''):''),
+    sistemaConstructivo:document.getElementById('psistema')?document.getElementById('psistema').value.trim():(id?(projects.find(x=>x.id===id).sistemaConstructivo||''):''),
     ubicacion:document.getElementById('pubicacion')?document.getElementById('pubicacion').value:'',
     estatusProy:document.getElementById('pep')?document.getElementById('pep').value:'',
     docs:{
