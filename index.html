@@ -1939,10 +1939,7 @@ function exportArranquePrecon(projId){
     ['Tipología', p.tipo||''],
     ['Liga de ubicación en maps', p.mapsUrl||''],
     ['Descripción del proyecto', p.descripcion||''],
-    ['Programa de áreas — Nave (m²)', p.m2Nave||''],
-    ['Oficinas (m²)', p.m2Oficinas||''],
-    ['Cuartos exteriores (m²)', p.m2Cuartos||''],
-    ['Total (m² de construcción)', p.areaM2||''],
+    ['Programa de áreas (m² de construcción)', p.areaM2||''],
     ['Objetivo del proyecto', p.objetivo||''],
     ['Sistema constructivo general', p.sistemaConstructivo||''],
     ['— HITOS PRECON —',null],
@@ -2999,8 +2996,7 @@ function openProyecto(id,isInterno){
     <div class="frow"><div class="fg"><label>m² de construcción</label><input id="parea_m2" type="number" value="${p.areaM2||''}" placeholder="ej: 20000"><div style="font-size:9px;color:#a8a8a8;margin-top:3px">Se liga a las cotizaciones de este proyecto (se edita solo aquí).</div></div><div class="fg"><label>m² de terreno</label><input id="parea_terreno" type="number" value="${p.areaTerreno||''}" placeholder="ej: 35000"></div></div>
     <div style="border:.5px solid #d8e6cf;background:#f6fbf2;border-radius:8px;padding:9px 11px;margin-bottom:10px">
       <div style="font-size:10px;font-weight:700;color:#3B6D11;margin-bottom:7px">📋 Datos de arranque (Precon) <span style="font-weight:400;color:#a8a8a8">— se usan en el botón 📋 Arranque (Excel)</span></div>
-      <div style="font-size:9px;color:#a8a8a8;margin-bottom:6px">Desglose opcional del programa de áreas. El <strong>Total</strong> es el campo <strong>m² de construcción</strong> de arriba (ese es el que se conecta a cotizaciones).</div>
-      <div class="frow"><div class="fg"><label>Nave (m²)</label><input id="pm2_nave" type="number" value="${p.m2Nave||''}" placeholder="ej: 15000"></div><div class="fg"><label>Oficinas (m²)</label><input id="pm2_oficinas" type="number" value="${p.m2Oficinas||''}" placeholder="ej: 1200"></div><div class="fg"><label>Cuartos exteriores (m²)</label><input id="pm2_cuartos" type="number" value="${p.m2Cuartos||''}" placeholder="ej: 300"></div></div>
+      <div style="font-size:9px;color:#a8a8a8;margin-bottom:6px">El <strong>Programa de áreas</strong> es el campo <strong>m² de construcción</strong> de arriba (ya conectado a cotizaciones). No se captura aparte.</div>
       <div class="fg"><label>Liga de ubicación en My Maps</label><input id="pmaps_url" value="${(p.mapsUrl||'').replace(/"/g,'&quot;')}" placeholder="Pega aquí el enlace de My Maps de este proyecto"></div>
       <div class="frow"><div class="fg"><label>Objetivo del proyecto</label><input id="pobjetivo" value="${(p.objetivo||'').replace(/"/g,'&quot;')}" placeholder="Objetivo general del proyecto"></div><div class="fg"><label>Sistema constructivo general</label><input id="psistema" value="${(p.sistemaConstructivo||'').replace(/"/g,'&quot;')}" placeholder="ej: Estructura metálica + tilt-up"></div></div>
       <div class="frow"><div class="fg"><label>Junta de arranque Desarrollo - Licitación (fecha)</label><input id="pjunta_des" type="date" value="${p.juntaArranqueDes||''}"></div><div class="fg"><label>Responsable Presupuestos Civil</label><input id="presp_civil" value="${(p.respPresupCivil||'').replace(/"/g,'&quot;')}" placeholder="Nombre"></div><div class="fg"><label>Responsable Presupuestos MEP</label><input id="presp_mep" value="${(p.respPresupMEP||'').replace(/"/g,'&quot;')}" placeholder="Nombre"></div></div>
@@ -3235,9 +3231,6 @@ function saveProyecto(id,isInt){
     areaProyecto:document.getElementById('parea')?document.getElementById('parea').value:'',
     areaM2:document.getElementById('parea_m2')?document.getElementById('parea_m2').value.trim():(id?(projects.find(x=>x.id===id).areaM2||''):''),
     areaTerreno:document.getElementById('parea_terreno')?document.getElementById('parea_terreno').value.trim():(id?(projects.find(x=>x.id===id).areaTerreno||''):''),
-    m2Nave:document.getElementById('pm2_nave')?document.getElementById('pm2_nave').value.trim():(id?(projects.find(x=>x.id===id).m2Nave||''):''),
-    m2Oficinas:document.getElementById('pm2_oficinas')?document.getElementById('pm2_oficinas').value.trim():(id?(projects.find(x=>x.id===id).m2Oficinas||''):''),
-    m2Cuartos:document.getElementById('pm2_cuartos')?document.getElementById('pm2_cuartos').value.trim():(id?(projects.find(x=>x.id===id).m2Cuartos||''):''),
     mapsUrl:document.getElementById('pmaps_url')?document.getElementById('pmaps_url').value.trim():(id?(projects.find(x=>x.id===id).mapsUrl||''):''),
     objetivo:document.getElementById('pobjetivo')?document.getElementById('pobjetivo').value.trim():(id?(projects.find(x=>x.id===id).objetivo||''):''),
     sistemaConstructivo:document.getElementById('psistema')?document.getElementById('psistema').value.trim():(id?(projects.find(x=>x.id===id).sistemaConstructivo||''):''),
