@@ -1922,6 +1922,68 @@ function projColsPanelHtml(){
 function toggleProjColsPanel(){var p=document.getElementById('projcols-panel');if(!p)return;if(p.style.display==='none'){p.innerHTML=projColsPanelHtml();p.style.display='';}else{p.style.display='none';}}
 function toggleProjCol(tab,key){var h=_projHidden(tab).slice();var i=h.indexOf(key);if(i>=0)h.splice(i,1);else h.push(key);sv('gh_projcols_'+tab,h);applyProjColStyle();var p=document.getElementById('projcols-panel');if(p&&p.style.display!=='none')p.innerHTML=projColsPanelHtml();}
 function resetProjCols(tab){sv('gh_projcols_'+tab,[]);applyProjColStyle();var p=document.getElementById('projcols-panel');if(p&&p.style.display!=='none')p.innerHTML=projColsPanelHtml();}
+// ── 📋 Formato de Arranque Precon (Excel), pre-llenado desde el proyecto ──
+function exportArranquePrecon(projId){
+  var p=projects.find(function(x){return x.id===projId;});if(!p)return;
+  var esc=function(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');};
+  var dte=function(s){if(!s)return '';var q=String(s).split('-');return q.length===3?(q[2]+'/'+q[1]+'/'+q[0]):String(s);};
+  var eqNames=(p.equipo||[]).join(', ');
+  var consNames=(p.consultores||[]).map(function(c){return c.nombre+(c.especialidad?' ('+c.especialidad+')':'');}).join(', ');
+  var ubi=[p.areaProyecto,p.ubicacion].filter(Boolean).join(' · ');
+  // estilos
+  var hdr='background:#5B4B8A;color:#fff;font-weight:bold;border:.5px solid #4b3f74;padding:6px 8px;font-size:12px';
+  var sec='background:#2f3a66;color:#fff;font-weight:bold;border:.5px solid #26305a;padding:5px 8px;font-size:11px;text-align:center';
+  var lbl='background:#eef2f6;font-weight:bold;border:.5px solid #cbd5e1;padding:5px 8px;font-size:11px';
+  var yv='border:.5px solid #cbd5e1;padding:5px 8px;font-size:11px;background:#fff7c0';   // valor prellenado
+  var bk='border:.5px solid #cbd5e1;padding:5px 8px;font-size:11px;background:#fffdf0';    // por llenar
+  var th='background:#2f3a66;color:#fff;font-weight:bold;border:.5px solid #26305a;padding:5px 8px;font-size:10px;text-align:left';
+  var V=function(v){return v?('<td style="'+yv+'">'+esc(v)+'</td>'):('<td style="'+bk+'"></td>');};
+  var html='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="UTF-8"></head><body>';
+  html+='<table border="1" style="border-collapse:collapse;font-family:Arial;width:900px">';
+  html+='<tr><td colspan="4" style="'+hdr+'">FORMATO DE ARRANQUE Y SEGUIMIENTO DE LICITACIÓN — 1. Alcance Precon · '+esc(p.nombre||'')+'</td></tr>';
+  html+='<tr><td colspan="4" style="'+sec+'">DATOS GENERALES</td></tr>';
+  html+='<tr><td style="'+lbl+'">Nombre del Proyecto</td>'+V(p.nombre)+'<td style="'+lbl+'">Cliente</td>'+V(p.cliente)+'</tr>';
+  html+='<tr><td style="'+lbl+'">Ubicación del Proyecto</td>'+V(ubi)+'<td style="'+lbl+'">Tipología</td>'+V(p.tipo)+'</tr>';
+  html+='<tr><td style="'+lbl+'">Liga de ubicación en maps</td><td style="'+bk+'"></td><td style="'+lbl+'">My maps</td><td style="'+bk+'"></td></tr>';
+  html+='<tr><td style="'+lbl+'">Descripción del proyecto</td><td style="'+(p.descripcion?yv:bk)+'" rowspan="5">'+esc(p.descripcion||'')+'</td><td style="'+lbl+'" colspan="2">Programa arquitectónico (m²)</td></tr>';
+  html+='<tr><td style="'+lbl+'">Nave</td><td style="'+bk+'"></td></tr>';
+  html+='<tr><td style="'+lbl+'">Oficinas</td><td style="'+bk+'"></td></tr>';
+  html+='<tr><td style="'+lbl+'">Cuartos exteriores</td><td style="'+bk+'"></td></tr>';
+  html+='<tr><td style="'+lbl+'">Total</td>'+V(p.areaM2?Number(p.areaM2).toLocaleString('es-MX')+' m²':'')+'</tr>';
+  html+='<tr><td style="'+lbl+'">Objetivo del proyecto</td><td style="'+bk+'" colspan="3"></td></tr>';
+  html+='<tr><td style="'+lbl+'">Sistema constructivo general</td><td style="'+bk+'" colspan="3"></td></tr>';
+  html+='</table><br>';
+  // HITOS
+  html+='<table border="1" style="border-collapse:collapse;font-family:Arial;width:640px">';
+  html+='<tr><td colspan="3" style="'+sec+'">HITOS — PRE CONSTRUCCIÓN</td></tr>';
+  html+='<tr><th style="'+th+'">Nombre de hito</th><th style="'+th+'">Fecha</th><th style="'+th+'">Responsable</th></tr>';
+  var hitos=[['Junta de arranque Desarrollo - Licitación',''],['Junta de arranque interna - Diseño Precon',dte(p.arranque)],['Visita a sitio',''],['Entrega a presupuestos',''],['Entrega a cliente',dte(p.entregaV1||p.entrega)]];
+  hitos.forEach(function(h){html+='<tr><td style="'+lbl+'">'+esc(h[0])+'</td>'+(h[1]?'<td style="'+yv+'">'+esc(h[1])+'</td>':'<td style="'+bk+'"></td>')+'<td style="'+bk+'"></td></tr>';});
+  html+='</table><br>';
+  // ROLES
+  html+='<table border="1" style="border-collapse:collapse;font-family:Arial;width:520px">';
+  html+='<tr><td colspan="2" style="'+sec+'">ROLES — PRE CONSTRUCCIÓN</td></tr>';
+  html+='<tr><th style="'+th+'">Rol</th><th style="'+th+'">Nombre</th></tr>';
+  var roles=[['Responsable Presupuestos civil',''],['Responsable Presupuestos MEP',''],['Responsable Diseño',p.coord||''],['Modelador',''],['Presupuestador','']];
+  roles.forEach(function(r){html+='<tr><td style="'+lbl+'">'+esc(r[0])+'</td>'+(r[1]?'<td style="'+yv+'">'+esc(r[1])+'</td>':'<td style="'+bk+'"></td>')+'</tr>';});
+  html+='</table><br>';
+  // Ayuda: equipo/consultores que ya hay en la app (para llenar roles rápido)
+  html+='<table border="1" style="border-collapse:collapse;font-family:Arial;width:900px">';
+  html+='<tr><td colspan="2" style="'+sec+'">Referencia (ya registrado en la app — para llenar roles)</td></tr>';
+  html+='<tr><td style="'+lbl+'">Coordinador</td>'+V(p.coord)+'</tr>';
+  html+='<tr><td style="'+lbl+'">Jefe</td>'+V(p.jefe)+'</tr>';
+  html+='<tr><td style="'+lbl+'">Equipo</td>'+V(eqNames)+'</tr>';
+  html+='<tr><td style="'+lbl+'">Consultores</td>'+V(consNames)+'</tr>';
+  html+='<tr><td style="'+lbl+'">Estructurista</td>'+V(p.estructurista)+'</tr>';
+  html+='</table>';
+  html+='<div style="font-family:Arial;font-size:9px;color:#888;margin-top:8px">Pre-llenado desde la app el '+dte(todayStr)+'. Las celdas en amarillo claro están por llenar. Completa y pega en tu formato maestro.</div>';
+  html+='</body></html>';
+  var blob=new Blob(['﻿'+html],{type:'application/vnd.ms-excel;charset=utf-8'});
+  var a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  var safe=String(p.nombre||'proyecto').replace(/[^\w\-]+/g,'_').slice(0,40);
+  a.download='Arranque_Precon_'+safe+'.xls';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(function(){URL.revokeObjectURL(a.href);},2000);
+}
 function renderProyectos(){
   const tab=getProjSubTab();
   applyProjColStyle();
@@ -2006,6 +2068,7 @@ function renderProyectos(){
         <td class="no-print" style="white-space:nowrap">
           <button class="btn btn-sm" onclick="openProyecto(${p.id},false)" style="margin-right:2px">Editar</button>
           <button class="btn btn-sm" onclick="abrirSeguimientoProyecto(${p.id})" style="margin-right:2px;background:#EEF2FF;color:#254467;border-color:#C7D2FE">+Seg</button>
+          <button class="btn btn-sm" onclick="exportArranquePrecon(${p.id})" title="Descargar el Formato de Arranque Precon en Excel, pre-llenado" style="margin-right:2px;background:#f0f8ec;color:#3B6D11;border-color:#9fc77f">📋 Arranque</button>
           ${esPrecon?`<button class="btn btn-sm" onclick="openFirmarContrato(${p.id})" style="margin-right:2px;background:#eaf3de;color:#3B6D11;border-color:#6EE7B7">✍ Firmar</button>`:''}
           <button class="btn btn-sm btn-danger" onclick="archivar(${p.id})">Arch.</button>
         </td>
