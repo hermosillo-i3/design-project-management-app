@@ -1931,8 +1931,7 @@ function exportArranquePrecon(projId){
   var consNames=(p.consultores||[]).map(function(c){return c.nombre+(c.especialidad?' ('+c.especialidad+')':'');}).join(', ');
   var ubi=[p.areaProyecto,p.ubicacion].filter(Boolean).join(' · ');
   var m2f=function(x){var n=parseFloat(x);return isNaN(n)||n===0?'':Number(n).toLocaleString('es-MX')+' m²';};
-  var sumA=(parseFloat(p.m2Nave)||0)+(parseFloat(p.m2Oficinas)||0)+(parseFloat(p.m2Cuartos)||0);
-  var totM2=sumA>0?sumA:(parseFloat(p.areaM2)||0);
+  var totM2=parseFloat(p.areaM2)||0; // Total programa de áreas = m² de construcción (valor conectado)
   // estilos
   var hdr='background:#5B4B8A;color:#fff;font-weight:bold;border:.5px solid #4b3f74;padding:6px 8px;font-size:12px';
   var sec='background:#2f3a66;color:#fff;font-weight:bold;border:.5px solid #26305a;padding:5px 8px;font-size:11px;text-align:center';
@@ -1960,14 +1959,14 @@ function exportArranquePrecon(projId){
   html+='<table border="1" style="border-collapse:collapse;font-family:Arial;width:640px">';
   html+='<tr><td colspan="3" style="'+sec+'">HITOS — PRE CONSTRUCCIÓN</td></tr>';
   html+='<tr><th style="'+th+'">Nombre de hito</th><th style="'+th+'">Fecha</th><th style="'+th+'">Responsable</th></tr>';
-  var hitos=[['Junta de arranque Desarrollo - Licitación',''],['Junta de arranque interna - Diseño Precon',dte(p.arranque)],['Visita a sitio',''],['Entrega a presupuestos',''],['Entrega a cliente',dte(p.entregaV1||p.entrega)]];
+  var hitos=[['Junta de arranque Desarrollo - Licitación',dte(p.juntaArranqueDes)],['Junta de arranque interna - Diseño Precon',dte(p.arranque)],['Visita a sitio',''],['Entrega a presupuestos',''],['Entrega a cliente',dte(p.entregaV1||p.entrega)]];
   hitos.forEach(function(h){html+='<tr><td style="'+lbl+'">'+esc(h[0])+'</td>'+(h[1]?'<td style="'+yv+'">'+esc(h[1])+'</td>':'<td style="'+bk+'"></td>')+'<td style="'+bk+'"></td></tr>';});
   html+='</table><br>';
   // ROLES
   html+='<table border="1" style="border-collapse:collapse;font-family:Arial;width:520px">';
   html+='<tr><td colspan="2" style="'+sec+'">ROLES — PRE CONSTRUCCIÓN</td></tr>';
   html+='<tr><th style="'+th+'">Rol</th><th style="'+th+'">Nombre</th></tr>';
-  var roles=[['Responsable Presupuestos civil',''],['Responsable Presupuestos MEP',''],['Responsable Diseño',p.coord||''],['Modelador',''],['Presupuestador','']];
+  var roles=[['Responsable Presupuestos civil',p.respPresupCivil||''],['Responsable Presupuestos MEP',p.respPresupMEP||''],['Responsable Diseño',p.coord||''],['Modelador',''],['Presupuestador','']];
   roles.forEach(function(r){html+='<tr><td style="'+lbl+'">'+esc(r[0])+'</td>'+(r[1]?'<td style="'+yv+'">'+esc(r[1])+'</td>':'<td style="'+bk+'"></td>')+'</tr>';});
   html+='</table><br>';
   // Ayuda: equipo/consultores que ya hay en la app (para llenar roles rápido)
@@ -3003,9 +3002,12 @@ function openProyecto(id,isInterno){
     <div class="frow"><div class="fg"><label>m² de construcción</label><input id="parea_m2" type="number" value="${p.areaM2||''}" placeholder="ej: 20000"><div style="font-size:9px;color:#a8a8a8;margin-top:3px">Se liga a las cotizaciones de este proyecto (se edita solo aquí).</div></div><div class="fg"><label>m² de terreno</label><input id="parea_terreno" type="number" value="${p.areaTerreno||''}" placeholder="ej: 35000"></div></div>
     <div style="border:.5px solid #d8e6cf;background:#f6fbf2;border-radius:8px;padding:9px 11px;margin-bottom:10px">
       <div style="font-size:10px;font-weight:700;color:#3B6D11;margin-bottom:7px">📋 Datos de arranque (Precon) <span style="font-weight:400;color:#a8a8a8">— se usan en el botón 📋 Arranque (Excel)</span></div>
-      <div class="frow"><div class="fg"><label>Programa de áreas — Nave (m²)</label><input id="pm2_nave" type="number" value="${p.m2Nave||''}" placeholder="ej: 15000"></div><div class="fg"><label>Oficinas (m²)</label><input id="pm2_oficinas" type="number" value="${p.m2Oficinas||''}" placeholder="ej: 1200"></div><div class="fg"><label>Cuartos exteriores (m²)</label><input id="pm2_cuartos" type="number" value="${p.m2Cuartos||''}" placeholder="ej: 300"></div></div>
+      <div style="font-size:9px;color:#a8a8a8;margin-bottom:6px">Desglose opcional del programa de áreas. El <strong>Total</strong> es el campo <strong>m² de construcción</strong> de arriba (ese es el que se conecta a cotizaciones).</div>
+      <div class="frow"><div class="fg"><label>Nave (m²)</label><input id="pm2_nave" type="number" value="${p.m2Nave||''}" placeholder="ej: 15000"></div><div class="fg"><label>Oficinas (m²)</label><input id="pm2_oficinas" type="number" value="${p.m2Oficinas||''}" placeholder="ej: 1200"></div><div class="fg"><label>Cuartos exteriores (m²)</label><input id="pm2_cuartos" type="number" value="${p.m2Cuartos||''}" placeholder="ej: 300"></div></div>
       <div class="fg"><label>Liga de ubicación en My Maps</label><input id="pmaps_url" value="${(p.mapsUrl||'').replace(/"/g,'&quot;')}" placeholder="Pega aquí el enlace de My Maps de este proyecto"></div>
       <div class="frow"><div class="fg"><label>Objetivo del proyecto</label><input id="pobjetivo" value="${(p.objetivo||'').replace(/"/g,'&quot;')}" placeholder="Objetivo general del proyecto"></div><div class="fg"><label>Sistema constructivo general</label><input id="psistema" value="${(p.sistemaConstructivo||'').replace(/"/g,'&quot;')}" placeholder="ej: Estructura metálica + tilt-up"></div></div>
+      <div class="frow"><div class="fg"><label>Junta de arranque Desarrollo - Licitación (fecha)</label><input id="pjunta_des" type="date" value="${p.juntaArranqueDes||''}"></div><div class="fg"><label>Responsable Presupuestos Civil</label><input id="presp_civil" value="${(p.respPresupCivil||'').replace(/"/g,'&quot;')}" placeholder="Nombre"></div><div class="fg"><label>Responsable Presupuestos MEP</label><input id="presp_mep" value="${(p.respPresupMEP||'').replace(/"/g,'&quot;')}" placeholder="Nombre"></div></div>
+      <div style="font-size:9px;color:#a8a8a8;margin-top:2px">La <strong>Junta de arranque interna (Diseño Precon)</strong>, la <strong>Entrega a cliente</strong> y el <strong>Responsable de Diseño</strong> se toman de la Fecha de arranque, la 1ª entrega y el Coordinador de este proyecto.</div>
     </div>
     ${!isInt?`<div class="frow"><div class="fg"><label>Etapa</label><select id="pet">${['PRECON','EJECUTIVO','REVISIONES'].map(e=>`<option ${p.etapa===e?'selected':''}>${e}</option>`).join('')}</select></div><div class="fg"><label>Jefe de proyecto</label><select id="pjefe"><option value="">— Sin jefe —</option>${jefes.map(j=>`<option value="${j}" ${(p.jefe||"")===j?"selected":""}>${j}</option>`).join("")}</select></div><div class="fg"><label>Coordinador</label><select id="pco"><option value="">—</option>${coordOpts}</select></div></div>`:''}
     <div class="fg"><label>Equipo (personas involucradas)</label>
@@ -3242,6 +3244,9 @@ function saveProyecto(id,isInt){
     mapsUrl:document.getElementById('pmaps_url')?document.getElementById('pmaps_url').value.trim():(id?(projects.find(x=>x.id===id).mapsUrl||''):''),
     objetivo:document.getElementById('pobjetivo')?document.getElementById('pobjetivo').value.trim():(id?(projects.find(x=>x.id===id).objetivo||''):''),
     sistemaConstructivo:document.getElementById('psistema')?document.getElementById('psistema').value.trim():(id?(projects.find(x=>x.id===id).sistemaConstructivo||''):''),
+    juntaArranqueDes:document.getElementById('pjunta_des')?document.getElementById('pjunta_des').value:(id?(projects.find(x=>x.id===id).juntaArranqueDes||''):''),
+    respPresupCivil:document.getElementById('presp_civil')?document.getElementById('presp_civil').value.trim():(id?(projects.find(x=>x.id===id).respPresupCivil||''):''),
+    respPresupMEP:document.getElementById('presp_mep')?document.getElementById('presp_mep').value.trim():(id?(projects.find(x=>x.id===id).respPresupMEP||''):''),
     ubicacion:document.getElementById('pubicacion')?document.getElementById('pubicacion').value:'',
     estatusProy:document.getElementById('pep')?document.getElementById('pep').value:'',
     docs:{
