@@ -1963,6 +1963,30 @@ function exportArranquePrecon(projId){
   a.download='Arranque_Precon_'+safe+'.xls';
   document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(function(){URL.revokeObjectURL(a.href);},2000);
 }
+// 📧 Abre un correo ya redactado con los datos de arranque (no se envía: solo abre el borrador)
+function emailArranque(projId){
+  var p=projects.find(function(x){return x.id===projId;});if(!p)return;
+  var dte=function(s){if(!s)return '(por definir)';var q=String(s).split('-');return q.length===3?(q[2]+'/'+q[1]+'/'+q[0]):String(s);};
+  var vv=function(s){return (s&&String(s).trim())?String(s):'(por definir)';};
+  var campos=[
+    ['Nombre del Proyecto', vv(p.nombre)],
+    ['Cliente', vv(p.cliente)],
+    ['Tipología', vv(p.tipo)],
+    ['Descripción del proyecto', vv(p.descripcion)],
+    ['Junta de arranque Desarrollo - Licitación', dte(p.juntaArranqueDes)],
+    ['Junta de arranque interna - Diseño Precon', dte(p.arranque)],
+    ['Entrega a cliente', dte(p.entregaV1||p.entrega)],
+    ['Responsable Presupuestos Civil', vv(p.respPresupCivil)],
+    ['Responsable Presupuestos MEP', vv(p.respPresupMEP)],
+    ['Responsable Diseño', vv(p.coord)]
+  ];
+  var subject='Arranque de proyecto — '+(p.nombre||'');
+  var body='Hola,\n\nTe comparto los datos de arranque para que los vacíes en el formato "1. Alcance Precon":\n\n';
+  campos.forEach(function(c){body+='• '+c[0]+': '+c[1]+'\n';});
+  body+='\nQuedo al pendiente. Gracias.';
+  var href='mailto:?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(body);
+  window.location.href=href;
+}
 function renderProyectos(){
   const tab=getProjSubTab();
   applyProjColStyle();
@@ -2048,6 +2072,7 @@ function renderProyectos(){
           <button class="btn btn-sm" onclick="openProyecto(${p.id},false)" style="margin-right:2px">Editar</button>
           <button class="btn btn-sm" onclick="abrirSeguimientoProyecto(${p.id})" style="margin-right:2px;background:#EEF2FF;color:#254467;border-color:#C7D2FE">+Seg</button>
           <button class="btn btn-sm" onclick="exportArranquePrecon(${p.id})" title="Descargar el Formato de Arranque Precon en Excel, pre-llenado" style="margin-right:2px;background:#f0f8ec;color:#3B6D11;border-color:#9fc77f">📋 Arranque</button>
+          <button class="btn btn-sm" onclick="emailArranque(${p.id})" title="Abrir un correo ya redactado con los datos de arranque (para el coordinador)" style="margin-right:2px;background:#eef3ff;color:#254a8b;border-color:#b9c9ee">📧 Correo</button>
           ${esPrecon?`<button class="btn btn-sm" onclick="openFirmarContrato(${p.id})" style="margin-right:2px;background:#eaf3de;color:#3B6D11;border-color:#6EE7B7">✍ Firmar</button>`:''}
           <button class="btn btn-sm btn-danger" onclick="archivar(${p.id})">Arch.</button>
         </td>
