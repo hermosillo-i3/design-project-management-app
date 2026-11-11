@@ -1984,8 +1984,9 @@ function emailArranque(projId){
   var body='Hola,\n\nTe comparto los datos de arranque para que los vacíes en el formato "1. Alcance Precon":\n\n';
   campos.forEach(function(c){body+='• '+c[0]+': '+c[1]+'\n';});
   body+='\nQuedo al pendiente. Gracias.';
-  var href='mailto:?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(body);
-  window.location.href=href;
+  // Abre Gmail directo en el navegador (no requiere app de correo)
+  var url='https://mail.google.com/mail/?view=cm&fs=1&su='+encodeURIComponent(subject)+'&body='+encodeURIComponent(body);
+  window.open(url,'_blank');
 }
 function renderProyectos(){
   const tab=getProjSubTab();
