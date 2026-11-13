@@ -414,6 +414,7 @@ body.qas-env{padding-top:32px}
     <h2 class="pdf-sh" style="display:none">Carga del equipo</h2>
     <div class="no-print" style="margin-bottom:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">
       <button class="btn btn-ghost btn-sm" onclick="openAddPersona()">+ Agregar persona</button>
+      <button class="btn btn-sm" onclick="openBuscarTarea()" style="border:.5px solid #6990ab;color:#6990ab;font-weight:700">🔎 Buscar tarea</button>
       <select id="equipo-view" onchange="renderEquipo()" style="font-size:11px;padding:4px 8px;border-radius:6px;border:.5px solid #bfd1e5;font-family:Arial">
         <option value="cards">Vista tarjetas</option>
         <option value="org">Organigrama</option>
@@ -4305,6 +4306,50 @@ function saveSeguimiento(id){
 }
 function deleteSeguimiento(id,idx){var p=cat.personas.find(function(x){return x.id===id;});if(!p||!p.seguimiento)return;if(!confirm('¿Eliminar esta nota?'))return;p.seguimiento.splice(idx,1);sv(K.cat,cat);fichaReopen(id);}
 
+// 🔎 Buscar una tarea/pendiente por palabra clave (incluye archivadas y completadas)
+function openBuscarTarea(preNombre){
+  var names=Array.from(new Set([].concat((cat.personas||[]).map(function(x){return x.nombre;}),(cat.consultores||[]).map(function(x){return x.nombre;})).filter(Boolean))).sort(function(a,b){return a.localeCompare(b);});
+  var opts='<option value="">— Todas las personas —</option>'+names.map(function(n){return '<option value="'+String(n).replace(/"/g,'&quot;')+'"'+(preNombre===n?' selected':'')+'>'+String(n).replace(/</g,'&lt;')+'</option>';}).join('');
+  document.getElementById('modal-body').innerHTML=
+    '<h3 style="margin-bottom:4px;color:#254467">🔎 Buscar tarea / pendiente</h3>'
+    +'<div style="font-size:11px;color:#67727a;margin-bottom:10px">Busca en TODAS las tareas (incluye archivadas y completadas), por su texto o por las notas.</div>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:9px">'
+    +'<input id="bt-q" oninput="buscarTareasRender()" placeholder="Palabra clave, ej: orden de compra" style="flex:1;min-width:190px;font-size:12px;padding:7px 10px;border:.5px solid #bfd1e5;border-radius:7px;font-family:Arial">'
+    +'<select id="bt-persona" onchange="buscarTareasRender()" style="font-size:11px;padding:6px 9px;border-radius:7px;border:.5px solid #bfd1e5;font-family:Arial">'+opts+'</select>'
+    +'</div>'
+    +'<label style="font-size:11px;color:#67727a;display:flex;align-items:center;gap:5px;margin-bottom:10px"><input type="checkbox" id="bt-soloarch" onchange="buscarTareasRender()"> Solo archivadas / completadas</label>'
+    +'<div id="bt-results" style="max-height:340px;overflow:auto;border:.5px solid #eef2f6;border-radius:8px"></div>'
+    +'<div class="btn-row" style="margin-top:12px"><button class="btn" onclick="closeModal()">Cerrar</button></div>';
+  openModal();
+  buscarTareasRender();
+}
+function buscarTareasRender(){
+  var qi=document.getElementById('bt-q');if(!qi)return;
+  var q=(qi.value||'').trim().toLowerCase();
+  var per=document.getElementById('bt-persona').value;
+  var soloArch=document.getElementById('bt-soloarch').checked;
+  var el=document.getElementById('bt-results');if(!el)return;
+  if(!q){el.innerHTML='<div style="font-size:11px;color:#a8a8a8;padding:12px">Escribe una palabra para buscar…</div>';return;}
+  var esc=function(s){return String(s==null?'':s).replace(/</g,'&lt;');};
+  var res=tasks.filter(function(t){
+    if(per&&t.asignado!==per)return false;
+    if(soloArch&&!(t.archivado||t.done))return false;
+    var hay=String(t.texto||'').toLowerCase().indexOf(q)>=0;
+    if(!hay&&t.notas)hay=t.notas.some(function(n){return String(n.texto||'').toLowerCase().indexOf(q)>=0;});
+    return hay;
+  }).sort(function(a,b){return String(b.fechaPedido||b.fecha||'').localeCompare(String(a.fechaPedido||a.fecha||''));});
+  if(!res.length){el.innerHTML='<div style="font-size:11px;color:#a8a8a8;padding:12px">Sin resultados para "'+esc(q)+'".</div>';return;}
+  el.innerHTML='<div style="font-size:10px;color:#a8a8a8;padding:6px 10px">'+res.length+' resultado(s)</div>'+res.map(function(t){
+    var pr=projects.find(function(x){return x.id===t.projId;});
+    var estado=t.archivado?'<span style="background:#eef2f6;color:#67727a;border-radius:4px;padding:1px 6px;font-size:8px;font-weight:700">ARCHIVADA</span>':(t.done?'<span style="background:#eaf3de;color:#3B6D11;border-radius:4px;padding:1px 6px;font-size:8px;font-weight:700">COMPLETADA</span>':'<span style="background:#fff4e5;color:#854f0b;border-radius:4px;padding:1px 6px;font-size:8px;font-weight:700">ABIERTA</span>');
+    var notasMatch=(t.notas||[]).filter(function(n){return String(n.texto||'').toLowerCase().indexOf(q)>=0;});
+    return '<div style="padding:8px 10px;border-top:.5px solid #eef2f6">'
+      +'<div style="font-size:12px;color:#1A1A2E;line-height:1.4">'+esc(t.texto||'')+' '+estado+'</div>'
+      +'<div style="font-size:9px;color:#67727a;margin-top:3px">'+(t.asignado?'👤 '+esc(t.asignado):'')+(pr?' · '+esc(pr.nombre)+(pr.archivado?' <span style="color:#a8a8a8">(proy. arch.)</span>':''):'')+(t.fechaPedido?' · pedido '+fmtD(t.fechaPedido):'')+(t.fechaCompromiso?' · compromiso '+fmtD(t.fechaCompromiso):'')+'</div>'
+      +notasMatch.map(function(n){return '<div style="font-size:10px;color:#475569;background:#f8fafc;border-radius:4px;padding:2px 6px;margin-top:3px">📝 '+(n.fecha?esc(n.fecha)+' · ':'')+esc(n.texto)+'</div>';}).join('')
+      +'</div>';
+  }).join('');
+}
 function renderEquipo(){
   const view=document.getElementById('equipo-view')?document.getElementById('equipo-view').value:'cards';
   const sortBy=document.getElementById('equipo-sort')?document.getElementById('equipo-sort').value:'alpha';
